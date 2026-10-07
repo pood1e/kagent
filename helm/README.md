@@ -27,9 +27,11 @@ helm install kagent ./helm/kagent/ --namespace kagent --set providers.default=mi
 The Helm chart does not deploy or initialize PostgreSQL. It expects a prepared
 database and connection Secrets. `kagent install` creates a development
 PostgreSQL instance, prepares the identities below, and then invokes Helm.
+The CLI installs Substrate as a separate release in `ate-system` before it
+installs Kagent.
 To use `kagent install` with an already prepared database, pass
-`--skip-database-setup` and provide the Secret names through
-`KAGENT_HELM_EXTRA_ARGS` `--set` overrides.
+`--skip-database-setup` and provide the Kagent and Substrate Secret names through
+`KAGENT_HELM_EXTRA_ARGS` and `KAGENT_SUBSTRATE_HELM_EXTRA_ARGS` respectively.
 
 Kagent and Substrate use separate schemas and identities in one database:
 

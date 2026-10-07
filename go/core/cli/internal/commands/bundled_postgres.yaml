@@ -144,7 +144,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: substrate-postgres-readwrite
-  namespace: ${NAMESPACE}
+  namespace: ${SUBSTRATE_NAMESPACE}
 type: Opaque
 stringData:
   readWriteConnectionString: postgresql://substrate_readwrite_user:substrate-readwrite@kagent-postgresql.${NAMESPACE}.svc:5432/kagent?sslmode=disable
@@ -153,7 +153,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: substrate-postgres-owner
-  namespace: ${NAMESPACE}
+  namespace: ${SUBSTRATE_NAMESPACE}
 type: Opaque
 stringData:
   ownerConnectionString: postgresql://substrate_owner_user:substrate-owner@kagent-postgresql.${NAMESPACE}.svc:5432/kagent?sslmode=disable

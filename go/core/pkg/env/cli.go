@@ -26,7 +26,28 @@ var (
 	KagentHelmExtraArgs = RegisterStringVar(
 		"KAGENT_HELM_EXTRA_ARGS",
 		"",
-		"Additional Helm --set overrides, for example --set substrate.enabled=true.",
+		"Additional Helm --set overrides for the Kagent chart.",
+		ComponentCLI,
+	)
+
+	KagentSubstrateHelmRepo = RegisterStringVar(
+		"KAGENT_SUBSTRATE_HELM_REPO",
+		"oci://ghcr.io/kagent-dev/substrate/helm/",
+		"Helm repository URL for Substrate charts.",
+		ComponentCLI,
+	)
+
+	KagentSubstrateHelmVersion = RegisterStringVar(
+		"KAGENT_SUBSTRATE_HELM_VERSION",
+		"",
+		"Substrate Helm chart version to deploy. When unset, the CLI uses its pinned Substrate version.",
+		ComponentCLI,
+	)
+
+	KagentSubstrateHelmExtraArgs = RegisterStringVar(
+		"KAGENT_SUBSTRATE_HELM_EXTRA_ARGS",
+		"",
+		"Additional Helm --set overrides for the Substrate chart.",
 		ComponentCLI,
 	)
 )

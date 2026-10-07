@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/kagent-dev/kagent/go/core/cli/internal/connection"
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/yaml"
 )
@@ -42,7 +43,7 @@ case "$*" in
     echo 'Error from server (NotFound): secrets "postgres-admin" not found' >&2
     exit 1
     ;;
-  *"exec deployment/kagent-postgresql"*)
+  *"exec -i deployment/kagent-postgresql"*)
     cat > "$KAGENT_TEST_SQL"
     ;;
   *)
@@ -62,7 +63,14 @@ esac
 		"apply --server-side --field-manager=kagent-cli -f -",
 		"-n demo get secret postgres-admin",
 		"-n demo rollout status deployment/kagent-postgresql --timeout=5m",
-		"-n demo exec deployment/kagent-postgresql -c postgresql -- psql",
+		"-n demo exec -i deployment/kagent-postgresql -c postgresql -- psql",
+		"--set=substrate_schema=substrate",
+		"--set=substrate_owner_role=substrate_owner",
+		"--set=substrate_owner_user=substrate_owner_user",
+		"--set=substrate_owner_password=substrate-owner",
+		"--set=substrate_readwrite_role=substrate_readwrite",
+		"--set=substrate_readwrite_user=substrate_readwrite_user",
+		"--set=substrate_readwrite_password=substrate-readwrite",
 	} {
 		require.Contains(t, string(commands), want)
 	}
@@ -80,7 +88,7 @@ func TestBundledPostgresAssets(t *testing.T) {
 	manifests := []string{
 		strings.ReplaceAll(bundledPostgresNamespaceYAML, "${NAMESPACE}", "demo"),
 		strings.NewReplacer("${NAMESPACE}", "demo", "${PASSWORD}", "secret").Replace(bundledPostgresAdminSecretYAML),
-		strings.ReplaceAll(bundledPostgresYAML, "${NAMESPACE}", "demo"),
+		strings.NewReplacer("${NAMESPACE}", "demo", "${SUBSTRATE_NAMESPACE}", substrateNamespace).Replace(bundledPostgresYAML),
 	}
 	manifest := strings.Join(manifests, "\n---\n")
 	for _, document := range strings.Split(manifest, "\n---\n") {
@@ -93,6 +101,7 @@ func TestBundledPostgresAssets(t *testing.T) {
 	require.Contains(t, manifest, "name: kagent-postgres")
 	require.Contains(t, manifest, "name: substrate-postgres-readwrite")
 	require.Contains(t, manifest, "name: substrate-postgres-owner")
+	require.Contains(t, manifest, "namespace: ate-system")
 	for _, want := range []string{"kagent_owner", "kagent_user", "substrate_owner", "substrate_readwrite"} {
 		require.Contains(t, bundledPostgresSetupSQL(), want)
 	}
@@ -103,9 +112,43 @@ func TestInstallDatabaseAndHelmOverrides(t *testing.T) {
 	cmd := NewInstallCmd()
 	require.NotNil(t, cmd.Flags().Lookup("skip-database-setup"))
 
-	t.Setenv("KAGENT_HELM_EXTRA_ARGS", "--set substrate.enabled=true --set ui.replicas=0")
+	t.Setenv("KAGENT_HELM_EXTRA_ARGS", "--set ui.replicas=0")
 	config := setupHelmConfig("openAI", "fake")
-	require.Contains(t, config.values, "substrate.enabled=true")
+	require.Contains(t, config.values, "controller.substrate.enabled=true")
 	require.Contains(t, config.values, "ui.replicas=0")
-	require.Equal(t, []string{"substrate.enabled=true"}, crdChartValues(config.values))
+	require.Empty(t, crdChartValues(config.values))
+
+	t.Setenv("KAGENT_SUBSTRATE_HELM_REPO", "./substrate-charts/")
+	t.Setenv("KAGENT_SUBSTRATE_HELM_VERSION", "v1.2.3")
+	t.Setenv("KAGENT_SUBSTRATE_HELM_EXTRA_ARGS", "--set rustfs.enabled=false")
+	substrateConfig := setupSubstrateHelmConfig()
+	require.Equal(t, "./substrate-charts/", substrateConfig.registry)
+	require.Equal(t, "v1.2.3", substrateConfig.version)
+	require.Equal(t, []string{"rustfs.enabled=false"}, substrateConfig.values)
+}
+
+func TestInstallUsesSeparateSubstrateReleases(t *testing.T) {
+	dir := t.TempDir()
+	logPath := filepath.Join(dir, "helm.log")
+	helm := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$KAGENT_TEST_HELM_LOG\"\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "helm"), []byte(helm), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "kubectl"), []byte("#!/bin/sh\nexit 1\n"), 0o700))
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("KAGENT_TEST_HELM_LOG", logPath)
+
+	cfg := connection.DefaultOptions()
+	install(t.Context(), &cfg,
+		helmConfig{registry: "./kagent/", version: "v1"},
+		helmConfig{registry: "./substrate/", version: "v2"},
+		"openAI", true,
+	)
+
+	commands, err := os.ReadFile(logPath)
+	require.NoError(t, err)
+	require.Equal(t, []string{
+		"upgrade --install kagent-crds ./kagent/kagent-crds --version v1 --namespace kagent --create-namespace --wait --history-max 2 --timeout 5m",
+		"upgrade --install substrate-crds ./substrate/substrate-crds --version v2 --namespace ate-system --create-namespace --wait --history-max 2 --timeout 5m",
+		"upgrade --install substrate ./substrate/substrate --version v2 --namespace ate-system --create-namespace --wait --history-max 2 --timeout 5m",
+		"upgrade --install kagent ./kagent/kagent --version v1 --namespace kagent --create-namespace --wait --history-max 2 --timeout 5m",
+	}, strings.Split(strings.TrimSpace(string(commands)), "\n"))
 }

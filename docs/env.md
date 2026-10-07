@@ -94,9 +94,12 @@ This reference covers user-configurable settings for the controller, CLI, standa
 | `GOOGLE_API_KEY` | String | `(none)` | API key for Google Gemini. |
 | `KAGENT_DATABASE_VECTOR_ENABLED` | Boolean | `false` | Enable vector database migrations and vector-backed database functionality. The controller defaults to false. When unset in the CLI, migrations read the controller ConfigMap and fall back to false if it is unavailable. |
 | `KAGENT_DEFAULT_MODEL_PROVIDER` | String | `openAI` | Default LLM provider for agents (e.g. openAI, anthropic, ollama, azureOpenAI). |
-| `KAGENT_HELM_EXTRA_ARGS` | String | `(none)` | Additional Helm --set overrides, for example --set substrate.enabled=true. |
+| `KAGENT_HELM_EXTRA_ARGS` | String | `(none)` | Additional Helm --set overrides for the Kagent chart. |
 | `KAGENT_HELM_REPO` | String | `oci://ghcr.io/kagent-dev/kagent/helm/` | Helm repository URL for kagent charts. |
 | `KAGENT_HELM_VERSION` | String | `(none)` | Helm chart version to deploy. When unset, the CLI uses its own version. |
+| `KAGENT_SUBSTRATE_HELM_EXTRA_ARGS` | String | `(none)` | Additional Helm --set overrides for the Substrate chart. |
+| `KAGENT_SUBSTRATE_HELM_REPO` | String | `oci://ghcr.io/kagent-dev/substrate/helm/` | Helm repository URL for Substrate charts. |
+| `KAGENT_SUBSTRATE_HELM_VERSION` | String | `(none)` | Substrate Helm chart version to deploy. When unset, the CLI uses its pinned Substrate version. |
 | `KAGENT_LOG_LEVEL` | String | `info` | Logging level for the controller, CLI, and Go/Python runtimes, including the Python ADK HTTP server: debug, info, warn, or error. Python also accepts standard Python logging levels. |
 | `KAGENT_POSTGRES_DATABASE_URL` | String | `postgres://postgres:kagent@kagent-postgresql.kagent.svc.cluster.local:5432/postgres` | PostgreSQL connection URL or @file:/absolute/path source, reread for each new connection. The default applies only to the controller; kagent db requires this variable or --db-url. Helm supplies its configured connection URL. |
 | `KUBECONFIG` | String | `(none)` | Kubernetes client configuration file list for the controller, CLI Kubernetes operations, and tests. When unset, client-go uses its normal in-cluster or user kubeconfig discovery. |

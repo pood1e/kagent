@@ -78,11 +78,13 @@ SANDBOX_GUEST_IMG ?= $(DOCKER_REGISTRY)/$(DOCKER_REPO)/$(SANDBOX_GUEST_IMAGE_NAM
 AWK ?= $(shell command -v gawk || command -v awk)
 TOOLS_GO_VERSION ?= $(shell $(AWK) '/^go / { print $$2 }' go/go.mod)
 export GOTOOLCHAIN=go$(TOOLS_GO_VERSION)
+SUBSTRATE_VERSION ?= $(shell $(AWK) '/github\.com\/kagent-dev\/substrate/ { print substr($$5, 2) }' go/go.mod)
 
 # Version information for the build
 LDFLAGS := -X github.com/$(DOCKER_REPO)/go/core/internal/version.Version=$(VERSION) \
            -X github.com/$(DOCKER_REPO)/go/core/internal/version.GitCommit=$(GIT_COMMIT) \
-           -X github.com/$(DOCKER_REPO)/go/core/internal/version.BuildDate=$(BUILD_DATE)
+           -X github.com/$(DOCKER_REPO)/go/core/internal/version.BuildDate=$(BUILD_DATE) \
+           -X github.com/$(DOCKER_REPO)/go/core/internal/version.SubstrateVersion=$(SUBSTRATE_VERSION)
 
 #tools versions
 TOOLS_UV_VERSION ?= 0.10.4
@@ -228,8 +230,6 @@ KMCP_ENABLED ?= true
 KMCP_VERSION ?= $(shell $(AWK) '/github\.com\/kagent-dev\/kmcp/ { print substr($$2, 2) }' go/go.mod) # KMCP version defaults to what's referenced in go.mod
 
 # Substrate
-SUBSTRATE_ENABLED ?= false
-SUBSTRATE_VERSION ?= $(shell $(AWK) '/github\.com\/kagent-dev\/substrate/ { print substr($$5, 2) }' go/go.mod) # Substrate version defaults to the replace target in go.mod
 SUBSTRATE_REPO ?= oci://ghcr.io/kagent-dev/substrate/helm # Override for local dev when consuming a locally-published chart, e.g. oci://localhost:5001/kagent-dev/substrate/helm
 
 HELM_ACTION=upgrade --install
@@ -639,7 +639,12 @@ helm-publish: helm-version
 .PHONY: kagent-cli-install
 kagent-cli-install: ## Build CLI locally, install kagent, and open the dashboard
 kagent-cli-install: use-kind-cluster build-cli-local helm-version
-	KAGENT_HELM_REPO=./helm/ KAGENT_HELM_VERSION=$(VERSION) ./go/core/bin/kagent-local install
+	KAGENT_HELM_REPO=./helm/ \
+	KAGENT_HELM_VERSION=$(VERSION) \
+	KAGENT_SUBSTRATE_HELM_REPO=$(SUBSTRATE_REPO)/ \
+	KAGENT_SUBSTRATE_HELM_VERSION=$(SUBSTRATE_VERSION) \
+	KAGENT_HELM_EXTRA_ARGS="--set registry=$(DOCKER_REGISTRY) --set tag=$(VERSION) --set imagePullPolicy=Always --set controller.image.pullPolicy=Always --set ui.image.pullPolicy=Always $(KAGENT_HELM_EXTRA_ARGS)" \
+	./go/core/bin/kagent-local install
 	KAGENT_HELM_REPO=./helm/ ./go/core/bin/kagent-local dashboard
 
 .PHONY: kagent-cli-port-forward

@@ -95,6 +95,7 @@ func runInstall(ctx context.Context, options connection.Options, cfg *InstallCfg
 	}
 
 	helmConfig := setupHelmConfig(modelProvider, apiKeyValue)
+	substrateHelmConfig := setupSubstrateHelmConfig()
 
 	// setup profile if provided
 	if cfg.Profile = strings.TrimSpace(cfg.Profile); cfg.Profile != "" {
@@ -106,7 +107,7 @@ func runInstall(ctx context.Context, options connection.Options, cfg *InstallCfg
 		helmConfig.inlineValues = profiles.MinimalProfileYaml
 	}
 
-	return install(ctx, &options, helmConfig, modelProvider, cfg.SkipDatabaseSetup)
+	return install(ctx, &options, helmConfig, substrateHelmConfig, modelProvider, cfg.SkipDatabaseSetup)
 }
 
 // helmConfig is the config for the kagent chart
@@ -123,7 +124,7 @@ func crdChartValues(values []string) []string {
 	var result []string
 	for _, value := range values {
 		key, _, _ := strings.Cut(value, "=")
-		if key == "kmcp.enabled" || key == "substrate.enabled" {
+		if key == "kmcp.enabled" {
 			result = append(result, value)
 		}
 	}
@@ -136,6 +137,9 @@ func setupHelmConfig(modelProvider v1alpha3.ModelProvider, apiKeyValue string) h
 	// Build Helm values
 	helmProviderKey := GetModelProviderHelmValuesKey(modelProvider)
 	values := []string{
+		"controller.substrate.enabled=true",
+		"controller.substrate.ateApiEndpoint=dns:///api.ate-system.svc:443",
+		"controller.substrate.atenetRouterURL=http://atenet-router.ate-system.svc:80",
 		fmt.Sprintf("providers.default=%s", helmProviderKey),
 		fmt.Sprintf("providers.%s.apiKey=%s", helmProviderKey, apiKeyValue),
 	}
@@ -162,8 +166,28 @@ func setupHelmConfig(modelProvider v1alpha3.ModelProvider, apiKeyValue string) h
 	}
 }
 
-// install installs kagent and kagent-crds using the helm config
-func install(ctx context.Context, cfg *connection.Options, helmConfig helmConfig, modelProvider v1alpha3.ModelProvider, skipDatabaseSetup bool) *connection.PortForward {
+func setupSubstrateHelmConfig() helmConfig {
+	substrateVersion, versionSet := env.KagentSubstrateHelmVersion.Lookup()
+	if !versionSet {
+		substrateVersion = version.SubstrateVersion
+	}
+
+	values := []string{}
+	for _, value := range strings.Split(env.KagentSubstrateHelmExtraArgs.Get(), "--set") {
+		if value = strings.TrimSpace(value); value != "" {
+			values = append(values, value)
+		}
+	}
+
+	return helmConfig{
+		registry: env.KagentSubstrateHelmRepo.Get(),
+		version:  substrateVersion,
+		values:   values,
+	}
+}
+
+// install installs the Substrate and Kagent releases.
+func install(ctx context.Context, cfg *connection.Options, helmConfig, substrateHelmConfig helmConfig, modelProvider v1alpha3.ModelProvider, skipDatabaseSetup bool) *connection.PortForward {
 	// spinner for installation progress
 	s := spinner.New(spinner.CharSets[35], 100*time.Millisecond)
 
@@ -189,6 +213,13 @@ func install(ctx context.Context, cfg *connection.Options, helmConfig helmConfig
 		}
 	}
 
+	s.Suffix = " Installing substrate-crds from " + substrateHelmConfig.registry
+	if output, err := installChart(ctx, "substrate-crds", substrateNamespace, substrateHelmConfig.registry, substrateHelmConfig.version, nil, ""); err != nil {
+		s.Stop()
+		fmt.Fprintln(os.Stderr, "Error installing substrate-crds:", output)
+		return nil
+	}
+
 	if !skipDatabaseSetup {
 		s.Suffix = " Preparing bundled PostgreSQL"
 		if err := prepareBundledPostgres(ctx, cfg.Namespace); err != nil {
@@ -196,6 +227,13 @@ func install(ctx context.Context, cfg *connection.Options, helmConfig helmConfig
 			fmt.Fprintln(os.Stderr, "Error preparing bundled PostgreSQL:", err)
 			return nil
 		}
+	}
+
+	s.Suffix = " Installing substrate from " + substrateHelmConfig.registry
+	if output, err := installChart(ctx, "substrate", substrateNamespace, substrateHelmConfig.registry, substrateHelmConfig.version, substrateHelmConfig.values, ""); err != nil {
+		s.Stop()
+		fmt.Fprintln(os.Stderr, "Error installing substrate:", output)
+		return nil
 	}
 
 	// Update status

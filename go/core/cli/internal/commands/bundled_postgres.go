@@ -27,7 +27,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 )
 
-const postgresAdminSecret = "postgres-admin"
+const (
+	postgresAdminSecret = "postgres-admin"
+	substrateNamespace  = "ate-system"
+)
 
 const bundledPostgresNamespaceYAML = `apiVersion: v1
 kind: Namespace
@@ -71,9 +74,11 @@ func prepareBundledPostgres(ctx context.Context, namespace string) error {
 	if problems := validation.IsDNS1123Label(namespace); len(problems) != 0 {
 		return fmt.Errorf("invalid namespace %q: %s", namespace, strings.Join(problems, ", "))
 	}
-	ns := strings.ReplaceAll(bundledPostgresNamespaceYAML, "${NAMESPACE}", namespace)
-	if _, err := kubectl(ctx, ns, "apply", "--server-side", "--field-manager=kagent-cli", "-f", "-"); err != nil {
-		return fmt.Errorf("create PostgreSQL namespace: %w", err)
+	for _, targetNamespace := range []string{namespace, substrateNamespace} {
+		ns := strings.ReplaceAll(bundledPostgresNamespaceYAML, "${NAMESPACE}", targetNamespace)
+		if _, err := kubectl(ctx, ns, "apply", "--server-side", "--field-manager=kagent-cli", "-f", "-"); err != nil {
+			return fmt.Errorf("create namespace %q: %w", targetNamespace, err)
+		}
 	}
 
 	if out, err := kubectl(ctx, "", "-n", namespace, "get", "secret", postgresAdminSecret); err != nil {
@@ -86,7 +91,7 @@ func prepareBundledPostgres(ctx context.Context, namespace string) error {
 		}
 	}
 
-	manifest := strings.ReplaceAll(bundledPostgresYAML, "${NAMESPACE}", namespace)
+	manifest := strings.NewReplacer("${NAMESPACE}", namespace, "${SUBSTRATE_NAMESPACE}", substrateNamespace).Replace(bundledPostgresYAML)
 	if _, err := kubectl(ctx, manifest, "apply", "--server-side", "--field-manager=kagent-cli", "-f", "-"); err != nil {
 		return fmt.Errorf("deploy bundled PostgreSQL: %w", err)
 	}
@@ -95,8 +100,14 @@ func prepareBundledPostgres(ctx context.Context, namespace string) error {
 	}
 
 	var sqlErr bytes.Buffer
-	cmd := exec.CommandContext(ctx, "kubectl", "-n", namespace, "exec", "deployment/kagent-postgresql", "-c", "postgresql", "--",
-		"psql", "--no-psqlrc", "--set=ON_ERROR_STOP=1", "--username", "postgres", "--dbname", "kagent")
+	args := []string{"-n", namespace, "exec", "-i", "deployment/kagent-postgresql", "-c", "postgresql", "--",
+		"psql", "--no-psqlrc", "--set=ON_ERROR_STOP=1", "--username", "postgres", "--dbname", "kagent"}
+	cfg := postgressetup.DefaultConfig()
+	// Match the shared database's connection Secrets, independently of Substrate's bundled authentication defaults.
+	cfg.OwnerPassword = "substrate-owner"
+	cfg.ReadWritePassword = "substrate-readwrite"
+	args = append(args, cfg.PSQLArgs()...)
+	cmd := exec.CommandContext(ctx, "kubectl", args...)
 	cmd.Stdin = strings.NewReader(bundledPostgresSetupSQL())
 	cmd.Stderr = &sqlErr
 	if err := cmd.Run(); err != nil {
