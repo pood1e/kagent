@@ -18,6 +18,12 @@ ready after Substrate accepts it. Readiness of the image was already established
 while preparing the ate-api ActorTemplate; Session creation does not resume
 an Actor merely to probe `/readyz`.
 
+The ActorTemplate carries a golden egress policy for the revision's compiled
+destinations, including skill sources needed during preparation. It contains no
+session Secret credentials. Session egress and credentials are applied separately
+when the control plane creates an Actor. The golden policy is part of the bundle
+and its template format version participates in the revision digest.
+
 Substrate v0.6.0-alpha3 requires protocol-specific egress policies and permits
 DNS queries only for hostnames matched by those policies. Kagent allows
 each configured HTTP(S) origin, preserving its scheme, DNS name, and port, and
