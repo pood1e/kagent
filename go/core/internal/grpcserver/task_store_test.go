@@ -97,7 +97,7 @@ type runtimeTaskPolicy struct {
 }
 
 func (p *runtimeTaskPolicy) Check(_ context.Context, principal auth.Principal, _ auth.Verb, resource auth.Resource) error {
-	if principal.Actor != nil && resource.Type == "TaskStore" && p.revoked.Load() {
+	if principal.RuntimeBinding != nil && resource.Type == "TaskStore" && p.revoked.Load() {
 		return fmt.Errorf("runtime task persistence revoked")
 	}
 	return nil
@@ -465,7 +465,7 @@ func TestRuntimeTaskStoreThroughGRPC(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, storedConfigs, 2, "stored configs: %+v", storedConfigs)
 	managedService := sessionsvc.NewInteractionService(store, nil, sessionsvc.NewService(store, &auth.NoopAuthorizer{}, nil), true)
-	serviceCtx := auth.AuthSessionTo(publicCtx, &authimpl.SimpleSession{P: auth.Principal{User: auth.User{ID: "alice"}}})
+	serviceCtx := auth.AuthSessionTo(publicCtx, &authimpl.SimpleSession{P: auth.Principal{ID: "alice"}})
 	servicePage, err := managedService.ListTaskPushConfigs(serviceCtx, types.NamespacedName{Namespace: "team-a", Name: "assistant"},
 		&a2a.ListTaskPushConfigRequest{TaskID: a2a.TaskID(parkedID), PageSize: 1})
 	require.NoError(t, err)

@@ -55,9 +55,9 @@ func TestConfiguredActorPolicyNarrowsNativePermissions(t *testing.T) {
 	resource := auth.Resource{Type: "TaskStore", Namespace: "team-a", Name: store.session.Id}
 	require.NoError(t, policy.Check(ctx, identity.Principal(), auth.VerbCreate, resource))
 	require.Equal(t, identity.Principal(), configured.principal)
-	require.NotNil(t, configured.principal.Actor)
-	require.Equal(t, store.session.Creator, configured.principal.User.ID)
-	require.Equal(t, store.session.Id, configured.principal.Actor.SessionID)
+	require.NotNil(t, configured.principal.RuntimeBinding)
+	require.Equal(t, store.session.Creator, configured.principal.RuntimeBinding.CreatorID)
+	require.Equal(t, store.session.Id, configured.principal.RuntimeBinding.SessionID)
 
 	configured.denied = true
 	require.EqualError(t, policy.Check(ctx, identity.Principal(), auth.VerbCreate, resource), "execution revoked")

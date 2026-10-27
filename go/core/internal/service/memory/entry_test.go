@@ -20,7 +20,7 @@ func (store *memoryStore) DeleteMemoryEntry(_ context.Context, agentName, userID
 func TestManagedMemoryUsesAuthenticatedOwner(t *testing.T) {
 	store := &memoryStore{bindingErr: database.ErrNotFound}
 	service := NewService(store, auth.NoopAuthorizer{})
-	ctx := auth.AuthSessionTo(t.Context(), &authimpl.SimpleSession{P: auth.Principal{User: auth.User{ID: "owner"}}})
+	ctx := auth.AuthSessionTo(t.Context(), &authimpl.SimpleSession{P: auth.Principal{ID: "owner"}})
 	input := Input{AgentName: "team-a/knowledge", Content: "shared finding", Vector: vector(VectorDimension, 1)}
 	_, err := service.Add(ctx, input)
 	require.NoError(t, err)

@@ -33,11 +33,11 @@ type memoryRPCPolicy struct {
 }
 
 func (p *memoryRPCPolicy) Check(_ context.Context, principal auth.Principal, verb auth.Verb, resource auth.Resource) error {
-	if principal.Actor != nil && p.actorsDenied.Load() || principal.Actor == nil && p.denied.Load() ||
-		principal.User.ID == "blocked" || resource.Type != "Memory" || resource.Namespace != "" {
+	if principal.RuntimeBinding != nil && p.actorsDenied.Load() || principal.RuntimeBinding == nil && p.denied.Load() ||
+		principal.ID == auth.PrincipalID("trusted-proxy:", "blocked") || resource.Type != "Memory" || resource.Namespace != "" {
 		return errors.New("denied")
 	}
-	if principal.User.ID == "viewer" && verb != auth.VerbGet && verb != auth.VerbList {
+	if principal.ID == auth.PrincipalID("trusted-proxy:", "viewer") && verb != auth.VerbGet && verb != auth.VerbList {
 		return errors.New("read only")
 	}
 	return nil

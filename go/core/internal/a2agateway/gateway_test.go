@@ -39,7 +39,7 @@ const (
 type gatewayTestAuthSession struct{}
 
 func (gatewayTestAuthSession) Principal() auth.Principal {
-	return auth.Principal{User: auth.User{ID: "alice"}}
+	return auth.Principal{ID: "alice"}
 }
 
 type gatewayTestStore struct {

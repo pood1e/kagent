@@ -137,7 +137,7 @@ func (a *collectionAuthorizer) Scope(_ context.Context, principal auth.Principal
 }
 
 func TestCollectionMatcher(t *testing.T) {
-	principal := auth.Principal{User: auth.User{ID: "reader"}}
+	principal := auth.Principal{ID: "reader"}
 	ctx := auth.AuthSessionTo(t.Context(), &authimpl.SimpleSession{P: principal})
 	for _, test := range []struct {
 		name    string

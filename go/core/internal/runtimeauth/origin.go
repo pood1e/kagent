@@ -13,17 +13,17 @@ import (
 // records the verified runtime that originated a delegated MCP call.
 type originSession struct {
 	auth.Session
-	origin auth.Actor
+	origin auth.RuntimeBinding
 }
 
 // Origin identifies the verified initiating runtime, never a caller supplied ID.
-func Origin(ctx context.Context) *auth.Actor {
+func Origin(ctx context.Context) *auth.RuntimeBinding {
 	session, _ := auth.AuthSessionFrom(ctx)
 	if delegated, ok := session.(originSession); ok {
 		return &delegated.origin
 	}
 	if session != nil {
-		return session.Principal().Actor
+		return session.Principal().RuntimeBinding
 	}
 	return nil
 }
@@ -46,8 +46,8 @@ func (p *Provider) withOrigin(ctx context.Context, headers http.Header, caller a
 	if err != nil {
 		return nil, err
 	}
-	if session.Creator == "" || session.Creator != caller.Principal().User.ID {
+	if session.Creator == "" || session.Creator != caller.Principal().ID {
 		return nil, fmt.Errorf("originating actor belongs to another caller")
 	}
-	return originSession{Session: caller, origin: auth.Actor{SessionID: session.Id}}, nil
+	return originSession{Session: caller, origin: auth.RuntimeBinding{SessionID: session.Id}}, nil
 }

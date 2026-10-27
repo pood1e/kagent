@@ -22,7 +22,7 @@ import (
 type serviceTestSession struct{ userID string }
 
 func (s serviceTestSession) Principal() auth.Principal {
-	return auth.Principal{User: auth.User{ID: s.userID}}
+	return auth.Principal{ID: s.userID}
 }
 
 type serviceTestAuthorizer struct{ err error }
@@ -520,7 +520,7 @@ func TestServiceGetScopesReadsToAuthorizedIdentity(t *testing.T) {
 			}
 			if test.share == nil || !test.share.IsForSession(id) {
 				caller, _ := auth.AuthSessionFrom(ctx)
-				if authorizer.verb != auth.VerbGet || authorizer.resource.Type != "Session" || authorizer.resource.Name != id || authorizer.principal.User.ID != caller.Principal().User.ID {
+				if authorizer.verb != auth.VerbGet || authorizer.resource.Type != "Session" || authorizer.resource.Name != id || authorizer.principal.ID != caller.Principal().ID {
 					t.Fatalf("unexpected authorization: %+v", authorizer)
 				}
 			}
@@ -592,7 +592,7 @@ func TestServiceShareCannotCreateSession(t *testing.T) {
 func TestActorCannotUseShareAuthorityWithoutTransport(t *testing.T) {
 	id := uuid.NewString()
 	ctx := auth.AuthSessionTo(t.Context(), &authimpl.SimpleSession{P: auth.Principal{
-		User: auth.User{ID: "owner"}, Actor: &auth.Actor{SessionID: uuid.NewString()},
+		ID: "owner", RuntimeBinding: &auth.RuntimeBinding{SessionID: uuid.NewString()},
 	}})
 	if _, err := ResolveShare(ctx, nil, "share-token"); !serviceerrors.IsCode(err, serviceerrors.CodePermissionDenied) {
 		t.Fatalf("ResolveShare() = %v, want permission denied before reading the share", err)

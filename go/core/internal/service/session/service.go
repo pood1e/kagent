@@ -410,7 +410,7 @@ func (s *Service) authorize(ctx context.Context, verb auth.Verb, name string) (s
 	}
 	if share, ok := auth.ShareContextFrom(ctx); ok {
 		session, _ := auth.AuthSessionFrom(ctx)
-		if session.Principal().Actor != nil {
+		if session.Principal().RuntimeBinding != nil {
 			return "", serviceerrors.NewPermissionDenied("Actors cannot use share credentials", nil)
 		}
 		if verb != auth.VerbGet {
@@ -432,7 +432,10 @@ func (s *Service) authorizeType(ctx context.Context, verb auth.Verb, resourceTyp
 	if err := s.authorizer.Check(ctx, principal, verb, auth.Resource{Type: resourceType, Name: name}); err != nil {
 		return "", serviceerrors.NewPermissionDenied("Not authorized", err)
 	}
-	return principal.User.ID, nil
+	if principal.RuntimeBinding != nil {
+		return principal.RuntimeBinding.CreatorID, nil
+	}
+	return principal.ID, nil
 }
 
 func validateCreate(agent *apiv1.ResourceReference, requestID string) error {
