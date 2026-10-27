@@ -12,6 +12,7 @@ import (
 	"istio.io/istio/pkg/kube/krt"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 
 	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 	"github.com/kagent-dev/kagent/go/core/internal/egress"
@@ -47,7 +48,7 @@ func (c *Compiler) compileMCP(
 		if server == nil {
 			return mcpCompilation{}, fmt.Errorf("resolved Claude MCP binding has no server")
 		}
-		if server.Spec.TokenPassthrough {
+		if ptr.Deref(server.Spec.TokenPassthrough, false) {
 			return mcpCompilation{}, translator.NewValidationError("Claude does not support RemoteMCPServer %q tokenPassthrough", server.Name)
 		}
 		name := names[i]
@@ -85,6 +86,10 @@ func (c *Compiler) compileMCP(
 		if err != nil {
 			return mcpCompilation{}, err
 		}
+		if server.Spec.ActorJWT != nil {
+			headers = translator.MCPActorJWTHeaders(headers)
+		}
+
 		result.servers[name] = claudeconfig.MCPServer{
 			Type: transport, URL: server.Spec.URL, Headers: headers,
 			RequireApproval: tool.Binding.RequireApproval,
