@@ -16,6 +16,7 @@ import (
 	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 	"github.com/kagent-dev/kagent/go/core/internal/egress"
 	"github.com/kagent-dev/kagent/go/core/internal/translator"
+	"github.com/kagent-dev/kagent/go/core/pkg/egresspolicy"
 	claudeconfig "github.com/kagent-dev/kagent/go/harness/claude/config"
 )
 
@@ -70,6 +71,10 @@ func (c *Compiler) compileMCP(
 		headers, headerEnvironment, err := c.compileMCPHeaders(ctx, namespace, server.Spec.HeadersFrom)
 		if err != nil {
 			return mcpCompilation{}, fmt.Errorf("compile RemoteMCPServer %q headers: %w", server.Name, err)
+		}
+		headers, err = egresspolicy.WithActorIdentity(headers)
+		if err != nil {
+			return mcpCompilation{}, err
 		}
 		result.servers[name] = claudeconfig.MCPServer{
 			Type: transport, URL: server.Spec.URL, Headers: headers,
