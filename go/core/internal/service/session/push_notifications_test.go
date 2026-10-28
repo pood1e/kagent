@@ -26,6 +26,7 @@ import (
 	runtimev1 "github.com/kagent-dev/kagent/go/api/gen/kagent/runtime/v1"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
 	"github.com/kagent-dev/kagent/go/core/internal/service/taskstore"
+	"github.com/kagent-dev/kagent/go/core/pkg/auth"
 )
 
 func TestEmbeddedPushConfig(t *testing.T) {
@@ -515,7 +516,7 @@ func TestPushWorkersDrainAcrossReplicas(t *testing.T) {
 	for range 2 {
 		wake := make(chan struct{}, 1)
 		startPushWorker(t, NewPushWorker(writes, &gatedPushSender{entered: entered, release: release}, nil, wake, time.Hour))
-		services = append(services, taskstore.NewService(store, nil, wake))
+		services = append(services, taskstore.NewService(store, auth.NoopAuthorizer{}, nil, wake))
 	}
 	require.Eventually(t, func() bool { return writes.idle.Load() >= 2 }, 5*time.Second, time.Millisecond)
 	for i := range 2 {
