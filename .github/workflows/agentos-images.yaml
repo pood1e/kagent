@@ -3,6 +3,7 @@ name: AgentOS images
 on:
   push:
     branches: ['agentos/**']
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -41,13 +42,19 @@ jobs:
           cache-dependency-path: go/go.sum
       - run: psql "$KAGENT_TEST_POSTGRES_URL" -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION vector'
       - run: echo "KUBEBUILDER_ASSETS=$(go tool setup-envtest use 1.37 -p path)" >> "$GITHUB_ENV"
-      - name: Install agentgateway verification binary
+      - name: Install the matching gateway test binary
+        env:
+          AGENTGATEWAY_VERSION: v1.7.0
+          AGENTGATEWAY_SHA256: 1b2fc01a2de29ca113bbb6258b5cae7b1eb3c724071c09d687a449132f2f42f8
         run: |
-          curl --fail --location --retry 3 -o /tmp/agentgateway-linux-amd64 \
-            https://github.com/agentgateway/agentgateway/releases/download/v1.7.0/agentgateway-linux-amd64
-          echo '1b2fc01a2de29ca113bbb6258b5cae7b1eb3c724071c09d687a449132f2f42f8  /tmp/agentgateway-linux-amd64' | sha256sum --check
-          chmod +x /tmp/agentgateway-linux-amd64
-          echo 'KAGENT_TEST_AGENTGATEWAY=/tmp/agentgateway-linux-amd64' >> "$GITHUB_ENV"
+          binary="$RUNNER_TEMP/agentgateway"
+          curl --fail --location --retry 3 --connect-timeout 15 --max-time 180 \
+            --proto '=https' --tlsv1.2 \
+            "https://github.com/agentgateway/agentgateway/releases/download/${AGENTGATEWAY_VERSION}/agentgateway-linux-amd64" \
+            --output "$binary"
+          printf '%s  %s\n' "$AGENTGATEWAY_SHA256" "$binary" | sha256sum --check --strict
+          chmod 0755 "$binary"
+          echo "KAGENT_TEST_AGENTGATEWAY=$binary" >> "$GITHUB_ENV"
       - name: Test the AgentOS runtime extensions
         run: |
           go test -race -count=1 ./api/a2a ./core/internal/database ./core/pkg/migrations \
@@ -55,7 +62,9 @@ jobs:
             ./core/internal/service/session ./core/internal/service/tool ./core/internal/service/scheduledrun \
             ./core/internal/controller/scheduledrun ./core/internal/grpcserver ./core/internal/a2agateway \
             ./core/internal/mcp ./core/internal/translator/adkconfig ./core/internal/substrate \
-            ./core/internal/translator ./core/internal/utils
+            ./core/internal/translator ./core/internal/utils \
+            ./core/internal/service/inventory ./core/internal/service/system \
+            ./core/pkg/config ./core/pkg/env ./core/pkg/app
           go test -race -count=1 ./core/internal/translator/claude ./core/internal/translator/codex \
             ./harness/... ./adk/pkg/a2a ./adk/pkg/tools ./adk/pkg/controllerclient ./adk/pkg/taskstore \
             ./adk/pkg/embedding
@@ -86,6 +95,7 @@ jobs:
           retention-days: 1
 
   images:
+    if: github.event_name != 'pull_request'
     needs: verify
     runs-on: ubuntu-24.04
     permissions:
