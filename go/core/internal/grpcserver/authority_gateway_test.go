@@ -64,7 +64,7 @@ func authorityGatewayProof(t *testing.T, callback, token, wrongAudience, subject
 	}
 	handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return upstream }, &mcp.StreamableHTTPOptions{Stateless: true, JSONResponse: true})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "Bearer destination-scoped-token" {
+		if r.Header.Get("Authorization") != "Bearer destination-scoped-token" || r.Header.Get("X-Substrate-Actor-Token") != "" {
 			http.Error(w, "wrong subject credential", http.StatusForbidden)
 			return
 		}
@@ -77,6 +77,38 @@ func authorityGatewayProof(t *testing.T, callback, token, wrongAudience, subject
 	require.NoError(t, listener.Close())
 	// The native ext-authz check has no cache. Static MCP grants select one tool.
 	config := fmt.Sprintf(`{"config":{"adminAddr":"127.0.0.1:0","readinessAddr":"127.0.0.1:0"},"binds":[{"port":%d,"listeners":[{"protocol":"HTTP","routes":[{"name":"native-authority","matches":[{"path":{"pathPrefix":"/mcp"}}],"policies":{"extAuthz":{"host":%q,"failureMode":"deny","includeRequestHeaders":["x-substrate-actor-token"],"protocol":{"http":{"path":"'/authorize/runtime?scope=write&server=team-a/native&credential=subject_token'","addRequestHeaders":{"authorization":"request.headers['x-substrate-actor-token']"},"includeResponseHeaders":["authorization"],"metadata":{"selection":"json(response.body)","scopes":"json(response.headers['x-kagent-scopes'])"}}}}},"backends":[{"mcp":{"prefixMode":"never","statefulMode":"stateless","targets":[{"name":"native","mcp":{"host":%q},"policies":{"backendAuth":{"oauthTokenExchange":{"host":%q,"path":"/token","clientAuth":{"clientId":"destination","clientSecret":"destination-secret","method":"clientSecretBasic"},"audiences":["destination-api"]}}}}]},"policies":{"mcpAuthorization":{"rules":["'write' in extauthz.scopes && (!has(extauthz.selection.tools) || mcp.tool.name in extauthz.selection.tools)"]}}}]}]}]}]}`, port, strings.TrimPrefix(callback, "http://"), server.URL+"/mcp", strings.TrimPrefix(issuer.URL, "http://"))
+	var modelCalls atomic.Int32
+	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Empty(t, r.Header.Get("X-Substrate-Actor-Token"), "Actor proof reached model provider")
+		modelCalls.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"model":"language"}`)
+	}))
+	t.Cleanup(model.Close)
+	var document map[string]any
+	require.NoError(t, json.Unmarshal([]byte(config), &document))
+	listenerConfig := document["binds"].([]any)[0].(map[string]any)["listeners"].([]any)[0].(map[string]any)
+	routes := listenerConfig["routes"].([]any)
+	mcpRoute := routes[0].(map[string]any)
+	mcpPolicies := mcpRoute["backends"].([]any)[0].(map[string]any)["policies"].(map[string]any)
+	mcpPolicies["requestHeaderModifier"] = map[string]any{"remove": []string{"x-substrate-actor-token"}}
+	for _, name := range []string{"language", "other"} {
+		routes = append(routes, map[string]any{
+			"name": name, "matches": []any{map[string]any{"path": map[string]any{"pathPrefix": "/v1/" + name}}},
+			"policies": map[string]any{"extAuthz": map[string]any{
+				"host": strings.TrimPrefix(callback, "http://"), "failureMode": "deny", "includeRequestHeaders": []string{"x-substrate-actor-token"},
+				"protocol": map[string]any{"http": map[string]any{"path": "'/authorize/runtime'", "addRequestHeaders": map[string]string{"authorization": "request.headers['x-substrate-actor-token']"}, "metadata": map[string]string{"models": "json(response.body)"}}},
+			}},
+			"backends": []any{map[string]any{"host": strings.TrimPrefix(model.URL, "http://"), "policies": map[string]any{
+				"authorization":         map[string]any{"rules": []string{"!('x-substrate-actor-token' in request.headers) || extauthz.models.exists(m, m.name == '" + name + "')"}},
+				"requestHeaderModifier": map[string]any{"remove": []string{"x-substrate-actor-token"}},
+			}}},
+		})
+	}
+	listenerConfig["routes"] = routes
+	encoded, err := json.Marshal(document)
+	require.NoError(t, err)
+	config = string(encoded)
 	directory := t.TempDir()
 	path := filepath.Join(directory, "gateway.json")
 	require.NoError(t, os.WriteFile(path, []byte(config), 0600))
@@ -135,8 +167,26 @@ func authorityGatewayProof(t *testing.T, callback, token, wrongAudience, subject
 	}
 	require.Equal(t, int32(1), calls.Load(), "forbidden tools must never reach upstream")
 	require.Positive(t, exchanges.Load(), "RFC 8693 exchange was not used")
+	modelRequest := func(name, proof string, want int) {
+		request, err := http.NewRequestWithContext(t.Context(), http.MethodPost, fmt.Sprintf("http://127.0.0.1:%d/v1/%s", port, name), strings.NewReader(`{"model":"language"}`))
+		require.NoError(t, err)
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("X-Substrate-Actor-Token", "Bearer "+proof)
+		response, err := http.DefaultClient.Do(request)
+		require.NoError(t, err)
+		_, _ = io.Copy(io.Discard, response.Body)
+		require.NoError(t, response.Body.Close())
+		require.Equal(t, want, response.StatusCode, "model target %s", name)
+	}
+	modelRequest("language", token, http.StatusOK)
+	modelRequest("other", token, http.StatusForbidden)
+	modelRequest("language", wrongAudience, http.StatusUnauthorized)
+	modelRequest("language", "forged-token", http.StatusUnauthorized)
+	require.Equal(t, int32(1), modelCalls.Load(), "unselected model reached provider")
 	// The same already-initialized MCP session must lose authority immediately.
 	return func() {
+		modelRequest("language", token, http.StatusForbidden)
+		require.Equal(t, int32(1), modelCalls.Load(), "revoked Actor reached model provider")
 		result, err := client.CallTool(t.Context(), &mcp.CallToolParams{Name: "read_nodes", Arguments: struct{}{}})
 		require.True(t, err != nil || result.IsError, "existing MCP session survived native authority revocation")
 		require.Equal(t, int32(1), calls.Load(), "revoked tool reached upstream")
@@ -150,6 +200,6 @@ func authorityGatewayProof(t *testing.T, callback, token, wrongAudience, subject
 		_, _ = io.Copy(io.Discard, response.Body)
 		require.NoError(t, response.Body.Close())
 		require.Equal(t, http.StatusForbidden, response.StatusCode)
-		t.Log("PASS: real agentgateway -> native pinned MCP selection, live IdP subject token exchange, Actor audience isolation, and revocation of an existing SDK session")
+		t.Log("PASS: real agentgateway -> native pinned model/MCP selection with stripped Actor headers, live IdP subject token exchange, Actor audience isolation, and revocation of an existing SDK session")
 	}
 }
