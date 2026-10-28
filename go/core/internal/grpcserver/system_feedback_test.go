@@ -5,6 +5,7 @@ import (
 	"net"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
@@ -26,11 +27,39 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
+	configv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/config/v1"
 	"github.com/kagent-dev/kagent/go/api/structuredobject"
 	authimpl "github.com/kagent-dev/kagent/go/core/internal/httpserver/auth"
+	"github.com/kagent-dev/kagent/go/core/internal/jwttest"
 	systemservice "github.com/kagent-dev/kagent/go/core/internal/service/system"
 	pkgauth "github.com/kagent-dev/kagent/go/core/pkg/auth"
 )
+
+func TestCurrentUserOIDCGeneratedClient(t *testing.T) {
+	issuer := jwttest.New(t)
+	provider, err := authimpl.NewOIDCAuthenticator(t.Context(), &configv1.OIDCAuthentication{
+		Issuer: issuer.URL, Audience: "kagent-api", CaFile: issuer.CAFile,
+	})
+	require.NoError(t, err)
+	connection := newConfigurationConnection(t, nil, func(config *Config) {
+		config.Authenticator = provider
+	})
+	client := apiv1.NewSystemServiceClient(connection)
+	for _, email := range []string{"first@example.com", "changed@example.com"} {
+		token := issuer.Token(t, jwt.MapClaims{
+			"iss": issuer.URL, "aud": "kagent-api", "sub": "alice", "email": email,
+			"exp": time.Now().Add(time.Hour).Unix(),
+		})
+		ctx := metadata.NewOutgoingContext(t.Context(), metadata.Pairs("authorization", "Bearer "+token, "x-user-id", "forged-user"))
+		current, err := client.GetCurrentUser(ctx, &apiv1.GetCurrentUserRequest{})
+		require.NoError(t, err)
+		require.Equal(t, pkgauth.PrincipalID("oidc:"+issuer.URL, "alice"), current.PrincipalId)
+		require.Equal(t, "alice", current.GetClaims().GetFields()["sub"].GetStringValue())
+		require.Equal(t, email, current.GetClaims().GetFields()["email"].GetStringValue())
+	}
+	_, err = client.GetCurrentUser(t.Context(), &apiv1.GetCurrentUserRequest{})
+	assertGRPCCode(t, err, codes.Unauthenticated)
+}
 
 func TestCurrentUserServiceAccountGeneratedClient(t *testing.T) {
 	for _, tc := range []struct {
@@ -80,6 +109,7 @@ func TestCurrentUserServiceAccountGeneratedClient(t *testing.T) {
 			for range 2 {
 				current, err := client.GetCurrentUser(requestCtx, &apiv1.GetCurrentUserRequest{})
 				require.NoError(t, err)
+				require.Equal(t, pkgauth.PrincipalID("kubernetes:cluster", "sa-uid"), current.PrincipalId)
 				require.Equal(t, map[string]any{"username": "system:serviceaccount:ns:caller", "groups": tc.want}, current.GetClaims().AsMap())
 			}
 			require.Len(t, kube.Actions(), 1, "both fresh and cached identities must serialize")
@@ -146,6 +176,7 @@ func TestSystemGeneratedClient(t *testing.T) {
 	if got := currentUser.GetClaims().GetFields()["sub"].GetStringValue(); got != "system-user" {
 		t.Fatalf("GetCurrentUser() sub = %q, want system-user", got)
 	}
+	require.Equal(t, "system-user", currentUser.PrincipalId)
 
 	namespaces, err := systemClient.ListNamespaces(userContext, &apiv1.ListNamespacesRequest{})
 	if err != nil {
