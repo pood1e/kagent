@@ -138,7 +138,11 @@ func (c *RuntimeMCPClient) connect(ctx context.Context, ref MCPServerRef) (*mcp.
 		return nil, nil, fmt.Errorf("failed to resolve RemoteMCPServer headers: %w", err)
 	}
 
-	httpClient := newMCPAppsHTTPClient(headers)
+	httpClient, err := discoveryHTTPClient(server, newMCPAppsHTTPClient(headers))
+	if err != nil {
+		cancel()
+		return nil, nil, err
+	}
 	var transport mcp.Transport
 	switch server.Spec.Protocol {
 	case v1alpha3.RemoteMCPServerProtocolSse:

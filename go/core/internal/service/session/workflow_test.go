@@ -24,6 +24,7 @@ import (
 	"github.com/kagent-dev/kagent/go/core/internal/egress"
 	"github.com/kagent-dev/kagent/go/core/internal/service/serviceerrors"
 	"github.com/kagent-dev/kagent/go/core/internal/substrate"
+	"github.com/kagent-dev/kagent/go/core/pkg/egresspolicy"
 )
 
 func TestActorWorkflowLifecycle(t *testing.T) {
@@ -442,10 +443,17 @@ func TestActorEgressCredentialsRequireAllowedDestination(t *testing.T) {
 	policy, err := substrate.ActorEgressPolicy("team", []string{"http://api.example.com:8080", "https://api.example.com:8443", "https://other.example.com"}, bindings, testControlPlaneURL)
 	require.NoError(t, err)
 	require.Len(t, policy.Rules, 3)
-	require.Empty(t, policy.Rules[0].GetHttp().GetEffects().GetReplaceHeaders(), "credentials must not cross schemes or ports")
+	headers := policy.Rules[0].GetHttp().GetEffects().GetReplaceHeaders()
+	require.Len(t, headers, 1, "only origin-bound Actor identity is allowed without Secret credentials")
+	require.Equal(t, egresspolicy.ActorIdentityHeader, headers[0].GetHeader())
+	require.Equal(t, []string{"http://api.example.com:8080"}, headers[0].GetActorJwt().GetAudiences())
 	require.Equal(t, []string{"api.example.com"}, policy.Rules[1].GetHttps().GetHostnames())
 	require.Equal(t, []int32{8443}, policy.Rules[1].GetHttps().GetPorts().GetNumbers())
-	require.Len(t, policy.Rules[1].GetHttps().GetEffects().GetReplaceHeaders(), 2)
+	headers = policy.Rules[1].GetHttps().GetEffects().GetReplaceHeaders()
+	require.Len(t, headers, 3)
+	require.Equal(t, bindings[0].URI, headers[0].GetCredentialUri())
+	require.Equal(t, bindings[1].URI, headers[1].GetCredentialUri())
+	require.Equal(t, []string{"https://api.example.com:8443"}, headers[2].GetActorJwt().GetAudiences())
 	require.Equal(t, []string{"other.example.com"}, policy.Rules[2].GetHttps().GetHostnames(), "no other HTTPS rule may bypass credential replacement")
 }
 

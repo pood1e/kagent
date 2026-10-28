@@ -243,6 +243,9 @@ func (s *Service) scope(ctx context.Context, verb auth.Verb) (string, string, er
 }
 
 func (s *Service) authorize(ctx context.Context, verb auth.Verb, agentName string) error {
+	if _, shared := auth.ShareContextFrom(ctx); shared {
+		return serviceerrors.NewPermissionDenied("Session shares do not grant Memory access", nil)
+	}
 	session, ok := auth.AuthSessionFrom(ctx)
 	if !ok {
 		return serviceerrors.NewUnauthenticated("Authenticated identity is required", nil)

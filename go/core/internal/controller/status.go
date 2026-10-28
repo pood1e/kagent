@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"istio.io/istio/pkg/kube/krt"
@@ -31,6 +32,8 @@ func statusForAgent(state AgentReconciliation, generation int64, latestSuccessfu
 	if state.Target != nil {
 		status.WorkloadImage = new(state.Target.Revision.Image)
 	}
+	slices.Sort(status.Warnings)
+	status.Warnings = slices.Compact(status.Warnings)
 	setAgentCondition(&status, generation, kagentv1alpha3.AgentConditionAccepted, metav1.ConditionTrue, "Accepted", "Agent explicitly selects its template and harness")
 	status.Conditions = append(status.Conditions, egressPoliciesCondition(kagentv1alpha3.AgentConditionEgressPoliciesApplied, generation, state.EgressIssues, state.EgressConflict))
 	failure := state.CompilationFailure

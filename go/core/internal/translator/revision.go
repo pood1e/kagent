@@ -119,7 +119,7 @@ func (r *Revision) Digest() (RevisionID, error) {
 		// Hash it explicitly so existing immutable templates do not conflict after upgrades.
 		WorkerPoolNamespace string `json:"workerPoolNamespace"`
 	}{
-		ActorTemplateVersion: 1,
+		ActorTemplateVersion: 4,
 		AgentName:            r.AgentName, AgentUID: r.AgentUID, Namespace: r.Namespace,
 		CPU: r.CPU, Memory: r.Memory,
 		Image: r.Image, Command: r.Command, Args: r.Args, Environment: r.Environment, ConfigJSON: r.ConfigJSON,

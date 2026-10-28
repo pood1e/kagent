@@ -112,8 +112,8 @@ for runtime methods. See the
 
 The configured `CollectionAuthorizer` also evaluates Actor requests after the
 native session and resource checks. It receives the verified Actor principal;
-`RuntimeBinding.CreatorID` identifies the session's data owner without granting
-that user's permissions. Configured policy can narrow the native boundary, and
+`Actor.SessionID` carries the verified session binding and `User.ID` identifies
+the session's data owner. Configured policy can distinguish Actors from human users. Configured policy can narrow the native boundary, and
 Actor collection scopes are intersected with the bound agent.
 
 TaskStore checks use resource type `TaskStore`, the bound agent's namespace, and

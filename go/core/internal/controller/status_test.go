@@ -12,7 +12,7 @@ import (
 )
 
 func TestStatusForPairPublishesCompilationWarnings(t *testing.T) {
-	warnings := []string{"partial MCP selection is not enforced"}
+	warnings := []string{"partial MCP selection is not enforced", "partial MCP selection is not enforced"}
 	state := AgentReconciliation{
 		Agent:    &kagentv1alpha3.Agent{},
 		Warnings: warnings,
@@ -21,6 +21,9 @@ func TestStatusForPairPublishesCompilationWarnings(t *testing.T) {
 	status := statusForAgent(state, 1, "")
 	if len(status.Warnings) != 1 || status.Warnings[0] != warnings[0] {
 		t.Fatalf("warnings = %v, want %v", status.Warnings, warnings)
+	}
+	if len(warnings) != 2 {
+		t.Fatal("status normalization mutated the reconciliation warnings")
 	}
 	warnings[0] = "changed"
 	if status.Warnings[0] == warnings[0] {

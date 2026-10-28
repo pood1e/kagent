@@ -824,13 +824,14 @@ var File_kagent_runtime_v1_memory_proto protoreflect.FileDescriptor
 
 const file_kagent_runtime_v1_memory_proto_rawDesc = "" +
 	"\n" +
-	"\x1ekagent/runtime/v1/memory.proto\x12\x11kagent.runtime.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\"\xa8\x01\n" +
+	"\x1ekagent/runtime/v1/memory.proto\x12\x11kagent.runtime.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\"\xc9\x01\n" +
 	"\x12SessionMemoryInput\x12\x18\n" +
 	"\acontent\x18\x03 \x01(\tR\acontent\x12\x16\n" +
 	"\x06vector\x18\x04 \x03(\x02R\x06vector\x123\n" +
 	"\bmetadata\x18\x05 \x01(\v2\x17.google.protobuf.StructR\bmetadata\x12\x1e\n" +
 	"\bttl_days\x18\x06 \x01(\x05H\x00R\attlDays\x88\x01\x01B\v\n" +
-	"\t_ttl_days\"\xc4\x01\n" +
+	"\t_ttl_daysJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\n" +
+	"agent_nameR\auser_id\"\xc4\x01\n" +
 	"\x12MemorySearchResult\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\tR\acontent\x12\x14\n" +
@@ -855,7 +856,7 @@ const file_kagent_runtime_v1_memory_proto_rawDesc = "" +
 	"\x05items\x18\x01 \x03(\v2%.kagent.runtime.v1.SessionMemoryInputR\x05items\x12)\n" +
 	"\x10management_agent\x18\x02 \x01(\tR\x0fmanagementAgent\"<\n" +
 	"$MemoryServiceAddSessionBatchResponse\x12\x14\n" +
-	"\x05count\x18\x01 \x01(\x05R\x05count\"\xb4\x01\n" +
+	"\x05count\x18\x01 \x01(\x05R\x05count\"\xd5\x01\n" +
 	"\x1aMemoryServiceSearchRequest\x12\x16\n" +
 	"\x06vector\x18\x03 \x03(\x02R\x06vector\x12\x19\n" +
 	"\x05limit\x18\x04 \x01(\x05H\x00R\x05limit\x88\x01\x01\x12 \n" +
@@ -863,17 +864,18 @@ const file_kagent_runtime_v1_memory_proto_rawDesc = "" +
 	"\x10management_agent\x18\x06 \x01(\tR\x0fmanagementAgentB\b\n" +
 	"\x06_limitB\f\n" +
 	"\n" +
-	"_min_score\"`\n" +
+	"_min_scoreJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\n" +
+	"agent_nameR\auser_id\"`\n" +
 	"\x1bMemoryServiceSearchResponse\x12A\n" +
-	"\bmemories\x18\x01 \x03(\v2%.kagent.runtime.v1.MemorySearchResultR\bmemories\"9\n" +
+	"\bmemories\x18\x01 \x03(\v2%.kagent.runtime.v1.MemorySearchResultR\bmemories\"H\n" +
 	"\x18MemoryServiceListRequest\x12\x1d\n" +
 	"\n" +
-	"agent_name\x18\x01 \x01(\tR\tagentName\"Y\n" +
+	"agent_name\x18\x01 \x01(\tR\tagentNameJ\x04\b\x02\x10\x03R\auser_id\"Y\n" +
 	"\x19MemoryServiceListResponse\x12<\n" +
-	"\bmemories\x18\x01 \x03(\v2 .kagent.runtime.v1.MemorySummaryR\bmemories\";\n" +
+	"\bmemories\x18\x01 \x03(\v2 .kagent.runtime.v1.MemorySummaryR\bmemories\"J\n" +
 	"\x1aMemoryServiceDeleteRequest\x12\x1d\n" +
 	"\n" +
-	"agent_name\x18\x01 \x01(\tR\tagentName\"5\n" +
+	"agent_name\x18\x01 \x01(\tR\tagentNameJ\x04\b\x02\x10\x03R\auser_id\"5\n" +
 	"\x1bMemoryServiceDeleteResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\"\\\n" +
 	"\x1fMemoryServiceDeleteEntryRequest\x12\x1d\n" +
