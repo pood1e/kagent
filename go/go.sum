@@ -708,8 +708,6 @@ github.com/kagent-dev/mockllm v0.1.0 h1:EkBE7BhMnL4Unfu78OazQVDAWi00aWXiswErkVoE
 github.com/kagent-dev/mockllm v0.1.0/go.mod h1:RLp2ZL/UPY6qqbHNogvf70apXX9R670tESJdDuIli9A=
 github.com/kagent-dev/mockmcp v0.0.0-20260520211643-dcd475b74085 h1:5bYxRc6K6+JiFMYGSJpQ7y18PzTGXUmUtVXY7Fqh0Ew=
 github.com/kagent-dev/mockmcp v0.0.0-20260520211643-dcd475b74085/go.mod h1:vTMste7c+XiDOQyhe6iGPKLbMy3chY/h2fL3Dox5fAE=
-github.com/kagent-dev/substrate v0.6.0-alpha3 h1:2v+kiKYCUicTMS0OQ67MBHTrBB1BfAuqGF3ENMCWHso=
-github.com/kagent-dev/substrate v0.6.0-alpha3/go.mod h1:as8CUgqhbIFCiQxzusbj0VrUrV9kN8Swxa80gj9Q7Ys=
 github.com/karamaru-alpha/copyloopvar v1.2.2 h1:yfNQvP9YaGQR7VaWLYcfZUlRP2eo2vhExWKxD/fP6q0=
 github.com/karamaru-alpha/copyloopvar v1.2.2/go.mod h1:oY4rGZqZ879JkJMtX3RRkcXRkmUvH0x35ykgaKgsgJY=
 github.com/keybase/go-keychain v0.0.1 h1:way+bWYa6lDppZoZcgMbYsvC7GxljxrskdNInRtuthU=
@@ -968,6 +966,8 @@ github.com/planetscale/vtprotobuf v0.6.1-0.20240409071808-615f978279ca/go.mod h1
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
+github.com/pood1e/substrate v0.6.0-alpha3.0.20261028123103-cb535faf1cc5 h1:lwQdqNDAwM7YR38yAp99exuQx6v+ZGbqpPpKWH0LqkY=
+github.com/pood1e/substrate v0.6.0-alpha3.0.20261028123103-cb535faf1cc5/go.mod h1:as8CUgqhbIFCiQxzusbj0VrUrV9kN8Swxa80gj9Q7Ys=
 github.com/posener/complete v1.1.1/go.mod h1:em0nMJCgc9GFtwrmVmEMR/ZL6WyhyjMBndrE9hABlRI=
 github.com/power-devops/perfstat v0.0.0-20260805114148-88456608a4f6 h1:jL3a8soXdzuTCcRnKhOmtcsVOObdDTFf4O2B403HPRU=
 github.com/power-devops/perfstat v0.0.0-20260805114148-88456608a4f6/go.mod h1:OmDBASR4679mdNQnz2pUhc2G8CO2JrUAVFDRBDP/hJE=
