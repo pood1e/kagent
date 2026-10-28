@@ -18,6 +18,8 @@ import (
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 
+	"github.com/kagent-dev/kagent/go/core/internal/pgtest"
+	"github.com/kagent-dev/kagent/go/core/pkg/env"
 	"github.com/kagent-dev/kagent/go/core/pkg/postgres"
 )
 
@@ -54,6 +56,15 @@ func startTestDB(t *testing.T) (string, *pgxpool.Config) {
 		t.Skip("skip the PostgreSQL test in short mode")
 	}
 	ctx := context.Background()
+	if baseURL := env.TestPostgresURL.Get(); baseURL != "" {
+		dsn, cleanup, err := pgtest.Start(ctx, baseURL)
+		if err != nil {
+			t.Fatalf("start external PostgreSQL: %v", err)
+		}
+		t.Cleanup(cleanup)
+		execSQL(t, dsn, "CREATE EXTENSION vector WITH SCHEMA public")
+		return dsn, testConfig(t, dsn, "postgres")
+	}
 	container, err := tcpostgres.Run(ctx,
 		"pgvector/pgvector:pg18-trixie",
 		tcpostgres.WithDatabase("kagent_test"),

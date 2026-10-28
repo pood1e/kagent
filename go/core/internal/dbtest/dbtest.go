@@ -13,6 +13,8 @@ import (
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 
+	"github.com/kagent-dev/kagent/go/core/internal/pgtest"
+	"github.com/kagent-dev/kagent/go/core/pkg/env"
 	"github.com/kagent-dev/kagent/go/core/pkg/migrations"
 	"github.com/kagent-dev/kagent/go/core/pkg/postgres"
 )
@@ -24,6 +26,9 @@ const Role = "postgres"
 // Start starts a pgvector Postgres container and returns the connection string
 // and a cleanup function. Callers are responsible for calling cleanup when done.
 func Start(ctx context.Context) (connStr string, cleanup func(), err error) {
+	if baseURL := env.TestPostgresURL.Get(); baseURL != "" {
+		return pgtest.Start(ctx, baseURL)
+	}
 	pgContainer, err := tcpostgres.Run(ctx,
 		"pgvector/pgvector:pg18-trixie",
 		tcpostgres.WithDatabase("kagent_test"),

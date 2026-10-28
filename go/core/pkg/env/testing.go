@@ -19,6 +19,7 @@ func init() {
 
 // Testing environment variables used in E2E tests and mock services.
 var (
+	TestPostgresURL = RegisterStringVar("KAGENT_TEST_POSTGRES_URL", "", "External PostgreSQL server for isolated test databases.", ComponentTesting)
 	KagentLocalHost = RegisterStringVar(
 		"KAGENT_E2E_LOCAL_HOST",
 		"",
