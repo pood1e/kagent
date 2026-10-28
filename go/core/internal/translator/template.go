@@ -29,7 +29,7 @@ type PromptTemplateContext struct {
 func (c *Compiler) resolveAgentTemplatePrompt(_ context.Context, agentTemplate *TemplateConfiguration) (string, error) {
 	if agentTemplate.Spec.SystemPromptFrom != nil {
 		ref := agentTemplate.Spec.SystemPromptFrom
-		configMap := krt.FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(types.NamespacedName{Namespace: agentTemplate.Namespace, Name: ref.Name}))
+		configMap := FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(types.NamespacedName{Namespace: agentTemplate.Namespace, Name: ref.Name}))
 		if configMap == nil {
 			return "", fmt.Errorf("resolve systemPromptFrom: ConfigMap %q not found", ref.Name)
 		}
@@ -58,7 +58,7 @@ func resolvePromptSourceRefs(ctx krt.HandlerContext, configMaps krt.Collection[*
 		if source.Alias != "" {
 			identifier = source.Alias
 		}
-		configMap := krt.FetchOne(ctx, configMaps, krt.FilterObjectName(types.NamespacedName{Namespace: namespace, Name: source.Name}))
+		configMap := FetchOne(ctx, configMaps, krt.FilterObjectName(types.NamespacedName{Namespace: namespace, Name: source.Name}))
 		if configMap == nil {
 			return nil, fmt.Errorf("resolve prompt source %q: ConfigMap not found", source.Name)
 		}

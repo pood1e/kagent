@@ -2,6 +2,7 @@ package translator
 
 import (
 	"fmt"
+	"strings"
 
 	"istio.io/istio/pkg/kube/krt"
 	corev1 "k8s.io/api/core/v1"
@@ -85,9 +86,12 @@ func ResolveModelConfig(ctx krt.HandlerContext, collections Collections, config 
 	addReferenceFailure := func(reason, message string) {
 		resolved.ReferenceFailures = append(resolved.ReferenceFailures, ModelConfigFailure{Reason: reason, Message: message})
 	}
+	if strings.TrimSpace(config.Spec.Model) == "" {
+		addSemanticFailure("ModelRequired", "ModelConfig model is required")
+	}
 	requireSecret := func(name, notFoundReason, keyNotFoundReason string, keys ...string) *corev1.Secret {
 		key := types.NamespacedName{Namespace: config.Namespace, Name: name}
-		fetched := krt.FetchOne(ctx, collections.Secrets, krt.FilterObjectName(key))
+		fetched := FetchOne(ctx, collections.Secrets, krt.FilterObjectName(key))
 		if fetched == nil {
 			addReferenceFailure(notFoundReason, fmt.Sprintf("secret %s not found", name))
 			return nil
@@ -154,7 +158,7 @@ func ResolveModelConfig(ctx krt.HandlerContext, collections Collections, config 
 		}
 		if !tokenPassthrough && config.Spec.APIKeySecret != "" {
 			key := types.NamespacedName{Namespace: config.Namespace, Name: config.Spec.APIKeySecret}
-			fetched := krt.FetchOne(ctx, collections.Secrets, krt.FilterObjectName(key))
+			fetched := FetchOne(ctx, collections.Secrets, krt.FilterObjectName(key))
 			if fetched == nil {
 				addReferenceFailure("APIKeySecretNotFound", fmt.Sprintf("secret %s not found", config.Spec.APIKeySecret))
 				break
@@ -186,7 +190,7 @@ func ResolveModelConfig(ctx krt.HandlerContext, collections Collections, config 
 			ref := config.Spec.Foundry.EndpointFrom
 			key := types.NamespacedName{Namespace: config.Namespace, Name: ref.Name}
 			resolved.References = append(resolved.References, ModelConfigReference{NamespacedName: key, Kind: "ConfigMap", Key: ref.Key})
-			fetched := krt.FetchOne(ctx, collections.ConfigMaps, krt.FilterObjectName(key))
+			fetched := FetchOne(ctx, collections.ConfigMaps, krt.FilterObjectName(key))
 			if fetched == nil {
 				addReferenceFailure("EndpointConfigMapNotFound", fmt.Sprintf("config map %s not found", ref.Name))
 			} else {

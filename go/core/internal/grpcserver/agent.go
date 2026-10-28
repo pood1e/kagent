@@ -108,6 +108,17 @@ func (s *agentServer) DeleteAgent(ctx context.Context, request *apiv1.DeleteAgen
 	return &apiv1.DeleteAgentResponse{}, nil
 }
 
+func (s *agentServer) ValidateAgent(ctx context.Context, request *apiv1.ValidateAgentRequest) (*apiv1.ValidateAgentResponse, error) {
+	incoming := &v1alpha3.Agent{}
+	if err := s.decodeResource(request.GetRef(), request.GetResource(), incoming); err != nil {
+		return nil, err
+	}
+	if err := s.service.Validate(ctx, incoming); err != nil {
+		return nil, err
+	}
+	return &apiv1.ValidateAgentResponse{}, nil
+}
+
 func (s *agentServer) agent(ctx context.Context, agent *v1alpha3.Agent) (*apiv1.Agent, error) {
 	resource, err := structuredobject.FromGo(agent, v1alpha3.GroupVersion.String(), agentKind, s.maxMessageBytes)
 	if err != nil {

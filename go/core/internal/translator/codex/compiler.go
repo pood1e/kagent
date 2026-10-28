@@ -279,7 +279,7 @@ func (c *Compiler) requireSecretKey(ctx context.Context, namespace, name, key st
 }
 
 func (c *Compiler) secret(ctx context.Context, namespace, name string) (*corev1.Secret, error) {
-	secret := krt.FetchOne(c.ctx, c.collections.Secrets, krt.FilterObjectName(types.NamespacedName{Namespace: namespace, Name: name}))
+	secret := translator.FetchOne(c.ctx, c.collections.Secrets, krt.FilterObjectName(types.NamespacedName{Namespace: namespace, Name: name}))
 	if secret == nil {
 		return nil, fmt.Errorf("read Codex credential Secret %q: not found", name)
 	}

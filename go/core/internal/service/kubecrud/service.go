@@ -29,6 +29,7 @@ type Service[T Object, L client.ObjectList] struct {
 	list       L
 	authorizer auth.CollectionAuthorizer
 	resource   string
+	validators []func(context.Context, T) error
 }
 
 func NewService[T Object, L client.ObjectList](
@@ -37,9 +38,10 @@ func NewService[T Object, L client.ObjectList](
 	object T,
 	list L,
 	resource string,
+	validators ...func(context.Context, T) error,
 ) *Service[T, L] {
 	return &Service[T, L]{
-		client: client, object: object, list: list, authorizer: authorizer, resource: resource,
+		client: client, object: object, list: list, authorizer: authorizer, resource: resource, validators: validators,
 	}
 }
 
@@ -96,6 +98,9 @@ func (s *Service[T, L]) Create(ctx context.Context, object T) (T, error) {
 	if err := s.authorize(ctx, auth.VerbCreate, ref); err != nil {
 		return zero, err
 	}
+	if err := s.validate(ctx, object); err != nil {
+		return zero, err
+	}
 	if err := s.client.Create(ctx, object); err != nil {
 		switch {
 		case apierrors.IsAlreadyExists(err):
@@ -119,6 +124,9 @@ func (s *Service[T, L]) Update(ctx context.Context, object T) (T, error) {
 	if err := s.Authorize(ctx, auth.VerbUpdate, ref); err != nil {
 		return zero, err
 	}
+	if err := s.validate(ctx, object); err != nil {
+		return zero, err
+	}
 	if err := s.client.Update(ctx, object); err != nil {
 		if apierrors.IsInvalid(err) {
 			return zero, serviceerrors.NewInvalidArgument(err.Error(), err)
@@ -126,6 +134,24 @@ func (s *Service[T, L]) Update(ctx context.Context, object T) (T, error) {
 		return zero, serviceerrors.NewInternal("Failed to update "+s.resource, err)
 	}
 	return object, nil
+}
+
+// Validate authorizes a candidate definition and runs its admission checks
+// without persisting the resource or applying a runtime revision.
+func (s *Service[T, L]) Validate(ctx context.Context, object T) error {
+	if err := s.Authorize(ctx, auth.VerbCreate, client.ObjectKeyFromObject(object)); err != nil {
+		return err
+	}
+	return s.validate(ctx, object)
+}
+
+func (s *Service[T, L]) validate(ctx context.Context, object T) error {
+	for _, validate := range s.validators {
+		if err := validate(ctx, object); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Service[T, L]) Delete(ctx context.Context, ref types.NamespacedName) error {

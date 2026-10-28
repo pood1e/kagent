@@ -44,7 +44,7 @@ func (s *Service) Report(ctx context.Context, request *runtimev1.ToolInventorySe
 		return err
 	}
 	caller, _ := auth.AuthSessionFrom(ctx)
-	if err := s.authorizer.Check(ctx, caller.Principal(), auth.VerbUpdate, auth.Resource{Type: "ToolInventory", Namespace: session.GetAgent().GetNamespace(), Name: session.Id}); err != nil {
+	if err := s.authorizer.Check(ctx, caller.Principal(), auth.VerbUpdate, auth.Resource{Type: "ToolInventory", Namespace: session.GetAgent().GetRef().GetNamespace(), Name: session.Id}); err != nil {
 		return serviceerrors.NewPermissionDenied("Tool inventory access denied", err)
 	}
 	tools := proto.Clone(request).(*runtimev1.ToolInventoryServiceReportRequest).Tools

@@ -48,7 +48,7 @@ func (s *inventoryRPCStore) GetToolInventory(_ context.Context, revision string)
 
 func TestToolInventoryGeneratedClientBindsVerifiedRevision(t *testing.T) {
 	id := "11111111-1111-4111-8111-111111111111"
-	store := &inventoryRPCStore{memoryRPCStore: memoryRPCStore{session: &apiv1.Session{Id: id, Creator: "owner", PreparedRevision: "revision", Agent: &apiv1.ResourceReference{Namespace: "team", Name: "assistant"}, A2AAuthority: substrate.ActorHost("team", substrate.ActorName(id), "")}}, catalogs: make(map[string]*apiv1.BuiltinToolCatalog)}
+	store := &inventoryRPCStore{memoryRPCStore: memoryRPCStore{session: &apiv1.Session{Id: id, Creator: "owner", PreparedRevision: "revision", Agent: &apiv1.AgentProvenance{Ref: &apiv1.ResourceReference{Namespace: "team", Name: "assistant"}}, A2AAuthority: substrate.ActorHost("team", substrate.ActorName(id), "")}}, catalogs: make(map[string]*apiv1.BuiltinToolCatalog)}
 	scheme := runtime.NewScheme()
 	require.NoError(t, v1alpha3.AddToScheme(scheme))
 	agent := &v1alpha3.Agent{ObjectMeta: metav1.ObjectMeta{Namespace: "team", Name: "assistant"}, Status: v1alpha3.AgentStatus{LatestSuccessfulRevision: "revision"}}
@@ -56,7 +56,7 @@ func TestToolInventoryGeneratedClientBindsVerifiedRevision(t *testing.T) {
 	other.Name, other.Status.LatestSuccessfulRevision = "other", "unobserved"
 	kube := fake.NewClientBuilder().WithScheme(scheme).WithObjects(agent, other).Build()
 	issuer := jwttest.New(t)
-	verifier, err := substrate.NewActorJWTVerifier(t.Context(), issuer.URL, issuer.CAFile)
+	verifier, err := substrate.NewActorJWTVerifier(t.Context(), issuer.URL, issuer.CAFile, substrate.RuntimeJWTAudience)
 	require.NoError(t, err)
 	connection := newConfigurationConnection(t, kube, func(config *Config) {
 		config.Authenticator = runtimeauth.NewProvider(authimpl.NewProxyAuthenticator("sub"), verifier, store, issuer.URL)

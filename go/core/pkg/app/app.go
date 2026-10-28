@@ -56,6 +56,7 @@ import (
 	authimpl "github.com/kagent-dev/kagent/go/core/internal/httpserver/auth"
 	"github.com/kagent-dev/kagent/go/core/internal/mcp"
 	"github.com/kagent-dev/kagent/go/core/internal/runtimeauth"
+	"github.com/kagent-dev/kagent/go/core/internal/service/admission"
 	"github.com/kagent-dev/kagent/go/core/internal/service/agentidentity"
 	"github.com/kagent-dev/kagent/go/core/internal/service/checkpoint"
 	"github.com/kagent-dev/kagent/go/core/internal/service/inventory"
@@ -350,7 +351,8 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 	authenticator = runtimeauth.NewProvider(authenticator, actorVerifier, store, cfg.GetSubstrate().GetActorJwtIssuer())
 	authorizer = runtimeauth.NewAuthorizer(authorizer, store)
 	resourceNamespace := cfg.GetKubernetes().GetNamespace()
-	models := modelservice.NewService(manager.GetClient(), authorizer, resourceNamespace)
+	admission := admission.NewService(manager.GetClient(), cfg.GetRuntimeDefaults(), cfg.GetHarnessImages())
+	models := modelservice.NewService(manager.GetClient(), authorizer, resourceNamespace, modelservice.WithAdmission(admission))
 	tools := toolservice.NewService(manager.GetClient(), store, authorizer, resourceNamespace, mcpClient)
 	prompts := prompttemplateservice.NewService(manager.GetClient(), authorizer)
 	system := systemservice.NewService(manager.GetClient(), watchNamespaces, authorizer, actors)
@@ -379,7 +381,7 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 	if err != nil {
 		return err
 	}
-	agents := kubecrud.NewService(manager.GetClient(), authorizer, &kagentv1alpha3.Agent{}, &kagentv1alpha3.AgentList{}, "Agent")
+	agents := kubecrud.NewService(manager.GetClient(), authorizer, &kagentv1alpha3.Agent{}, &kagentv1alpha3.AgentList{}, "Agent", admission.Agent)
 	interactions := sessionsvc.NewInteractionService(store, agents, sessions, cfg.GetPush().GetAllowHttp())
 	pushSender := sessionsvc.NewHTTPPushSender(cfg.GetPush().GetSendTimeout().AsDuration(),
 		cfg.GetPush().GetAllowHttp(), cfg.GetPush().GetAllowPrivateNetworks())
@@ -476,8 +478,8 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 		// Author Agents and their reusable configuration through the API.
 		AgentService:           agents,
 		AgentIdentityService:   agentidentity.NewService(actorVerifier, store, manager.GetAPIReader()),
-		AgentTemplateService:   kubecrud.NewService(manager.GetClient(), authorizer, &kagentv1alpha3.AgentTemplate{}, &kagentv1alpha3.AgentTemplateList{}, "AgentTemplate"),
-		HarnessService:         kubecrud.NewService(manager.GetClient(), authorizer, &kagentv1alpha3.Harness{}, &kagentv1alpha3.HarnessList{}, "Harness"),
+		AgentTemplateService:   kubecrud.NewService(manager.GetClient(), authorizer, &kagentv1alpha3.AgentTemplate{}, &kagentv1alpha3.AgentTemplateList{}, "AgentTemplate", admission.AgentTemplate),
+		HarnessService:         kubecrud.NewService(manager.GetClient(), authorizer, &kagentv1alpha3.Harness{}, &kagentv1alpha3.HarnessList{}, "Harness", admission.Harness),
 		SandboxTemplateService: sandboxTemplates,
 		SandboxService:         sandboxes,
 		CheckpointService:      checkpoints,

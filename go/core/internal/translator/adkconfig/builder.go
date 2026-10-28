@@ -193,7 +193,7 @@ func (c *Builder) BuildProvenance(ctx context.Context, harness *translator.Harne
 		entries = append(entries, objectProvenance(v1alpha3.GroupVersion.String(), "ModelConfig", model.Namespace+"/"+model.Name, model.UID, model.Generation, model.Spec))
 	}
 	for name := range configMaps {
-		fetched := krt.FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(types.NamespacedName{Namespace: harness.Namespace, Name: name}))
+		fetched := translator.FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(types.NamespacedName{Namespace: harness.Namespace, Name: name}))
 		if fetched == nil {
 			return nil, fmt.Errorf("config map %q not found", name)
 		}
@@ -265,7 +265,7 @@ func (c *Builder) resolveValueRef(ctx context.Context, namespace string, ref v1a
 	if ref.ValueFrom.Type != v1alpha3.ConfigMapValueSource {
 		return "", "", fmt.Errorf("unsupported value source type %q", ref.ValueFrom.Type)
 	}
-	fetched := krt.FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(types.NamespacedName{Namespace: namespace, Name: ref.ValueFrom.Name}))
+	fetched := translator.FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(types.NamespacedName{Namespace: namespace, Name: ref.ValueFrom.Name}))
 	if fetched == nil {
 		return "", "", fmt.Errorf("config map %q not found", ref.ValueFrom.Name)
 	}

@@ -121,7 +121,7 @@ func (c *Compiler) compileMCPHeaders(ctx context.Context, namespace string, refs
 		case ref.ValueFrom == nil:
 			headers[ref.Name] = ref.Value
 		case ref.ValueFrom.Type == v1alpha3.ConfigMapValueSource:
-			configMap := krt.FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(types.NamespacedName{Namespace: namespace, Name: ref.ValueFrom.Name}))
+			configMap := translator.FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(types.NamespacedName{Namespace: namespace, Name: ref.ValueFrom.Name}))
 			if configMap == nil {
 				return nil, nil, fmt.Errorf("ConfigMap %q not found", ref.ValueFrom.Name)
 			}
