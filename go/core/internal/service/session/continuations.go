@@ -136,6 +136,7 @@ func (c *Continuations) resume(ctx context.Context, value database.TaskContinuat
 	message.ID = continuationMessageIDPrefix + value.ID.String()
 	message.ContextID = parent.Id
 	message.ReferenceTasks = []a2a.TaskID{a2a.TaskID(value.ParentTaskID), a2a.TaskID(*value.ChildTaskID)}
+	ctx = context.WithValue(ctx, continuationContextKey{}, value.ID)
 	result, err := c.gateway.SendMessage(ctx, &a2a.SendMessageRequest{
 		Tenant:  parent.GetAgent().GetRef().GetNamespace() + "/" + parent.GetAgent().GetRef().GetName(),
 		Message: message, Config: &a2a.SendMessageConfig{ReturnImmediately: true},

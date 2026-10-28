@@ -19,15 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ExecutionService_GetTaskExecution_FullMethodName              = "/kagent.api.v1.ExecutionService/GetTaskExecution"
-	ExecutionService_ListTaskExecutions_FullMethodName            = "/kagent.api.v1.ExecutionService/ListTaskExecutions"
-	ExecutionService_GetSessionAuthority_FullMethodName           = "/kagent.api.v1.ExecutionService/GetSessionAuthority"
-	ExecutionService_RevokeSessionAuthority_FullMethodName        = "/kagent.api.v1.ExecutionService/RevokeSessionAuthority"
-	ExecutionService_GetRuntimeAuthority_FullMethodName           = "/kagent.api.v1.ExecutionService/GetRuntimeAuthority"
-	ExecutionService_RegisterDelegationCredential_FullMethodName  = "/kagent.api.v1.ExecutionService/RegisterDelegationCredential"
-	ExecutionService_RevokeDelegationCredential_FullMethodName    = "/kagent.api.v1.ExecutionService/RevokeDelegationCredential"
-	ExecutionService_GetDelegationCredentialStatus_FullMethodName = "/kagent.api.v1.ExecutionService/GetDelegationCredentialStatus"
-	ExecutionService_IssueSessionCredential_FullMethodName        = "/kagent.api.v1.ExecutionService/IssueSessionCredential"
+	ExecutionService_GetTaskExecution_FullMethodName   = "/kagent.api.v1.ExecutionService/GetTaskExecution"
+	ExecutionService_ListTaskExecutions_FullMethodName = "/kagent.api.v1.ExecutionService/ListTaskExecutions"
 )
 
 // ExecutionServiceClient is the client API for ExecutionService service.
@@ -38,16 +31,6 @@ const (
 type ExecutionServiceClient interface {
 	GetTaskExecution(ctx context.Context, in *GetTaskExecutionRequest, opts ...grpc.CallOption) (*GetTaskExecutionResponse, error)
 	ListTaskExecutions(ctx context.Context, in *ListTaskExecutionsRequest, opts ...grpc.CallOption) (*ListTaskExecutionsResponse, error)
-	GetSessionAuthority(ctx context.Context, in *GetSessionAuthorityRequest, opts ...grpc.CallOption) (*GetSessionAuthorityResponse, error)
-	RevokeSessionAuthority(ctx context.Context, in *RevokeSessionAuthorityRequest, opts ...grpc.CallOption) (*RevokeSessionAuthorityResponse, error)
-	// Derives the Session from a verified Actor JWT, including its live Actor UID.
-	GetRuntimeAuthority(ctx context.Context, in *GetRuntimeAuthorityRequest, opts ...grpc.CallOption) (*GetRuntimeAuthorityResponse, error)
-	// Exchanges and verifies the refresh credential before binding it to the caller.
-	RegisterDelegationCredential(ctx context.Context, in *RegisterDelegationCredentialRequest, opts ...grpc.CallOption) (*RegisterDelegationCredentialResponse, error)
-	RevokeDelegationCredential(ctx context.Context, in *RevokeDelegationCredentialRequest, opts ...grpc.CallOption) (*RevokeDelegationCredentialResponse, error)
-	GetDelegationCredentialStatus(ctx context.Context, in *GetDelegationCredentialStatusRequest, opts ...grpc.CallOption) (*GetDelegationCredentialStatusResponse, error)
-	// Issues a short-lived credential for this Session's A2A and read surface.
-	IssueSessionCredential(ctx context.Context, in *IssueSessionCredentialRequest, opts ...grpc.CallOption) (*IssueSessionCredentialResponse, error)
 }
 
 type executionServiceClient struct {
@@ -78,76 +61,6 @@ func (c *executionServiceClient) ListTaskExecutions(ctx context.Context, in *Lis
 	return out, nil
 }
 
-func (c *executionServiceClient) GetSessionAuthority(ctx context.Context, in *GetSessionAuthorityRequest, opts ...grpc.CallOption) (*GetSessionAuthorityResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetSessionAuthorityResponse)
-	err := c.cc.Invoke(ctx, ExecutionService_GetSessionAuthority_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *executionServiceClient) RevokeSessionAuthority(ctx context.Context, in *RevokeSessionAuthorityRequest, opts ...grpc.CallOption) (*RevokeSessionAuthorityResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RevokeSessionAuthorityResponse)
-	err := c.cc.Invoke(ctx, ExecutionService_RevokeSessionAuthority_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *executionServiceClient) GetRuntimeAuthority(ctx context.Context, in *GetRuntimeAuthorityRequest, opts ...grpc.CallOption) (*GetRuntimeAuthorityResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetRuntimeAuthorityResponse)
-	err := c.cc.Invoke(ctx, ExecutionService_GetRuntimeAuthority_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *executionServiceClient) RegisterDelegationCredential(ctx context.Context, in *RegisterDelegationCredentialRequest, opts ...grpc.CallOption) (*RegisterDelegationCredentialResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RegisterDelegationCredentialResponse)
-	err := c.cc.Invoke(ctx, ExecutionService_RegisterDelegationCredential_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *executionServiceClient) RevokeDelegationCredential(ctx context.Context, in *RevokeDelegationCredentialRequest, opts ...grpc.CallOption) (*RevokeDelegationCredentialResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RevokeDelegationCredentialResponse)
-	err := c.cc.Invoke(ctx, ExecutionService_RevokeDelegationCredential_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *executionServiceClient) GetDelegationCredentialStatus(ctx context.Context, in *GetDelegationCredentialStatusRequest, opts ...grpc.CallOption) (*GetDelegationCredentialStatusResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetDelegationCredentialStatusResponse)
-	err := c.cc.Invoke(ctx, ExecutionService_GetDelegationCredentialStatus_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *executionServiceClient) IssueSessionCredential(ctx context.Context, in *IssueSessionCredentialRequest, opts ...grpc.CallOption) (*IssueSessionCredentialResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(IssueSessionCredentialResponse)
-	err := c.cc.Invoke(ctx, ExecutionService_IssueSessionCredential_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // ExecutionServiceServer is the server API for ExecutionService service.
 // All implementations must embed UnimplementedExecutionServiceServer
 // for forward compatibility.
@@ -156,16 +69,6 @@ func (c *executionServiceClient) IssueSessionCredential(ctx context.Context, in 
 type ExecutionServiceServer interface {
 	GetTaskExecution(context.Context, *GetTaskExecutionRequest) (*GetTaskExecutionResponse, error)
 	ListTaskExecutions(context.Context, *ListTaskExecutionsRequest) (*ListTaskExecutionsResponse, error)
-	GetSessionAuthority(context.Context, *GetSessionAuthorityRequest) (*GetSessionAuthorityResponse, error)
-	RevokeSessionAuthority(context.Context, *RevokeSessionAuthorityRequest) (*RevokeSessionAuthorityResponse, error)
-	// Derives the Session from a verified Actor JWT, including its live Actor UID.
-	GetRuntimeAuthority(context.Context, *GetRuntimeAuthorityRequest) (*GetRuntimeAuthorityResponse, error)
-	// Exchanges and verifies the refresh credential before binding it to the caller.
-	RegisterDelegationCredential(context.Context, *RegisterDelegationCredentialRequest) (*RegisterDelegationCredentialResponse, error)
-	RevokeDelegationCredential(context.Context, *RevokeDelegationCredentialRequest) (*RevokeDelegationCredentialResponse, error)
-	GetDelegationCredentialStatus(context.Context, *GetDelegationCredentialStatusRequest) (*GetDelegationCredentialStatusResponse, error)
-	// Issues a short-lived credential for this Session's A2A and read surface.
-	IssueSessionCredential(context.Context, *IssueSessionCredentialRequest) (*IssueSessionCredentialResponse, error)
 	mustEmbedUnimplementedExecutionServiceServer()
 }
 
@@ -181,27 +84,6 @@ func (UnimplementedExecutionServiceServer) GetTaskExecution(context.Context, *Ge
 }
 func (UnimplementedExecutionServiceServer) ListTaskExecutions(context.Context, *ListTaskExecutionsRequest) (*ListTaskExecutionsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListTaskExecutions not implemented")
-}
-func (UnimplementedExecutionServiceServer) GetSessionAuthority(context.Context, *GetSessionAuthorityRequest) (*GetSessionAuthorityResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetSessionAuthority not implemented")
-}
-func (UnimplementedExecutionServiceServer) RevokeSessionAuthority(context.Context, *RevokeSessionAuthorityRequest) (*RevokeSessionAuthorityResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method RevokeSessionAuthority not implemented")
-}
-func (UnimplementedExecutionServiceServer) GetRuntimeAuthority(context.Context, *GetRuntimeAuthorityRequest) (*GetRuntimeAuthorityResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetRuntimeAuthority not implemented")
-}
-func (UnimplementedExecutionServiceServer) RegisterDelegationCredential(context.Context, *RegisterDelegationCredentialRequest) (*RegisterDelegationCredentialResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method RegisterDelegationCredential not implemented")
-}
-func (UnimplementedExecutionServiceServer) RevokeDelegationCredential(context.Context, *RevokeDelegationCredentialRequest) (*RevokeDelegationCredentialResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method RevokeDelegationCredential not implemented")
-}
-func (UnimplementedExecutionServiceServer) GetDelegationCredentialStatus(context.Context, *GetDelegationCredentialStatusRequest) (*GetDelegationCredentialStatusResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetDelegationCredentialStatus not implemented")
-}
-func (UnimplementedExecutionServiceServer) IssueSessionCredential(context.Context, *IssueSessionCredentialRequest) (*IssueSessionCredentialResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method IssueSessionCredential not implemented")
 }
 func (UnimplementedExecutionServiceServer) mustEmbedUnimplementedExecutionServiceServer() {}
 func (UnimplementedExecutionServiceServer) testEmbeddedByValue()                          {}
@@ -260,132 +142,6 @@ func _ExecutionService_ListTaskExecutions_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ExecutionService_GetSessionAuthority_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetSessionAuthorityRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ExecutionServiceServer).GetSessionAuthority(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ExecutionService_GetSessionAuthority_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ExecutionServiceServer).GetSessionAuthority(ctx, req.(*GetSessionAuthorityRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ExecutionService_RevokeSessionAuthority_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RevokeSessionAuthorityRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ExecutionServiceServer).RevokeSessionAuthority(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ExecutionService_RevokeSessionAuthority_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ExecutionServiceServer).RevokeSessionAuthority(ctx, req.(*RevokeSessionAuthorityRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ExecutionService_GetRuntimeAuthority_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetRuntimeAuthorityRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ExecutionServiceServer).GetRuntimeAuthority(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ExecutionService_GetRuntimeAuthority_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ExecutionServiceServer).GetRuntimeAuthority(ctx, req.(*GetRuntimeAuthorityRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ExecutionService_RegisterDelegationCredential_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RegisterDelegationCredentialRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ExecutionServiceServer).RegisterDelegationCredential(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ExecutionService_RegisterDelegationCredential_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ExecutionServiceServer).RegisterDelegationCredential(ctx, req.(*RegisterDelegationCredentialRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ExecutionService_RevokeDelegationCredential_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RevokeDelegationCredentialRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ExecutionServiceServer).RevokeDelegationCredential(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ExecutionService_RevokeDelegationCredential_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ExecutionServiceServer).RevokeDelegationCredential(ctx, req.(*RevokeDelegationCredentialRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ExecutionService_GetDelegationCredentialStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetDelegationCredentialStatusRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ExecutionServiceServer).GetDelegationCredentialStatus(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ExecutionService_GetDelegationCredentialStatus_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ExecutionServiceServer).GetDelegationCredentialStatus(ctx, req.(*GetDelegationCredentialStatusRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ExecutionService_IssueSessionCredential_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(IssueSessionCredentialRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ExecutionServiceServer).IssueSessionCredential(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ExecutionService_IssueSessionCredential_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ExecutionServiceServer).IssueSessionCredential(ctx, req.(*IssueSessionCredentialRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // ExecutionService_ServiceDesc is the grpc.ServiceDesc for ExecutionService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -400,34 +156,6 @@ var ExecutionService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListTaskExecutions",
 			Handler:    _ExecutionService_ListTaskExecutions_Handler,
-		},
-		{
-			MethodName: "GetSessionAuthority",
-			Handler:    _ExecutionService_GetSessionAuthority_Handler,
-		},
-		{
-			MethodName: "RevokeSessionAuthority",
-			Handler:    _ExecutionService_RevokeSessionAuthority_Handler,
-		},
-		{
-			MethodName: "GetRuntimeAuthority",
-			Handler:    _ExecutionService_GetRuntimeAuthority_Handler,
-		},
-		{
-			MethodName: "RegisterDelegationCredential",
-			Handler:    _ExecutionService_RegisterDelegationCredential_Handler,
-		},
-		{
-			MethodName: "RevokeDelegationCredential",
-			Handler:    _ExecutionService_RevokeDelegationCredential_Handler,
-		},
-		{
-			MethodName: "GetDelegationCredentialStatus",
-			Handler:    _ExecutionService_GetDelegationCredentialStatus_Handler,
-		},
-		{
-			MethodName: "IssueSessionCredential",
-			Handler:    _ExecutionService_IssueSessionCredential_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

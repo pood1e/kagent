@@ -94,7 +94,7 @@ func TestSessionExpirationRechecksActivity(t *testing.T) {
 
 			task := newSessionTask(uuid.NewString(), "message")
 			task.ContextID, task.Status.State = session.ContextId, state
-			version, err := client.CreateRuntimeTask(ctx, session.Id, taskMutationHash("idle boundary"), task, "")
+			version, err := createRuntimeTask(client, ctx, session.Id, taskMutationHash("idle boundary"), task, "")
 			require.NoError(t, err)
 			stored, err := client.GetSessionTask(ctx, session.Id, string(task.ID), nil)
 			require.NoError(t, err)
@@ -139,7 +139,7 @@ func TestWaitingSessionExpirationFencesContinuation(t *testing.T) {
 			require.NoError(t, err)
 
 			dispatch := uuid.New()
-			require.NoError(t, client.ReserveSessionDispatch(ctx, session.Id, dispatch, "reply"))
+			require.NoError(t, client.ReserveSessionDispatch(ctx, session.Id, dispatch, "reply", nil))
 			_, err = client.BeginIdleSessionDeletion(ctx, session.Id, time.Now())
 			require.ErrorIs(t, err, ErrFailedPrecondition, "an admitted reply blocks expiration")
 			reply := a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart("continue"))
@@ -156,7 +156,7 @@ func TestWaitingSessionExpirationFencesContinuation(t *testing.T) {
 
 			_, err = client.BeginIdleSessionDeletion(ctx, session.Id, time.Now())
 			require.NoError(t, err)
-			require.ErrorIs(t, client.ReserveSessionDispatch(ctx, session.Id, uuid.New(), "next reply"), ErrConflict)
+			require.ErrorIs(t, client.ReserveSessionDispatch(ctx, session.Id, uuid.New(), "next reply", nil), ErrConflict)
 			task.Status.State = a2a.TaskStateWorking
 			_, err = client.UpdateSessionTask(ctx, session.Id, version, taskMutationHash("late reply"), task, task, "")
 			require.ErrorIs(t, err, ErrConflict, "expiration closes runtime writes before deleting compute")
@@ -168,7 +168,7 @@ func TestSessionExpirationFencesDispatchAndRetries(t *testing.T) {
 	client, session := expirationFixture(t)
 	ctx := t.Context()
 	dispatch := uuid.New()
-	require.NoError(t, client.ReserveSessionDispatch(ctx, session.Id, dispatch, "message"))
+	require.NoError(t, client.ReserveSessionDispatch(ctx, session.Id, dispatch, "message", nil))
 	_, err := client.BeginIdleSessionDeletion(ctx, session.Id, time.Now())
 	require.ErrorIs(t, err, ErrFailedPrecondition)
 	_, err = client.RevokeSessionDispatch(ctx, session.Id, dispatch, "message")
@@ -179,7 +179,7 @@ func TestSessionExpirationFencesDispatchAndRetries(t *testing.T) {
 	work, err := client.BeginIdleSessionDeletion(ctx, session.Id, time.Now())
 	require.NoError(t, err)
 	require.Equal(t, apiv1.RuntimeState_RUNTIME_STATE_DELETING, work.Operation.Instance.State)
-	require.ErrorIs(t, client.ReserveSessionDispatch(ctx, session.Id, uuid.New(), "next"), ErrConflict)
+	require.ErrorIs(t, client.ReserveSessionDispatch(ctx, session.Id, uuid.New(), "next", nil), ErrConflict)
 	pending, created, err := client.CreateSession(ctx, newSessionRequest(uuid.NewString(), "assistant", "kagent", ""), "conversation")
 	require.NoError(t, err)
 	require.Equal(t, session.Id, pending.Id)
@@ -190,7 +190,7 @@ func TestSessionExpirationFencesDispatchAndRetries(t *testing.T) {
 	require.Equal(t, work.Operation.ID, op.ID, "explicit deletion joins the admitted idle deletion")
 	_, err = client.FinishSessionOperation(ctx, session.Id, op.ID, uuid.Nil, "", "", "temporary preparation failure")
 	require.NoError(t, err)
-	require.ErrorIs(t, client.ReserveSessionDispatch(ctx, session.Id, uuid.New(), "next"), ErrConflict)
+	require.ErrorIs(t, client.ReserveSessionDispatch(ctx, session.Id, uuid.New(), "next", nil), ErrConflict)
 	ids, err := client.ListIdleSessions(ctx, time.Time{}, "", 100)
 	require.NoError(t, err)
 	require.Equal(t, []string{session.Id}, ids, "an admitted expiration survives TTL changes")

@@ -91,7 +91,7 @@ func (s *delegationStore) RegisterTaskContinuation(_ context.Context, parentID, 
 	return s.registerErr
 }
 
-func (s *delegationStore) ReserveSessionDispatch(_ context.Context, sessionID string, _ uuid.UUID, _ string) error {
+func (s *delegationStore) ReserveSessionDispatch(_ context.Context, sessionID string, _ uuid.UUID, _ string, _ *database.DispatchOrigin) error {
 	s.events = append(s.events, "dispatch "+sessionID)
 	return nil
 }

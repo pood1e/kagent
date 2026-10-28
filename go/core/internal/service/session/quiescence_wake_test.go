@@ -88,7 +88,7 @@ func stageQuiescenceTask(t *testing.T, store *database.Client, session *apiv1.Se
 	task := a2a.NewSubmittedTask(message, message)
 	task.Status.State = state
 	hash := sha256.Sum256([]byte(task.ID))
-	version, err := store.CreateRuntimeTask(t.Context(), session.Id, hash[:], task, "")
+	version, err := createRuntimeTask(t, store, session.Id, hash[:], task, "")
 	require.NoError(t, err)
 	return &runtimev1.TaskStoreServiceSettleTaskRequest{SessionId: session.Id, TaskId: string(task.ID), Version: version}
 }
@@ -225,7 +225,7 @@ func TestQuiescenceRetriesTemporaryBlockers(t *testing.T) {
 			var unblock func()
 			if blocker == "dispatch" {
 				dispatchID := uuid.New()
-				require.NoError(t, store.ReserveSessionDispatch(t.Context(), session.Id, dispatchID, ""))
+				require.NoError(t, store.ReserveSessionDispatch(t.Context(), session.Id, dispatchID, "", nil))
 				unblock = func() {
 					revoked, err := store.RevokeSessionDispatch(t.Context(), session.Id, dispatchID, "unsaved-message")
 					require.NoError(t, err)

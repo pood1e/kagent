@@ -28,6 +28,7 @@ import (
 	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 	"github.com/kagent-dev/kagent/go/core/internal/service/agentidentity"
 	"github.com/kagent-dev/kagent/go/core/internal/service/checkpoint"
+	"github.com/kagent-dev/kagent/go/core/internal/service/execution"
 	"github.com/kagent-dev/kagent/go/core/internal/service/inventory"
 	"github.com/kagent-dev/kagent/go/core/internal/service/kubecrud"
 	memoryservice "github.com/kagent-dev/kagent/go/core/internal/service/memory"
@@ -51,6 +52,7 @@ const (
 
 type Config struct {
 	InventoryService       *inventory.Service
+	ExecutionService       *execution.Service
 	SandboxService         *sandbox.Service
 	BindAddress            string
 	MaxMessageBytes        int
@@ -151,6 +153,9 @@ func New(config Config) (*Server, error) {
 	apiv1.RegisterPromptTemplateServiceServer(grpcServer, newPromptTemplateServer(config.PromptTemplateService))
 	if config.InventoryService != nil {
 		runtimev1.RegisterToolInventoryServiceServer(grpcServer, &inventoryServer{service: config.InventoryService})
+	}
+	if config.ExecutionService != nil {
+		apiv1.RegisterExecutionServiceServer(grpcServer, &executionServer{service: config.ExecutionService})
 	}
 	runtimev1.RegisterMemoryServiceServer(grpcServer, newMemoryServer(config.MemoryService))
 	runtimev1.RegisterTaskStoreServiceServer(grpcServer, &taskStoreServer{service: config.TaskStoreService})

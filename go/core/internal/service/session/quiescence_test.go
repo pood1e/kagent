@@ -147,7 +147,7 @@ func TestIdleLifecycleDoesNotOwnTaskPublication(t *testing.T) {
 			task := a2a.NewSubmittedTask(message, message)
 			task.Status.State = a2a.TaskStateCompleted
 			hash := sha256.Sum256([]byte("completed"))
-			version, err := store.CreateRuntimeTask(t.Context(), session.Id, hash[:], task, "")
+			version, err := createRuntimeTask(t, store, session.Id, hash[:], task, "")
 			require.NoError(t, err)
 			require.NoError(t, store.SettleSessionTask(t.Context(), session.Id, string(task.ID), version))
 
@@ -179,8 +179,8 @@ func TestIdleLifecycleDoesNotOwnTaskPublication(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, a2a.TaskStateCompleted, visible.Status.State)
 			next := a2a.NewSubmittedTask(message, message)
-			_, err = store.CreateRuntimeTask(t.Context(), session.Id, hash[:], next, "")
-			require.ErrorIs(t, err, database.ErrFailedPrecondition)
+			_, err = createRuntimeTask(t, store, session.Id, hash[:], next, "")
+			require.ErrorIs(t, err, database.ErrDispatchBusy)
 			checkpoint := &apiv1.Checkpoint{Id: uuid.NewString(), SessionId: session.Id, HeadTaskId: string(task.ID)}
 			_, _, err = store.ReserveSessionCheckpoint(t.Context(), checkpoint, "alice", "checkpoint")
 			require.ErrorIs(t, err, database.ErrFailedPrecondition)
