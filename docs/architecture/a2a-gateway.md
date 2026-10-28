@@ -199,9 +199,13 @@ reach the control plane.
 HTTP, MCP, and gRPC use the same `auth.AuthProvider`. It selects the Actor JWT
 verifier using the issuer or actor claim, then binds the verified identity to the
 current session's atespace and Actor UID. Invalid or stale actor credentials never
-fall back to user authentication. `Principal.Actor` distinguishes a verified
-actor from a user-supplied agent header; its associated user identifies the data
-owner and does not grant the user's permissions.
+fall back to user authentication. `Principal.RuntimeBinding` identifies the verified
+runtime's Session. Its `CreatorID` selects that Session's data partition and does
+not grant the creator's permissions. Human and service-account callers have no
+runtime binding. The bound Agent is resolved through the verified Session.
+
+`Principal.ID` always identifies the caller. `UpstreamAuth` receives the destination
+Session ID separately; principals do not carry agent names or destination IDs.
 
 Services authorize resources through `auth.Authorizer` / `CollectionAuthorizer`.
 The default actor policy permits reading its own Agent, listing only that Agent,
@@ -255,3 +259,27 @@ names are not migrated.
 
 See [A2A push notifications](a2a-push-notifications.md) for setup, callback
 behavior, delivery guarantees, and receiver responsibilities.
+
+## Native task execution tree
+
+`ExecutionService` reads immutable parent/root references associated with A2A
+Task IDs. Dispatch admission derives the parent from the verified originating
+Actor's working task, or from a durable native continuation. The first runtime
+save binds that admitted relationship atomically with task history. Public
+message metadata and `reference_task_ids` remain conversation context.
+
+`GetTaskExecution` authorizes the owning Session. `ListTaskExecutions` filters
+Session access before returning a cursor page. Background dispatches retain
+ancestry after their parent completes; waiting tasks retain their original
+relationship across human replies. Ancestry admission bounds depth and detects
+Session cycles.
+
+A2A cancellation fences further descendants under the execution root's database
+lock and queues recursive cleanup in the same transaction. A leased native
+worker recovers unfinished Actor cancellation across controller replacement.
+Cleanup includes background descendants of terminal parents and abandons pending
+continuations. Task saves and child admission share this fence, independently of
+client stream lifetime.
+
+Implementation: `database/task_execution.go`, `database/task_cancellation.go`,
+`service/execution`, and `service/session/cancellations.go`.

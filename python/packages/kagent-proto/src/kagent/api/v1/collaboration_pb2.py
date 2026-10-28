@@ -26,7 +26,7 @@ import a2a_pb2 as a2a__pb2
 from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n!kagent/api/v1/collaboration.proto\x12\rkagent.api.v1\x1a\ta2a.proto\x1a\x1b\x62uf/validate/validate.proto\"Z\n\x11ListSessionsInput\x12%\n\tpage_size\x18\x01 \x01(\x05\x42\x07\xbaH\x04\x1a\x02(\x00R\tpage_size\x12\x1e\n\npage_token\x18\x02 \x01(\tR\npage_token\"L\n\x0eSessionSummary\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05\x61gent\x18\x02 \x01(\tR\x05\x61gent\x12\x14\n\x05state\x18\x03 \x01(\tR\x05state\"y\n\x12ListSessionsOutput\x12\x39\n\x08sessions\x18\x01 \x03(\x0b\x32\x1d.kagent.api.v1.SessionSummaryR\x08sessions\x12(\n\x0fnext_page_token\x18\x02 \x01(\tR\x0fnext_page_token\"\xab\x01\n\x12InvokeSessionInput\x12/\n\nsession_id\x18\x01 \x01(\tB\n\xbaH\x07\xc8\x01\x01r\x02\x10\x01H\x00R\nsession_id\x88\x01\x01\x12)\n\x07message\x18\x02 \x01(\tB\n\xbaH\x07\xc8\x01\x01r\x02\x10\x01H\x01R\x07message\x88\x01\x01\x12\x1e\n\nmessage_id\x18\x03 \x01(\tR\nmessage_idB\r\n\x0b_session_idB\n\n\x08_message\"\xaf\x01\n\x13InvokeSessionOutput\x12\x1e\n\nsession_id\x18\x01 \x01(\tR\nsession_id\x12\x18\n\x07task_id\x18\x02 \x01(\tR\x07task_id\x12\x1e\n\ncontext_id\x18\x03 \x01(\tR\ncontext_id\x12*\n\x05state\x18\x04 \x01(\x0e\x32\x14.lf.a2a.v1.TaskStateR\x05state\x12\x12\n\x04text\x18\x05 \x01(\tR\x04textB=Z;github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1;apiv1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n!kagent/api/v1/collaboration.proto\x12\rkagent.api.v1\x1a\ta2a.proto\x1a\x1b\x62uf/validate/validate.proto\"Z\n\x11ListSessionsInput\x12%\n\tpage_size\x18\x01 \x01(\x05\x42\x07\xbaH\x04\x1a\x02(\x00R\tpage_size\x12\x1e\n\npage_token\x18\x02 \x01(\tR\npage_token\"L\n\x0eSessionSummary\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05\x61gent\x18\x02 \x01(\tR\x05\x61gent\x12\x14\n\x05state\x18\x03 \x01(\tR\x05state\"y\n\x12ListSessionsOutput\x12\x39\n\x08sessions\x18\x01 \x03(\x0b\x32\x1d.kagent.api.v1.SessionSummaryR\x08sessions\x12(\n\x0fnext_page_token\x18\x02 \x01(\tR\x0fnext_page_token\"\xc5\x02\n\x12InvokeSessionInput\x12/\n\nsession_id\x18\x01 \x01(\tB\n\xbaH\x07\xc8\x01\x01r\x02\x10\x01H\x00R\nsession_id\x88\x01\x01\x12)\n\x07message\x18\x02 \x01(\tB\n\xbaH\x07\xc8\x01\x01r\x02\x10\x01H\x01R\x07message\x88\x01\x01\x12\x1e\n\nmessage_id\x18\x03 \x01(\tR\nmessage_id\x12\x1e\n\nbackground\x18\x04 \x01(\x08R\nbackground:x\xbaHu\x1as\n\x1binvocation.background_retry\x12)background invocation requires message_id\x1a)!this.background || this.message_id != \'\'B\r\n\x0b_session_idB\n\n\x08_message\"\xaf\x01\n\x13InvokeSessionOutput\x12\x1e\n\nsession_id\x18\x01 \x01(\tR\nsession_id\x12\x18\n\x07task_id\x18\x02 \x01(\tR\x07task_id\x12\x1e\n\ncontext_id\x18\x03 \x01(\tR\ncontext_id\x12*\n\x05state\x18\x04 \x01(\x0e\x32\x14.lf.a2a.v1.TaskStateR\x05state\x12\x12\n\x04text\x18\x05 \x01(\tR\x04textB=Z;github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1;apiv1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -40,6 +40,8 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_INVOKESESSIONINPUT'].fields_by_name['session_id']._serialized_options = b'\272H\007\310\001\001r\002\020\001'
   _globals['_INVOKESESSIONINPUT'].fields_by_name['message']._loaded_options = None
   _globals['_INVOKESESSIONINPUT'].fields_by_name['message']._serialized_options = b'\272H\007\310\001\001r\002\020\001'
+  _globals['_INVOKESESSIONINPUT']._loaded_options = None
+  _globals['_INVOKESESSIONINPUT']._serialized_options = b'\272Hu\032s\n\033invocation.background_retry\022)background invocation requires message_id\032)!this.background || this.message_id != \'\''
   _globals['_LISTSESSIONSINPUT']._serialized_start=92
   _globals['_LISTSESSIONSINPUT']._serialized_end=182
   _globals['_SESSIONSUMMARY']._serialized_start=184
@@ -47,7 +49,7 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_LISTSESSIONSOUTPUT']._serialized_start=262
   _globals['_LISTSESSIONSOUTPUT']._serialized_end=383
   _globals['_INVOKESESSIONINPUT']._serialized_start=386
-  _globals['_INVOKESESSIONINPUT']._serialized_end=557
-  _globals['_INVOKESESSIONOUTPUT']._serialized_start=560
-  _globals['_INVOKESESSIONOUTPUT']._serialized_end=735
+  _globals['_INVOKESESSIONINPUT']._serialized_end=711
+  _globals['_INVOKESESSIONOUTPUT']._serialized_start=714
+  _globals['_INVOKESESSIONOUTPUT']._serialized_end=889
 # @@protoc_insertion_point(module_scope)

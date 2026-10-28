@@ -6,8 +6,10 @@ semantics, not a private path to Actors.
 
 Current tools can:
 
-- list accessible Sessions;
-- invoke a Session;
+- list authorized Agents and accessible Sessions;
+- create a Session with a stable request ID;
+- invoke a Session synchronously or dispatch background work;
+- search personal or team Memory with control-plane embeddings;
 - create and list checkpoints;
 - fork a Session from a checkpoint;
 - discover SandboxTemplates and manage standalone Sandboxes; and
@@ -68,6 +70,17 @@ already authenticated caller. It records origin without replacing that caller's
 Session authorization. Resume messages use stable `kagent-continuation-<UUID>`
 IDs and A2A `reference_task_ids` containing the parent and original child task.
 
+`create_session` reuses the public CreateSession request and response. Creation
+and retries pass through native Session authorization and lifecycle handling.
+`invoke_session` accepts `background: true` with a stable `message_id`; it returns
+the admitted A2A Task while work continues independently. Parent/root references
+and recursive cancellation use the same native execution tree as direct A2A.
+
+`list_agents` applies native collection authorization before pagination and
+includes runtime-observed tool catalogs when available. `search_memory` reuses
+the Memory API scope, text-query, and result contracts. The public API and MCP
+share scope authorization, server-side embeddings, and metadata projection.
+
 ## MCP Tasks
 
 The server implements the MCP Tasks extension. An opaque base64 task reference
@@ -77,3 +90,19 @@ same durable A2A task, including `input-required` continuation. There is no
 separate MCP task or session store.
 
 The implementation is in [`go/core/internal/mcp`](../../go/core/internal/mcp).
+
+## Controller discovery credentials
+
+`RemoteMCPServer.spec.discoveryAuth` supplies a separate controller-only catalog
+credential. `oauth2` uses an HTTPS token endpoint, a client ID, a same-namespace
+Secret key reference, optional scopes, and an optional PEM CA ConfigMap key.
+`serviceAccount` uses a same-namespace account reference and one explicit
+TokenRequest audience. Discovery reads current credential references on each
+connection and confines credentials to the configured server origin.
+
+Runtime Actor JWT selection remains in `actorJwt`; discovery credentials apply
+to metadata enumeration. Secret and CA changes trigger discovery reconciliation.
+Servers configured with Actor JWT and a discovery credential publish metadata
+through the controller, while ordinary runtime calls retain Actor verification.
+Native collaboration uses the controller's `/mcp` endpoint and the native runtime
+audience independently of business gateway audiences.

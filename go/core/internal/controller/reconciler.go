@@ -29,10 +29,7 @@ import (
 	"github.com/kagent-dev/kagent/go/core/internal/egress"
 	"github.com/kagent-dev/kagent/go/core/internal/substrate"
 	"github.com/kagent-dev/kagent/go/core/internal/translator"
-	byotranslator "github.com/kagent-dev/kagent/go/core/internal/translator/byo"
-	claudetranslator "github.com/kagent-dev/kagent/go/core/internal/translator/claude"
-	codextranslator "github.com/kagent-dev/kagent/go/core/internal/translator/codex"
-	kagenttranslator "github.com/kagent-dev/kagent/go/core/internal/translator/kagent"
+	"github.com/kagent-dev/kagent/go/core/internal/translator/compilation"
 )
 
 // AgentReconciliation is the complete desired and observed state for one
@@ -151,12 +148,7 @@ func newAgentReconciliations(
 }
 
 func compileAgentTarget(ctx krt.HandlerContext, collections translator.Collections, agent *kagentv1alpha3.Agent, settings *configv1.RuntimeDefaultsConfig, images *configv1.HarnessImagesConfig) (*compiledTarget, []string, *ReconciliationFailure) {
-	compilation, err := translator.NewCompiler(ctx, collections, map[translator.HarnessType]translator.HarnessCompiler{
-		translator.HarnessTypeKagent: kagenttranslator.NewCompiler(ctx, collections, settings),
-		translator.HarnessTypeCodex:  codextranslator.NewCompiler(ctx, collections, settings),
-		translator.HarnessTypeClaude: claudetranslator.NewCompiler(ctx, collections, settings),
-		translator.HarnessTypeBYO:    byotranslator.NewCompiler(ctx, collections, settings),
-	}, images, settings).CompileAgent(context.Background(), agent)
+	compilation, err := compilation.New(ctx, collections, settings, images).CompileAgent(context.Background(), agent)
 	if err != nil {
 		return nil, nil, compilationFailure(err)
 	}
@@ -443,6 +435,7 @@ func (r *Reconciler) reconcileAgent(ctx context.Context, key string) error {
 		Revision: target.RevisionID.String(), Namespace: definition.Namespace,
 		AgentName: definition.AgentName, AgentUID: definition.AgentUID,
 		SourceSnapshot: target.Revision.Provenance, AgentCard: target.Revision.AgentCard,
+		MCPTools: target.Revision.MCPTools, Models: target.Revision.Models,
 		EgressDestinations:      target.Revision.EgressDestinations,
 		Credentials:             target.Revision.Credentials,
 		TokenPassthroughTargets: target.Revision.TokenPassthroughTargets,

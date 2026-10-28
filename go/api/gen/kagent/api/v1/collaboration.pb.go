@@ -190,10 +190,12 @@ func (x *ListSessionsOutput) GetNextPageToken() string {
 
 // InvokeSessionInput is shared by synchronous and task-backed invoke_session.
 type InvokeSessionInput struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SessionId     *string                `protobuf:"bytes,1,opt,name=session_id,proto3,oneof" json:"session_id,omitempty"`
-	Message       *string                `protobuf:"bytes,2,opt,name=message,proto3,oneof" json:"message,omitempty"`
-	MessageId     string                 `protobuf:"bytes,3,opt,name=message_id,proto3" json:"message_id,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	SessionId *string                `protobuf:"bytes,1,opt,name=session_id,proto3,oneof" json:"session_id,omitempty"`
+	Message   *string                `protobuf:"bytes,2,opt,name=message,proto3,oneof" json:"message,omitempty"`
+	MessageId string                 `protobuf:"bytes,3,opt,name=message_id,proto3" json:"message_id,omitempty"`
+	// Returns the admitted task while execution continues independently.
+	Background    bool `protobuf:"varint,4,opt,name=background,proto3" json:"background,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -247,6 +249,13 @@ func (x *InvokeSessionInput) GetMessageId() string {
 		return x.MessageId
 	}
 	return ""
+}
+
+func (x *InvokeSessionInput) GetBackground() bool {
+	if x != nil {
+		return x.Background
+	}
+	return false
 }
 
 type InvokeSessionOutput struct {
@@ -341,7 +350,7 @@ const file_kagent_api_v1_collaboration_proto_rawDesc = "" +
 	"\x05state\x18\x03 \x01(\tR\x05state\"y\n" +
 	"\x12ListSessionsOutput\x129\n" +
 	"\bsessions\x18\x01 \x03(\v2\x1d.kagent.api.v1.SessionSummaryR\bsessions\x12(\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\x0fnext_page_token\"\xab\x01\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\x0fnext_page_token\"\xc5\x02\n" +
 	"\x12InvokeSessionInput\x12/\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tB\n" +
@@ -351,7 +360,11 @@ const file_kagent_api_v1_collaboration_proto_rawDesc = "" +
 	"\xbaH\a\xc8\x01\x01r\x02\x10\x01H\x01R\amessage\x88\x01\x01\x12\x1e\n" +
 	"\n" +
 	"message_id\x18\x03 \x01(\tR\n" +
-	"message_idB\r\n" +
+	"message_id\x12\x1e\n" +
+	"\n" +
+	"background\x18\x04 \x01(\bR\n" +
+	"background:x\xbaHu\x1as\n" +
+	"\x1binvocation.background_retry\x12)background invocation requires message_id\x1a)!this.background || this.message_id != ''B\r\n" +
 	"\v_session_idB\n" +
 	"\n" +
 	"\b_message\"\xaf\x01\n" +

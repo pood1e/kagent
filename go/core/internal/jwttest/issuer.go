@@ -37,7 +37,11 @@ func New(t *testing.T) *Issuer {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case "/.well-known/openid-configuration":
-			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{"issuer": i.URL, "jwks_uri": i.URL + "/keys"}))
+			require.NoError(t, json.NewEncoder(w).Encode(struct {
+				Issuer     string   `json:"issuer"`
+				JWKSURI    string   `json:"jwks_uri"`
+				Algorithms []string `json:"id_token_signing_alg_values_supported"`
+			}{i.URL, i.URL + "/keys", []string{"ES256"}}))
 		case "/keys":
 			_, err := w.Write(i.keys.Load().([]byte))
 			require.NoError(t, err)

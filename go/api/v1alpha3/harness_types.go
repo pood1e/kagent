@@ -91,6 +91,13 @@ type KagentHarnessSummarizer struct {
 // KagentHarnessMemory configures kagent's long-term memory service.
 // +kubebuilder:validation:XValidation:rule="self.modelConfigRef.name.size() > 0",message="modelConfigRef name must not be empty"
 type KagentHarnessMemory struct {
+	// TeamNamespace selects the namespace-scoped shared collection.
+	// Runtime authorization confines access to the Agent namespace.
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
+	// +kubebuilder:validation:MaxLength=63
+	// +optional
+	TeamNamespace string `json:"teamNamespace,omitempty"`
+
 	// ModelConfigRef references the embedding ModelConfig in the Harness namespace.
 	// +required
 	ModelConfigRef corev1.LocalObjectReference `json:"modelConfigRef"`

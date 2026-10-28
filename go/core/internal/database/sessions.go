@@ -187,11 +187,12 @@ func (c *Client) ListSessions(ctx context.Context, query SessionQuery) ([]*apiv1
 		WHERE i.state <> 'RUNTIME_STATE_DELETED' AND ($1::boolean OR i.user_id = $2)
 		  AND (NULLIF($3::text, '') IS NULL OR i.id > NULLIF($3::text, '')::uuid)
 		  AND ($4::text = '' OR (r.agent_name = $4 AND r.namespace = $5))
+ AND ($7::text = '' OR EXISTS (SELECT 1 FROM session_authority a WHERE a.session_id=i.id AND a.root_session_id=NULLIF($7,'')::uuid))
 		ORDER BY i.id
 		LIMIT $6
 	`,
 		pgx.RowToStructByName[sessionRow], query.AllUsers, query.UserID, query.AfterID,
-		query.Agent.GetName(), query.Agent.GetNamespace(), int32(query.Limit),
+		query.Agent.GetName(), query.Agent.GetNamespace(), int32(query.Limit), query.RootSessionID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list Sessions: %w", err)
@@ -309,6 +310,9 @@ func insertSessionRecords(ctx context.Context, db pgx.Tx, session *apiv1.Session
 		INSERT INTO session (id, context_id, history_id, source_checkpoint_id, pinned_checkpoint_id, data)
 		VALUES ($1, $2, $3, $4, $4, $5)
 	`, session.Id, session.ContextId, historyID, sourceCheckpointID, data); err != nil {
+		return sessionRow{}, err
+	}
+	if err := insertSessionAuthority(ctx, db, session); err != nil {
 		return sessionRow{}, err
 	}
 	return readSession(ctx, db, session.Id)

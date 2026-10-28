@@ -34,6 +34,7 @@ import (
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	typedauth "k8s.io/client-go/kubernetes/typed/authentication/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -50,11 +51,15 @@ import (
 	remotemcpcontroller "github.com/kagent-dev/kagent/go/core/internal/controller/remotemcpserver"
 	scheduledruncontroller "github.com/kagent-dev/kagent/go/core/internal/controller/scheduledrun"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
+	"github.com/kagent-dev/kagent/go/core/internal/executionauth"
 	"github.com/kagent-dev/kagent/go/core/internal/grpcserver"
 	authimpl "github.com/kagent-dev/kagent/go/core/internal/httpserver/auth"
 	"github.com/kagent-dev/kagent/go/core/internal/mcp"
 	"github.com/kagent-dev/kagent/go/core/internal/runtimeauth"
+	"github.com/kagent-dev/kagent/go/core/internal/service/admission"
 	"github.com/kagent-dev/kagent/go/core/internal/service/checkpoint"
+	"github.com/kagent-dev/kagent/go/core/internal/service/execution"
+	"github.com/kagent-dev/kagent/go/core/internal/service/inventory"
 	"github.com/kagent-dev/kagent/go/core/internal/service/kubecrud"
 	memoryservice "github.com/kagent-dev/kagent/go/core/internal/service/memory"
 	modelservice "github.com/kagent-dev/kagent/go/core/internal/service/model"
@@ -85,8 +90,7 @@ import (
 // every service that takes one — so a library consumer cannot narrow where
 // its own policy applies.
 type Options struct {
-	// Authenticator identifies the caller. Nil selects InsecureAuthenticator,
-	// which admits every request.
+	// Authenticator identifies the caller. Nil selects server.auth configuration.
 	Authenticator auth.AuthProvider
 	// Authorizer decides what an identified caller may do and which collection
 	// entries it may see. Nil selects NoopAuthorizer, which permits every action.
@@ -325,15 +329,38 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 		return fmt.Errorf("set up RemoteMCPServer discovery: %w", err)
 	}
 
+	if opts.Authenticator == nil {
+		opts.Authenticator, err = authimpl.NewAuthenticator(ctx, cfg.GetServer().GetAuth())
+		if err != nil {
+			return fmt.Errorf("configure user authentication: %w", err)
+		}
+	}
 	authenticator, authorizer := opts.resolve()
-	authenticator = runtimeauth.NewProvider(authenticator, actorVerifier, store, cfg.GetSubstrate().GetActorJwtIssuer())
-	authorizer = runtimeauth.NewAuthorizer(authorizer, store)
+	if machine := cfg.GetServer().GetAuth().GetServiceAccount(); machine != nil {
+		reviewer, err := typedauth.NewForConfig(kubeConfig)
+		if err != nil {
+			return fmt.Errorf("create service-account verifier: %w", err)
+		}
+		authenticator = authimpl.NewServiceAccountProvider(authenticator, reviewer.TokenReviews(), machine.GetAuthority())
+	}
+	executionAuthority, err := executionauth.NewService(store, authenticator, cfg.GetExecutionAuthorization(), cfg.GetServer().GetAuth().GetMode() == "insecure")
+	if err != nil {
+		return fmt.Errorf("configure execution authority: %w", err)
+	}
+	authenticator = &executionauth.Provider{Users: authenticator, Authority: executionAuthority}
+	userAuthenticator := authenticator
+	authenticator = runtimeauth.NewProvider(authenticator, actorVerifier, store, cfg.GetSubstrate().GetActorJwtIssuer(), executionAuthority)
+	authorizer = runtimeauth.NewAuthorizer(&executionauth.Policy{Base: authorizer, Config: cfg.GetExecutionAuthorization()}, store, executionAuthority)
 	resourceNamespace := cfg.GetKubernetes().GetNamespace()
-	models := modelservice.NewService(manager.GetClient(), authorizer, resourceNamespace)
+	admission := admission.NewService(manager.GetClient(), cfg.GetRuntimeDefaults(), cfg.GetHarnessImages())
+	models := modelservice.NewService(manager.GetClient(), authorizer, resourceNamespace, modelservice.WithAdmission(admission))
 	tools := toolservice.NewService(manager.GetClient(), store, authorizer, resourceNamespace, mcpClient)
 	prompts := prompttemplateservice.NewService(manager.GetClient(), authorizer)
 	system := systemservice.NewService(manager.GetClient(), watchNamespaces, authorizer, actors)
-	memory := memoryservice.NewService(store, authorizer)
+	memory := memoryservice.NewService(store, authorizer, memoryservice.WithEmbedder(&memoryservice.ModelEmbedder{
+		Kube: manager.GetAPIReader(), Model: cfg.GetMemory().GetModelConfig(),
+		BearerTokenFile: cfg.GetMemory().GetBearerTokenFile(),
+	}))
 	quiescenceWake := make(chan struct{}, 1)
 	pushWake := make(chan struct{}, 1)
 	sessionWorkflow := sessionsvc.NewActorWorkflow(store, actors, quiescenceWake, quiescenceInterval)
@@ -349,8 +376,8 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 		return fmt.Errorf("register session expiration worker: %w", err)
 	}
 	shareMaxTTL := cfg.GetSessions().GetShareMaxTtl().AsDuration()
-	sessions := sessionsvc.NewService(store, authorizer, sessionWorkflow, sessionsvc.WithShareMaxTTL(shareMaxTTL))
-	checkpoints := checkpoint.NewService(store, authorizer, actors, sessionWorkflow)
+	sessions := sessionsvc.NewService(store, authorizer, sessionWorkflow, sessionsvc.WithShareMaxTTL(shareMaxTTL), sessionsvc.WithExecutionAuthority(executionAuthority))
+	checkpoints := checkpoint.NewService(store, authorizer, actors, sessionWorkflow, executionAuthority)
 	gatewayDialer, err := a2agateway.NewRuntimeDialer(
 		cfg.GetSubstrate().GetRouterUrl(),
 		authenticator,
@@ -358,7 +385,7 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 	if err != nil {
 		return err
 	}
-	agents := kubecrud.NewService(manager.GetClient(), authorizer, &kagentv1alpha3.Agent{}, &kagentv1alpha3.AgentList{}, "Agent")
+	agents := kubecrud.NewService(manager.GetClient(), authorizer, &kagentv1alpha3.Agent{}, &kagentv1alpha3.AgentList{}, "Agent", admission.Agent)
 	interactions := sessionsvc.NewInteractionService(store, agents, sessions, cfg.GetPush().GetAllowHttp())
 	pushSender := sessionsvc.NewHTTPPushSender(5*time.Second,
 		cfg.GetPush().GetAllowHttp(), cfg.GetPush().GetAllowPrivateNetworks())
@@ -374,6 +401,9 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 	continuations := sessionsvc.NewContinuations(store, gateway, sessions)
 	if err := manager.Add(continuations); err != nil {
 		return fmt.Errorf("register task continuations: %w", err)
+	}
+	if err := manager.Add(sessionsvc.NewCancellations(store, gateway)); err != nil {
+		return fmt.Errorf("register recursive task cancellation: %w", err)
 	}
 	schedules := scheduledrun.NewService(store, manager.GetClient(), authorizer)
 	if err := manager.Add(scheduledruncontroller.NewScheduler(store, cfg.GetScheduledRuns().GetPollInterval().AsDuration())); err != nil {
@@ -409,7 +439,7 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 	if err := manager.Add(sandboxes); err != nil {
 		return err
 	}
-	mcpHandler, err := mcp.New(sessions, checkpoints, gateway, sandboxes, sandboxTemplates)
+	mcpHandler, err := mcp.New(sessions, checkpoints, gateway, sandboxes, sandboxTemplates, &mcp.Collaboration{Agents: agents, Inventory: inventory.NewService(store, authorizer), Memory: memory})
 	if err != nil {
 		return err
 	}
@@ -418,6 +448,7 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 	if err != nil {
 		return err
 	}
+	executions := execution.NewService(store, sessions, executionAuthority)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -426,6 +457,14 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 		mux.Handle("GET /.well-known/jwks.json", pushSigner)
 	} else {
 		mux.HandleFunc("GET /.well-known/jwks.json", http.NotFound)
+	}
+	if audiences := cfg.GetExecutionAuthorization().GetGatewayAudiences(); len(audiences) > 0 {
+		verifier, err := substrate.NewGatewayActorJWTVerifier(ctx, cfg.GetSubstrate().GetActorJwtIssuer(), cfg.GetSubstrate().GetCaFile(), audiences...)
+		if err != nil {
+			return fmt.Errorf("configure runtime gateway authorization: %w", err)
+		}
+		gatewayAuthenticator := runtimeauth.NewProvider(userAuthenticator, verifier, store, cfg.GetSubstrate().GetActorJwtIssuer(), executionAuthority)
+		mux.Handle("POST /authorize/runtime", auth.AuthnMiddleware(gatewayAuthenticator)(http.HandlerFunc(executions.RuntimeAuthorization)))
 	}
 	mux.Handle("/mcp", otelhttp.NewHandler(auth.AuthnMiddleware(authenticator)(mcpHandler), "/mcp"))
 	mux.Handle(a2agateway.HTTPPathPrefix, otelhttp.NewHandler(a2agateway.NewHTTPHandler(gateway, authenticator, store), a2agateway.HTTPPathPrefix))
@@ -441,13 +480,15 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 		PromptTemplateService: prompts,
 		SystemService:         system,
 		MemoryService:         memory,
+		InventoryService:      inventory.NewService(store, authorizer),
+		ExecutionService:      executions,
 		TaskStoreService:      runtimeTasks,
 		SessionService:        sessions,
 		ScheduledRunService:   schedules,
 		// Author Agents and their reusable configuration through the API.
 		AgentService:           agents,
-		AgentTemplateService:   kubecrud.NewService(manager.GetClient(), authorizer, &kagentv1alpha3.AgentTemplate{}, &kagentv1alpha3.AgentTemplateList{}, "AgentTemplate"),
-		HarnessService:         kubecrud.NewService(manager.GetClient(), authorizer, &kagentv1alpha3.Harness{}, &kagentv1alpha3.HarnessList{}, "Harness"),
+		AgentTemplateService:   kubecrud.NewService(manager.GetClient(), authorizer, &kagentv1alpha3.AgentTemplate{}, &kagentv1alpha3.AgentTemplateList{}, "AgentTemplate", admission.AgentTemplate),
+		HarnessService:         kubecrud.NewService(manager.GetClient(), authorizer, &kagentv1alpha3.Harness{}, &kagentv1alpha3.HarnessList{}, "Harness", admission.Harness),
 		SandboxTemplateService: sandboxTemplates,
 		SandboxService:         sandboxes,
 		CheckpointService:      checkpoints,

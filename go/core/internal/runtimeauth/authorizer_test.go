@@ -32,12 +32,12 @@ func TestActorPolicyDoesNotInheritOwnerPermissions(t *testing.T) {
 	verifier, err := substrate.NewActorJWTVerifier(t.Context(), issuer.URL, issuer.CAFile)
 	require.NoError(t, err)
 	store := newBinding()
-	provider := runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL)
+	provider := runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL, nil)
 	identity, err := provider.Authenticate(t.Context(), http.Header{"Authorization": {"Bearer " + issuer.Token(t, issuer.Claims("team-a", substrate.ActorName(store.session.Id), store.actorUID))}}, nil)
 	require.NoError(t, err)
 	ctx := auth.AuthSessionTo(t.Context(), identity)
 	for _, users := range []auth.CollectionAuthorizer{auth.NoopAuthorizer{}, &actorPolicy{scope: authorization.AuthorizationScope{Kind: authorization.ScopeAll}}} {
-		policy := runtimeauth.NewAuthorizer(users, store)
+		policy := runtimeauth.NewAuthorizer(users, store, nil)
 		for _, test := range []struct {
 			name     string
 			verb     auth.Verb
@@ -86,7 +86,7 @@ func TestActorPolicyDoesNotInheritOwnerPermissions(t *testing.T) {
 		require.Equal(t, authorization.ScopeNone, scope.Kind)
 	}
 
-	policy := runtimeauth.NewAuthorizer(denyUsers{}, store)
+	policy := runtimeauth.NewAuthorizer(denyUsers{}, store, nil)
 	user, err := provider.Authenticate(t.Context(), http.Header{"X-User-Id": {"owner"}}, nil)
 	require.NoError(t, err)
 	require.EqualError(t, policy.Check(auth.AuthSessionTo(t.Context(), user), user.Principal(), auth.VerbGet, auth.Resource{Type: "Session", Name: store.session.Id}), "user denied")

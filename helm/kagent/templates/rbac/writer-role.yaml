@@ -1,4 +1,7 @@
 {{- define "kagent.writer.rules" -}}
+- apiGroups: ["" ]
+  resources: [serviceaccounts/token]
+  verbs: [create]
 - apiGroups:
   - api.kagent.dev
   resources:

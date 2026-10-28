@@ -10,6 +10,7 @@ import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -26,7 +27,9 @@ type Agent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Ref   *ResourceReference     `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
 	// Complete Agent CR, including its inline or referenced configuration and status.
-	Resource      *StructuredObject `protobuf:"bytes,2,opt,name=resource,proto3" json:"resource,omitempty"`
+	Resource *StructuredObject `protobuf:"bytes,2,opt,name=resource,proto3" json:"resource,omitempty"`
+	// Runtime-observed tools of the effective revision. Absent until observed.
+	BuiltinTools  *BuiltinToolCatalog `protobuf:"bytes,3,opt,name=builtin_tools,json=builtinTools,proto3" json:"builtin_tools,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -71,6 +74,13 @@ func (x *Agent) GetRef() *ResourceReference {
 func (x *Agent) GetResource() *StructuredObject {
 	if x != nil {
 		return x.Resource
+	}
+	return nil
+}
+
+func (x *Agent) GetBuiltinTools() *BuiltinToolCatalog {
+	if x != nil {
+		return x.BuiltinTools
 	}
 	return nil
 }
@@ -461,10 +471,12 @@ func (x *UpdateAgentResponse) GetAgent() *Agent {
 }
 
 type DeleteAgentRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Ref           *ResourceReference     `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional Kubernetes optimistic concurrency precondition.
+	ResourceVersion string             `protobuf:"bytes,2,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	Ref             *ResourceReference `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *DeleteAgentRequest) Reset() {
@@ -495,6 +507,13 @@ func (x *DeleteAgentRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DeleteAgentRequest.ProtoReflect.Descriptor instead.
 func (*DeleteAgentRequest) Descriptor() ([]byte, []int) {
 	return file_kagent_api_v1_agents_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *DeleteAgentRequest) GetResourceVersion() string {
+	if x != nil {
+		return x.ResourceVersion
+	}
+	return ""
 }
 
 func (x *DeleteAgentRequest) GetRef() *ResourceReference {
@@ -540,14 +559,164 @@ func (*DeleteAgentResponse) Descriptor() ([]byte, []int) {
 	return file_kagent_api_v1_agents_proto_rawDescGZIP(), []int{10}
 }
 
+type ValidateAgentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ref           *ResourceReference     `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
+	Resource      *StructuredObject      `protobuf:"bytes,2,opt,name=resource,proto3" json:"resource,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateAgentRequest) Reset() {
+	*x = ValidateAgentRequest{}
+	mi := &file_kagent_api_v1_agents_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateAgentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateAgentRequest) ProtoMessage() {}
+
+func (x *ValidateAgentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_kagent_api_v1_agents_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateAgentRequest.ProtoReflect.Descriptor instead.
+func (*ValidateAgentRequest) Descriptor() ([]byte, []int) {
+	return file_kagent_api_v1_agents_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ValidateAgentRequest) GetRef() *ResourceReference {
+	if x != nil {
+		return x.Ref
+	}
+	return nil
+}
+
+func (x *ValidateAgentRequest) GetResource() *StructuredObject {
+	if x != nil {
+		return x.Resource
+	}
+	return nil
+}
+
+type ValidateAgentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateAgentResponse) Reset() {
+	*x = ValidateAgentResponse{}
+	mi := &file_kagent_api_v1_agents_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateAgentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateAgentResponse) ProtoMessage() {}
+
+func (x *ValidateAgentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_kagent_api_v1_agents_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateAgentResponse.ProtoReflect.Descriptor instead.
+func (*ValidateAgentResponse) Descriptor() ([]byte, []int) {
+	return file_kagent_api_v1_agents_proto_rawDescGZIP(), []int{12}
+}
+
+// BuiltinToolCatalog contains SDK-registered tools, independently of MCP discovery.
+type BuiltinToolCatalog struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Revision      string                 `protobuf:"bytes,1,opt,name=revision,proto3" json:"revision,omitempty"`
+	Tools         []*DiscoveredTool      `protobuf:"bytes,2,rep,name=tools,proto3" json:"tools,omitempty"`
+	ObservedAt    *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BuiltinToolCatalog) Reset() {
+	*x = BuiltinToolCatalog{}
+	mi := &file_kagent_api_v1_agents_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BuiltinToolCatalog) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BuiltinToolCatalog) ProtoMessage() {}
+
+func (x *BuiltinToolCatalog) ProtoReflect() protoreflect.Message {
+	mi := &file_kagent_api_v1_agents_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BuiltinToolCatalog.ProtoReflect.Descriptor instead.
+func (*BuiltinToolCatalog) Descriptor() ([]byte, []int) {
+	return file_kagent_api_v1_agents_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *BuiltinToolCatalog) GetRevision() string {
+	if x != nil {
+		return x.Revision
+	}
+	return ""
+}
+
+func (x *BuiltinToolCatalog) GetTools() []*DiscoveredTool {
+	if x != nil {
+		return x.Tools
+	}
+	return nil
+}
+
+func (x *BuiltinToolCatalog) GetObservedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return nil
+}
+
 var File_kagent_api_v1_agents_proto protoreflect.FileDescriptor
 
 const file_kagent_api_v1_agents_proto_rawDesc = "" +
 	"\n" +
-	"\x1akagent/api/v1/agents.proto\x12\rkagent.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1akagent/api/v1/common.proto\"x\n" +
+	"\x1akagent/api/v1/agents.proto\x12\rkagent.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1akagent/api/v1/common.proto\x1a\x19kagent/api/v1/tools.proto\"\xc0\x01\n" +
 	"\x05Agent\x122\n" +
 	"\x03ref\x18\x01 \x01(\v2 .kagent.api.v1.ResourceReferenceR\x03ref\x12;\n" +
-	"\bresource\x18\x02 \x01(\v2\x1f.kagent.api.v1.StructuredObjectR\bresource\"\x8e\x01\n" +
+	"\bresource\x18\x02 \x01(\v2\x1f.kagent.api.v1.StructuredObjectR\bresource\x12F\n" +
+	"\rbuiltin_tools\x18\x03 \x01(\v2!.kagent.api.v1.BuiltinToolCatalogR\fbuiltinTools\"\x8e\x01\n" +
 	"\x11ListAgentsRequest\x12I\n" +
 	"\tnamespace\x18\x01 \x01(\tB+\xbaH(\xd8\x01\x01r#\x18?2\x1f^[a-z0-9]([-a-z0-9]*[a-z0-9])?$R\tnamespace\x12.\n" +
 	"\x04page\x18\x02 \x01(\v2\x1a.kagent.api.v1.PageRequestR\x04page\"s\n" +
@@ -567,17 +736,28 @@ const file_kagent_api_v1_agents_proto_rawDesc = "" +
 	"\x03ref\x18\x01 \x01(\v2 .kagent.api.v1.ResourceReferenceB\x06\xbaH\x03\xc8\x01\x01R\x03ref\x12C\n" +
 	"\bresource\x18\x02 \x01(\v2\x1f.kagent.api.v1.StructuredObjectB\x06\xbaH\x03\xc8\x01\x01R\bresource\"A\n" +
 	"\x13UpdateAgentResponse\x12*\n" +
-	"\x05agent\x18\x01 \x01(\v2\x14.kagent.api.v1.AgentR\x05agent\"P\n" +
-	"\x12DeleteAgentRequest\x12:\n" +
+	"\x05agent\x18\x01 \x01(\v2\x14.kagent.api.v1.AgentR\x05agent\"\x85\x01\n" +
+	"\x12DeleteAgentRequest\x123\n" +
+	"\x10resource_version\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x0fresourceVersion\x12:\n" +
 	"\x03ref\x18\x01 \x01(\v2 .kagent.api.v1.ResourceReferenceB\x06\xbaH\x03\xc8\x01\x01R\x03ref\"\x15\n" +
-	"\x13DeleteAgentResponse2\xb0\x03\n" +
+	"\x13DeleteAgentResponse\"\x97\x01\n" +
+	"\x14ValidateAgentRequest\x12:\n" +
+	"\x03ref\x18\x01 \x01(\v2 .kagent.api.v1.ResourceReferenceB\x06\xbaH\x03\xc8\x01\x01R\x03ref\x12C\n" +
+	"\bresource\x18\x02 \x01(\v2\x1f.kagent.api.v1.StructuredObjectB\x06\xbaH\x03\xc8\x01\x01R\bresource\"\x17\n" +
+	"\x15ValidateAgentResponse\"\xa2\x01\n" +
+	"\x12BuiltinToolCatalog\x12\x1a\n" +
+	"\brevision\x18\x01 \x01(\tR\brevision\x123\n" +
+	"\x05tools\x18\x02 \x03(\v2\x1d.kagent.api.v1.DiscoveredToolR\x05tools\x12;\n" +
+	"\vobserved_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"observedAt2\x8c\x04\n" +
 	"\fAgentService\x12Q\n" +
 	"\n" +
 	"ListAgents\x12 .kagent.api.v1.ListAgentsRequest\x1a!.kagent.api.v1.ListAgentsResponse\x12K\n" +
 	"\bGetAgent\x12\x1e.kagent.api.v1.GetAgentRequest\x1a\x1f.kagent.api.v1.GetAgentResponse\x12T\n" +
 	"\vCreateAgent\x12!.kagent.api.v1.CreateAgentRequest\x1a\".kagent.api.v1.CreateAgentResponse\x12T\n" +
 	"\vUpdateAgent\x12!.kagent.api.v1.UpdateAgentRequest\x1a\".kagent.api.v1.UpdateAgentResponse\x12T\n" +
-	"\vDeleteAgent\x12!.kagent.api.v1.DeleteAgentRequest\x1a\".kagent.api.v1.DeleteAgentResponseB=Z;github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1;apiv1b\x06proto3"
+	"\vDeleteAgent\x12!.kagent.api.v1.DeleteAgentRequest\x1a\".kagent.api.v1.DeleteAgentResponse\x12Z\n" +
+	"\rValidateAgent\x12#.kagent.api.v1.ValidateAgentRequest\x1a$.kagent.api.v1.ValidateAgentResponseB=Z;github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1;apiv1b\x06proto3"
 
 var (
 	file_kagent_api_v1_agents_proto_rawDescOnce sync.Once
@@ -591,54 +771,66 @@ func file_kagent_api_v1_agents_proto_rawDescGZIP() []byte {
 	return file_kagent_api_v1_agents_proto_rawDescData
 }
 
-var file_kagent_api_v1_agents_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_kagent_api_v1_agents_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_kagent_api_v1_agents_proto_goTypes = []any{
-	(*Agent)(nil),               // 0: kagent.api.v1.Agent
-	(*ListAgentsRequest)(nil),   // 1: kagent.api.v1.ListAgentsRequest
-	(*ListAgentsResponse)(nil),  // 2: kagent.api.v1.ListAgentsResponse
-	(*GetAgentRequest)(nil),     // 3: kagent.api.v1.GetAgentRequest
-	(*GetAgentResponse)(nil),    // 4: kagent.api.v1.GetAgentResponse
-	(*CreateAgentRequest)(nil),  // 5: kagent.api.v1.CreateAgentRequest
-	(*CreateAgentResponse)(nil), // 6: kagent.api.v1.CreateAgentResponse
-	(*UpdateAgentRequest)(nil),  // 7: kagent.api.v1.UpdateAgentRequest
-	(*UpdateAgentResponse)(nil), // 8: kagent.api.v1.UpdateAgentResponse
-	(*DeleteAgentRequest)(nil),  // 9: kagent.api.v1.DeleteAgentRequest
-	(*DeleteAgentResponse)(nil), // 10: kagent.api.v1.DeleteAgentResponse
-	(*ResourceReference)(nil),   // 11: kagent.api.v1.ResourceReference
-	(*StructuredObject)(nil),    // 12: kagent.api.v1.StructuredObject
-	(*PageRequest)(nil),         // 13: kagent.api.v1.PageRequest
-	(*PageResponse)(nil),        // 14: kagent.api.v1.PageResponse
+	(*Agent)(nil),                 // 0: kagent.api.v1.Agent
+	(*ListAgentsRequest)(nil),     // 1: kagent.api.v1.ListAgentsRequest
+	(*ListAgentsResponse)(nil),    // 2: kagent.api.v1.ListAgentsResponse
+	(*GetAgentRequest)(nil),       // 3: kagent.api.v1.GetAgentRequest
+	(*GetAgentResponse)(nil),      // 4: kagent.api.v1.GetAgentResponse
+	(*CreateAgentRequest)(nil),    // 5: kagent.api.v1.CreateAgentRequest
+	(*CreateAgentResponse)(nil),   // 6: kagent.api.v1.CreateAgentResponse
+	(*UpdateAgentRequest)(nil),    // 7: kagent.api.v1.UpdateAgentRequest
+	(*UpdateAgentResponse)(nil),   // 8: kagent.api.v1.UpdateAgentResponse
+	(*DeleteAgentRequest)(nil),    // 9: kagent.api.v1.DeleteAgentRequest
+	(*DeleteAgentResponse)(nil),   // 10: kagent.api.v1.DeleteAgentResponse
+	(*ValidateAgentRequest)(nil),  // 11: kagent.api.v1.ValidateAgentRequest
+	(*ValidateAgentResponse)(nil), // 12: kagent.api.v1.ValidateAgentResponse
+	(*BuiltinToolCatalog)(nil),    // 13: kagent.api.v1.BuiltinToolCatalog
+	(*ResourceReference)(nil),     // 14: kagent.api.v1.ResourceReference
+	(*StructuredObject)(nil),      // 15: kagent.api.v1.StructuredObject
+	(*PageRequest)(nil),           // 16: kagent.api.v1.PageRequest
+	(*PageResponse)(nil),          // 17: kagent.api.v1.PageResponse
+	(*DiscoveredTool)(nil),        // 18: kagent.api.v1.DiscoveredTool
+	(*timestamppb.Timestamp)(nil), // 19: google.protobuf.Timestamp
 }
 var file_kagent_api_v1_agents_proto_depIdxs = []int32{
-	11, // 0: kagent.api.v1.Agent.ref:type_name -> kagent.api.v1.ResourceReference
-	12, // 1: kagent.api.v1.Agent.resource:type_name -> kagent.api.v1.StructuredObject
-	13, // 2: kagent.api.v1.ListAgentsRequest.page:type_name -> kagent.api.v1.PageRequest
-	0,  // 3: kagent.api.v1.ListAgentsResponse.agents:type_name -> kagent.api.v1.Agent
-	14, // 4: kagent.api.v1.ListAgentsResponse.page:type_name -> kagent.api.v1.PageResponse
-	11, // 5: kagent.api.v1.GetAgentRequest.ref:type_name -> kagent.api.v1.ResourceReference
-	0,  // 6: kagent.api.v1.GetAgentResponse.agent:type_name -> kagent.api.v1.Agent
-	11, // 7: kagent.api.v1.CreateAgentRequest.ref:type_name -> kagent.api.v1.ResourceReference
-	12, // 8: kagent.api.v1.CreateAgentRequest.resource:type_name -> kagent.api.v1.StructuredObject
-	0,  // 9: kagent.api.v1.CreateAgentResponse.agent:type_name -> kagent.api.v1.Agent
-	11, // 10: kagent.api.v1.UpdateAgentRequest.ref:type_name -> kagent.api.v1.ResourceReference
-	12, // 11: kagent.api.v1.UpdateAgentRequest.resource:type_name -> kagent.api.v1.StructuredObject
-	0,  // 12: kagent.api.v1.UpdateAgentResponse.agent:type_name -> kagent.api.v1.Agent
-	11, // 13: kagent.api.v1.DeleteAgentRequest.ref:type_name -> kagent.api.v1.ResourceReference
-	1,  // 14: kagent.api.v1.AgentService.ListAgents:input_type -> kagent.api.v1.ListAgentsRequest
-	3,  // 15: kagent.api.v1.AgentService.GetAgent:input_type -> kagent.api.v1.GetAgentRequest
-	5,  // 16: kagent.api.v1.AgentService.CreateAgent:input_type -> kagent.api.v1.CreateAgentRequest
-	7,  // 17: kagent.api.v1.AgentService.UpdateAgent:input_type -> kagent.api.v1.UpdateAgentRequest
-	9,  // 18: kagent.api.v1.AgentService.DeleteAgent:input_type -> kagent.api.v1.DeleteAgentRequest
-	2,  // 19: kagent.api.v1.AgentService.ListAgents:output_type -> kagent.api.v1.ListAgentsResponse
-	4,  // 20: kagent.api.v1.AgentService.GetAgent:output_type -> kagent.api.v1.GetAgentResponse
-	6,  // 21: kagent.api.v1.AgentService.CreateAgent:output_type -> kagent.api.v1.CreateAgentResponse
-	8,  // 22: kagent.api.v1.AgentService.UpdateAgent:output_type -> kagent.api.v1.UpdateAgentResponse
-	10, // 23: kagent.api.v1.AgentService.DeleteAgent:output_type -> kagent.api.v1.DeleteAgentResponse
-	19, // [19:24] is the sub-list for method output_type
-	14, // [14:19] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	14, // 0: kagent.api.v1.Agent.ref:type_name -> kagent.api.v1.ResourceReference
+	15, // 1: kagent.api.v1.Agent.resource:type_name -> kagent.api.v1.StructuredObject
+	13, // 2: kagent.api.v1.Agent.builtin_tools:type_name -> kagent.api.v1.BuiltinToolCatalog
+	16, // 3: kagent.api.v1.ListAgentsRequest.page:type_name -> kagent.api.v1.PageRequest
+	0,  // 4: kagent.api.v1.ListAgentsResponse.agents:type_name -> kagent.api.v1.Agent
+	17, // 5: kagent.api.v1.ListAgentsResponse.page:type_name -> kagent.api.v1.PageResponse
+	14, // 6: kagent.api.v1.GetAgentRequest.ref:type_name -> kagent.api.v1.ResourceReference
+	0,  // 7: kagent.api.v1.GetAgentResponse.agent:type_name -> kagent.api.v1.Agent
+	14, // 8: kagent.api.v1.CreateAgentRequest.ref:type_name -> kagent.api.v1.ResourceReference
+	15, // 9: kagent.api.v1.CreateAgentRequest.resource:type_name -> kagent.api.v1.StructuredObject
+	0,  // 10: kagent.api.v1.CreateAgentResponse.agent:type_name -> kagent.api.v1.Agent
+	14, // 11: kagent.api.v1.UpdateAgentRequest.ref:type_name -> kagent.api.v1.ResourceReference
+	15, // 12: kagent.api.v1.UpdateAgentRequest.resource:type_name -> kagent.api.v1.StructuredObject
+	0,  // 13: kagent.api.v1.UpdateAgentResponse.agent:type_name -> kagent.api.v1.Agent
+	14, // 14: kagent.api.v1.DeleteAgentRequest.ref:type_name -> kagent.api.v1.ResourceReference
+	14, // 15: kagent.api.v1.ValidateAgentRequest.ref:type_name -> kagent.api.v1.ResourceReference
+	15, // 16: kagent.api.v1.ValidateAgentRequest.resource:type_name -> kagent.api.v1.StructuredObject
+	18, // 17: kagent.api.v1.BuiltinToolCatalog.tools:type_name -> kagent.api.v1.DiscoveredTool
+	19, // 18: kagent.api.v1.BuiltinToolCatalog.observed_at:type_name -> google.protobuf.Timestamp
+	1,  // 19: kagent.api.v1.AgentService.ListAgents:input_type -> kagent.api.v1.ListAgentsRequest
+	3,  // 20: kagent.api.v1.AgentService.GetAgent:input_type -> kagent.api.v1.GetAgentRequest
+	5,  // 21: kagent.api.v1.AgentService.CreateAgent:input_type -> kagent.api.v1.CreateAgentRequest
+	7,  // 22: kagent.api.v1.AgentService.UpdateAgent:input_type -> kagent.api.v1.UpdateAgentRequest
+	9,  // 23: kagent.api.v1.AgentService.DeleteAgent:input_type -> kagent.api.v1.DeleteAgentRequest
+	11, // 24: kagent.api.v1.AgentService.ValidateAgent:input_type -> kagent.api.v1.ValidateAgentRequest
+	2,  // 25: kagent.api.v1.AgentService.ListAgents:output_type -> kagent.api.v1.ListAgentsResponse
+	4,  // 26: kagent.api.v1.AgentService.GetAgent:output_type -> kagent.api.v1.GetAgentResponse
+	6,  // 27: kagent.api.v1.AgentService.CreateAgent:output_type -> kagent.api.v1.CreateAgentResponse
+	8,  // 28: kagent.api.v1.AgentService.UpdateAgent:output_type -> kagent.api.v1.UpdateAgentResponse
+	10, // 29: kagent.api.v1.AgentService.DeleteAgent:output_type -> kagent.api.v1.DeleteAgentResponse
+	12, // 30: kagent.api.v1.AgentService.ValidateAgent:output_type -> kagent.api.v1.ValidateAgentResponse
+	25, // [25:31] is the sub-list for method output_type
+	19, // [19:25] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_kagent_api_v1_agents_proto_init() }
@@ -647,13 +839,14 @@ func file_kagent_api_v1_agents_proto_init() {
 		return
 	}
 	file_kagent_api_v1_common_proto_init()
+	file_kagent_api_v1_tools_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_kagent_api_v1_agents_proto_rawDesc), len(file_kagent_api_v1_agents_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

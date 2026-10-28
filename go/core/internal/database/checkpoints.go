@@ -29,7 +29,7 @@ var (
 // the existing fork for the same checkpoint, or ErrIdempotencyConflict otherwise. The
 // boolean reports creation; callers provision the runtime separately. A deleted
 // fork returns ErrFailedPrecondition and retains its request identity.
-func (c *Client) ForkSession(ctx context.Context, checkpointID, userID, requestID, sessionID string) (*apiv1.Session, bool, error) {
+func (c *Client) ForkSession(ctx context.Context, checkpointID, userID, requestID, sessionID string, authority *apiv1.SessionAuthority) (*apiv1.Session, bool, error) {
 	checkpointUUID, err := uuid.Parse(checkpointID)
 	if err != nil {
 		return nil, false, fmt.Errorf("invalid checkpoint ID: %w", err)
@@ -82,6 +82,7 @@ func (c *Client) ForkSession(ctx context.Context, checkpointID, userID, requestI
 		session := &apiv1.Session{
 			Id: sessionID, Creator: userID, ContextId: sessionID,
 			Name:             source.GetName(),
+			Authority:        authority,
 			Agent:            &apiv1.ResourceReference{Namespace: revision.Namespace, Name: revision.AgentName},
 			PreparedRevision: *checkpoint.PreparedRevision,
 			State:            apiv1.RuntimeState_RUNTIME_STATE_CREATING,
@@ -623,7 +624,7 @@ func readCheckpointEvents(ctx context.Context, db dbExecutor, checkpointID uuid.
 // and snapshot boundary. Callers provide the destination history and
 // transaction after validating the replay.
 func insertReplayedTask(ctx context.Context, db dbExecutor, task sessionTaskRow) error {
-	return execSQL(ctx, db, `
+	if err := execSQL(ctx, db, `
 		INSERT INTO session_task (
 		    history_id, id, state, status_timestamp, data, created_at,
 		    snapshot_atespace, snapshot_uri,
@@ -633,7 +634,10 @@ func insertReplayedTask(ctx context.Context, db dbExecutor, task sessionTaskRow)
 		task.HistoryID, task.ID, task.State, task.StatusTimestamp, task.Data, task.CreatedAt,
 		task.SnapshotAtespace, task.SnapshotURI,
 		task.SnapshotFidelity, task.HistorySequence, task.Position,
-	)
+	); err != nil {
+		return err
+	}
+	return execSQL(ctx, db, `INSERT INTO task_execution (task_id, history_id, root_task_id, relation) VALUES ($1, $2, $1, 'TASK_RELATION_ROOT')`, task.ID, task.HistoryID)
 }
 
 // readCheckpoint reads an owned checkpoint, optionally restricted to one lifecycle state.

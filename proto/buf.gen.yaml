@@ -78,4 +78,10 @@ plugins:
       - kagent.api.v1.ListSessionsOutput
       - kagent.api.v1.InvokeSessionInput
       - kagent.api.v1.InvokeSessionOutput
-    opt: [target=json-bundle]
+      - kagent.api.v1.CreateSessionRequest
+      - kagent.api.v1.CreateSessionResponse
+      - kagent.api.v1.ListAgentsRequest
+      - kagent.api.v1.ListAgentsResponse
+      - kagent.runtime.v1.MemoryServiceSearchRequest
+      - kagent.runtime.v1.MemoryServiceSearchResponse
+    opt: [target=proto-bundle]

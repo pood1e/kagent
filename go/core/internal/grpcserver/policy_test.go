@@ -62,7 +62,7 @@ func TestSessionServicePoliciesMatchTheirEffect(t *testing.T) {
 // read-only share link may open a conversation and must not be able to retitle
 // it for everyone who holds the link.
 func TestReadOnlyShareCannotRenameAConversation(t *testing.T) {
-	session := &testSession{principal: pkgauth.Principal{User: pkgauth.User{ID: "visitor"}}}
+	session := &testSession{principal: pkgauth.Principal{ID: "visitor"}}
 	for _, test := range []struct {
 		name     string
 		method   string
@@ -75,6 +75,10 @@ func TestReadOnlyShareCannotRenameAConversation(t *testing.T) {
 		{
 			name:   "read-only share may not rename",
 			method: apiv1.SessionService_UpdateSessionName_FullMethodName, wantCode: codes.PermissionDenied,
+		},
+		{
+			name:   "read-only share cannot validate candidate configuration",
+			method: apiv1.AgentService_ValidateAgent_FullMethodName, wantCode: codes.PermissionDenied,
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -132,7 +136,7 @@ func TestActorAndUserPoliciesOnSharedEndpoint(t *testing.T) {
 		{"trusted proxy", authimpl.NewProxyAuthenticator("sub"), codes.Unauthenticated, codes.Unauthenticated},
 	} {
 		t.Run(mode.name, func(t *testing.T) {
-			users := runtimeauth.NewProvider(mode.provider, verifier, store, issuer.URL)
+			users := runtimeauth.NewProvider(mode.provider, verifier, store, issuer.URL, nil)
 			for _, test := range []struct {
 				name, token, method string
 				want                codes.Code
@@ -168,8 +172,8 @@ func TestActorAndUserPoliciesOnSharedEndpoint(t *testing.T) {
 					if test.want == codes.OK && test.token == actor {
 						identity, ok := pkgauth.AuthSessionFrom(result)
 						require.True(t, ok)
-						require.Equal(t, "owner", identity.Principal().User.ID)
-						require.Equal(t, sessionID, identity.Principal().Actor.SessionID)
+						require.Equal(t, pkgauth.PrincipalID("substrate-actor", "team-a/actor-uid"), identity.Principal().ID)
+						require.Equal(t, sessionID, identity.Principal().RuntimeBinding.SessionID)
 					}
 				})
 			}

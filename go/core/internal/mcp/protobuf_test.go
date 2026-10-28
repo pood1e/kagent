@@ -18,7 +18,7 @@ func TestCollaborationContractsThroughSDKClient(t *testing.T) {
 		ID: testTaskID, ContextID: testSessionID,
 		Status: a2atype.TaskStatus{State: a2atype.TaskStateCompleted},
 	}}
-	handler, err := New(testSessionService(), testCheckpointService(), gateway, nil, nil)
+	handler, err := New(testSessionService(), testCheckpointService(), gateway, nil, nil, nil)
 	require.NoError(t, err)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		handler.ServeHTTP(w, r.WithContext(auth.AuthSessionTo(r.Context(), testSession{})))

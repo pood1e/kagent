@@ -1,6 +1,7 @@
 package database
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/a2aproject/a2a-go/v2/a2a"
@@ -10,20 +11,38 @@ import (
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 )
 
-func continuationSession(t *testing.T, client *Client) *apiv1.Session {
+func continuationSession(t *testing.T, client *Client, parent ...*apiv1.Session) *apiv1.Session {
 	t.Helper()
-	session, _, err := client.CreateSession(t.Context(), newSessionRequest(uuid.NewString(), "assistant", "kagent", ""), uuid.NewString())
+	request := newSessionRequest(uuid.NewString(), "assistant", "kagent", "")
+	if len(parent) > 0 {
+		grant, _, err := client.GetSessionAuthority(t.Context(), parent[0].Id)
+		require.NoError(t, err)
+		request.Authority = &apiv1.SessionAuthority{SessionId: request.Id, InitiatorId: grant.InitiatorId, ParentSessionId: parent[0].Id, RootSessionId: grant.RootSessionId, Scopes: grant.Scopes, ExpiresAt: grant.ExpiresAt}
+	}
+	session, _, err := client.CreateSession(t.Context(), request, uuid.NewString())
 	require.NoError(t, err)
 	session, err = markSessionReady(t.Context(), client, session.Id, "agent.example")
 	require.NoError(t, err)
 	return session
 }
 
-func continuationTask(t *testing.T, client *Client, session *apiv1.Session, input string) *a2a.Task {
+func continuationTask(t *testing.T, client *Client, session *apiv1.Session, input string, origin ...*DispatchOrigin) *a2a.Task {
 	t.Helper()
 	task := newSessionTask(uuid.NewString(), input)
 	task.ContextID = session.Id
-	require.NoError(t, saveRuntimeTask(t, client, session.Id, task, task, nil))
+	var source *DispatchOrigin
+	if len(origin) > 0 {
+		source = origin[0]
+	}
+	if value, ok := strings.CutPrefix(input, "kagent-continuation-"); ok {
+		id, err := uuid.Parse(value)
+		require.NoError(t, err)
+		source = &DispatchOrigin{ContinuationID: id}
+	}
+	dispatch := uuid.New()
+	require.NoError(t, client.ReserveSessionDispatch(t.Context(), session.Id, dispatch, input, source))
+	_, err := client.CreateRuntimeTask(t.Context(), session.Id, taskMutationHash(input), task, dispatch.String())
+	require.NoError(t, err)
 	return task
 }
 
@@ -36,10 +55,11 @@ func settleContinuation(t *testing.T, client *Client, task *a2a.Task, state a2a.
 func TestCancelTaskContinuationFencesPendingDispatch(t *testing.T) {
 	client := NewClient(setupTestDB(t), "public")
 	sessionFixture(t, client, t.Context(), "team-a", "revision", "assistant", "kagent")
-	parent, child := continuationSession(t, client), continuationSession(t, client)
+	parent := continuationSession(t, client)
+	child := continuationSession(t, client, parent)
 	caller := continuationTask(t, client, parent, "parent")
 	require.NoError(t, client.RegisterTaskContinuation(t.Context(), parent.Id, child.Id, "child"))
-	callee := continuationTask(t, client, child, "child")
+	callee := continuationTask(t, client, child, "child", &DispatchOrigin{SessionID: parent.Id})
 	settleContinuation(t, client, callee, a2a.TaskStateInputRequired)
 	settleContinuation(t, client, caller, a2a.TaskStateCompleted)
 	reply := a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart("yes"))
@@ -51,9 +71,9 @@ func TestCancelTaskContinuationFencesPendingDispatch(t *testing.T) {
 	require.Len(t, claimed, 1)
 	id := "kagent-continuation-" + claimed[0].ID.String()
 	dispatch := uuid.New()
-	require.NoError(t, client.ReserveSessionDispatch(t.Context(), parent.Id, dispatch, id))
-	require.NoError(t, client.CancelTaskContinuations(t.Context(), parent.Id, string(caller.ID)))
-	require.ErrorIs(t, client.ReserveSessionDispatch(t.Context(), parent.Id, uuid.New(), id), ErrFailedPrecondition)
+	require.NoError(t, client.ReserveSessionDispatch(t.Context(), parent.Id, dispatch, id, &DispatchOrigin{ContinuationID: claimed[0].ID}))
+	require.NoError(t, client.RequestTaskCancellation(t.Context(), parent.Id, string(caller.ID)))
+	require.ErrorIs(t, client.ReserveSessionDispatch(t.Context(), parent.Id, uuid.New(), id, &DispatchOrigin{ContinuationID: claimed[0].ID}), ErrFailedPrecondition)
 	resumed := newSessionTask(uuid.NewString(), id)
 	resumed.ContextID = parent.Id
 	_, err = client.CreateRuntimeTask(t.Context(), parent.Id, taskMutationHash(id), resumed, dispatch.String())
@@ -65,11 +85,12 @@ func TestTaskContinuationWaitsForEveryApprovalAndRecoversClaims(t *testing.T) {
 	pool := setupTestDB(t)
 	client := NewClient(pool, "public")
 	sessionFixture(t, client, t.Context(), "team-a", "revision", "assistant", "kagent")
-	parent, child := continuationSession(t, client), continuationSession(t, client)
+	parent := continuationSession(t, client)
+	child := continuationSession(t, client, parent)
 	caller := continuationTask(t, client, parent, "parent-input")
 	require.NoError(t, client.RegisterTaskContinuation(t.Context(), parent.Id, child.Id, "child-input"))
 	require.NoError(t, client.RegisterTaskContinuation(t.Context(), parent.Id, child.Id, "child-input"))
-	callee := continuationTask(t, client, child, "child-input")
+	callee := continuationTask(t, client, child, "child-input", &DispatchOrigin{SessionID: parent.Id})
 	settleContinuation(t, client, callee, a2a.TaskStateInputRequired)
 	settleContinuation(t, client, caller, a2a.TaskStateCompleted)
 	claimed, err := client.ClaimTaskContinuations(t.Context(), 4)
@@ -114,12 +135,14 @@ func TestTaskContinuationWaitsForEveryApprovalAndRecoversClaims(t *testing.T) {
 func TestTaskContinuationWaitsForNestedParentResume(t *testing.T) {
 	client := NewClient(setupTestDB(t), "public")
 	sessionFixture(t, client, t.Context(), "team-a", "revision", "assistant", "kagent")
-	a, b, c := continuationSession(t, client), continuationSession(t, client), continuationSession(t, client)
+	a := continuationSession(t, client)
+	b := continuationSession(t, client, a)
+	c := continuationSession(t, client, b)
 	ta := continuationTask(t, client, a, "a")
 	require.NoError(t, client.RegisterTaskContinuation(t.Context(), a.Id, b.Id, "b"))
-	tb := continuationTask(t, client, b, "b")
+	tb := continuationTask(t, client, b, "b", &DispatchOrigin{SessionID: a.Id})
 	require.NoError(t, client.RegisterTaskContinuation(t.Context(), b.Id, c.Id, "c"))
-	tc := continuationTask(t, client, c, "c")
+	tc := continuationTask(t, client, c, "c", &DispatchOrigin{SessionID: b.Id})
 	settleContinuation(t, client, tc, a2a.TaskStateInputRequired)
 	settleContinuation(t, client, tb, a2a.TaskStateCompleted)
 	settleContinuation(t, client, ta, a2a.TaskStateCompleted)
@@ -154,10 +177,11 @@ func TestTaskContinuationSkipsSynchronousCompletionAndCancellation(t *testing.T)
 		t.Run(string(state), func(t *testing.T) {
 			client := NewClient(setupTestDB(t), "public")
 			sessionFixture(t, client, t.Context(), "team-a", "revision", "assistant", "kagent")
-			parent, child := continuationSession(t, client), continuationSession(t, client)
+			parent := continuationSession(t, client)
+			child := continuationSession(t, client, parent)
 			caller := continuationTask(t, client, parent, "parent")
 			require.NoError(t, client.RegisterTaskContinuation(t.Context(), parent.Id, child.Id, "child"))
-			callee := continuationTask(t, client, child, "child")
+			callee := continuationTask(t, client, child, "child", &DispatchOrigin{SessionID: parent.Id})
 			require.ErrorIs(t, client.RegisterTaskContinuation(t.Context(), child.Id, parent.Id, "cycle"), ErrFailedPrecondition)
 			if state == a2a.TaskStateCanceled {
 				settleContinuation(t, client, callee, a2a.TaskStateInputRequired)
@@ -174,16 +198,18 @@ func TestTaskContinuationSkipsSynchronousCompletionAndCancellation(t *testing.T)
 func TestTaskContinuationCanReuseAChildSessionAfterAnEarlierCancellation(t *testing.T) {
 	client := NewClient(setupTestDB(t), "public")
 	sessionFixture(t, client, t.Context(), "team-a", "revision", "assistant", "kagent")
-	a, b, c := continuationSession(t, client), continuationSession(t, client), continuationSession(t, client)
+	a := continuationSession(t, client)
+	b := continuationSession(t, client, a)
+	c := continuationSession(t, client, b)
 	ta := continuationTask(t, client, a, "a")
 	require.NoError(t, client.RegisterTaskContinuation(t.Context(), a.Id, b.Id, "b"))
-	tb := continuationTask(t, client, b, "b")
+	tb := continuationTask(t, client, b, "b", &DispatchOrigin{SessionID: a.Id})
 	require.NoError(t, client.RegisterTaskContinuation(t.Context(), b.Id, c.Id, "c"))
-	tc := continuationTask(t, client, c, "c")
+	tc := continuationTask(t, client, c, "c", &DispatchOrigin{SessionID: b.Id})
 	settleContinuation(t, client, tc, a2a.TaskStateInputRequired)
 	settleContinuation(t, client, tb, a2a.TaskStateCompleted)
 	settleContinuation(t, client, ta, a2a.TaskStateCompleted)
-	require.NoError(t, client.CancelTaskContinuations(t.Context(), b.Id, string(tb.ID)))
+	require.NoError(t, client.RequestTaskCancellation(t.Context(), b.Id, string(tb.ID)))
 	settleContinuation(t, client, tc, a2a.TaskStateCanceled)
 	claimed, err := client.ClaimTaskContinuations(t.Context(), 4)
 	require.NoError(t, err)
@@ -191,7 +217,7 @@ func TestTaskContinuationCanReuseAChildSessionAfterAnEarlierCancellation(t *test
 
 	ta = continuationTask(t, client, a, "a-new")
 	require.NoError(t, client.RegisterTaskContinuation(t.Context(), a.Id, b.Id, "b-new"))
-	tb = continuationTask(t, client, b, "b-new")
+	tb = continuationTask(t, client, b, "b-new", &DispatchOrigin{SessionID: a.Id})
 	settleContinuation(t, client, tb, a2a.TaskStateInputRequired)
 	settleContinuation(t, client, ta, a2a.TaskStateCompleted)
 	reply := a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart("yes"))

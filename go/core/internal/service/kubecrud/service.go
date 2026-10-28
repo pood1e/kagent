@@ -8,6 +8,7 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilvalidation "k8s.io/apimachinery/pkg/util/validation"
@@ -29,6 +30,7 @@ type Service[T Object, L client.ObjectList] struct {
 	list       L
 	authorizer auth.CollectionAuthorizer
 	resource   string
+	validators []func(context.Context, T) error
 }
 
 func NewService[T Object, L client.ObjectList](
@@ -37,9 +39,10 @@ func NewService[T Object, L client.ObjectList](
 	object T,
 	list L,
 	resource string,
+	validators ...func(context.Context, T) error,
 ) *Service[T, L] {
 	return &Service[T, L]{
-		client: client, object: object, list: list, authorizer: authorizer, resource: resource,
+		client: client, object: object, list: list, authorizer: authorizer, resource: resource, validators: validators,
 	}
 }
 
@@ -96,6 +99,9 @@ func (s *Service[T, L]) Create(ctx context.Context, object T) (T, error) {
 	if err := s.authorize(ctx, auth.VerbCreate, ref); err != nil {
 		return zero, err
 	}
+	if err := s.validate(ctx, object); err != nil {
+		return zero, err
+	}
 	if err := s.client.Create(ctx, object); err != nil {
 		switch {
 		case apierrors.IsAlreadyExists(err):
@@ -119,8 +125,16 @@ func (s *Service[T, L]) Update(ctx context.Context, object T) (T, error) {
 	if err := s.Authorize(ctx, auth.VerbUpdate, ref); err != nil {
 		return zero, err
 	}
+	if err := s.validate(ctx, object); err != nil {
+		return zero, err
+	}
 	if err := s.client.Update(ctx, object); err != nil {
-		if apierrors.IsInvalid(err) {
+		switch {
+		case apierrors.IsConflict(err):
+			return zero, serviceerrors.NewAborted(s.resource+" resource version changed", err)
+		case apierrors.IsNotFound(err):
+			return zero, serviceerrors.NewNotFound(s.resource+" not found", err)
+		case apierrors.IsInvalid(err):
 			return zero, serviceerrors.NewInvalidArgument(err.Error(), err)
 		}
 		return zero, serviceerrors.NewInternal("Failed to update "+s.resource, err)
@@ -128,7 +142,25 @@ func (s *Service[T, L]) Update(ctx context.Context, object T) (T, error) {
 	return object, nil
 }
 
-func (s *Service[T, L]) Delete(ctx context.Context, ref types.NamespacedName) error {
+// Validate authorizes a candidate definition and runs its admission checks
+// without persisting the resource or applying a runtime revision.
+func (s *Service[T, L]) Validate(ctx context.Context, object T) error {
+	if err := s.Authorize(ctx, auth.VerbCreate, client.ObjectKeyFromObject(object)); err != nil {
+		return err
+	}
+	return s.validate(ctx, object)
+}
+
+func (s *Service[T, L]) validate(ctx context.Context, object T) error {
+	for _, validate := range s.validators {
+		if err := validate(ctx, object); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Service[T, L]) Delete(ctx context.Context, ref types.NamespacedName, version string) error {
 	if err := s.Authorize(ctx, auth.VerbDelete, ref); err != nil {
 		return err
 	}
@@ -136,7 +168,17 @@ func (s *Service[T, L]) Delete(ctx context.Context, ref types.NamespacedName) er
 	if err != nil {
 		return err
 	}
-	if err := s.client.Delete(ctx, object); err != nil {
+	if version == "" {
+		version = object.GetResourceVersion()
+	}
+	uid := object.GetUID()
+	if err := s.client.Delete(ctx, object, client.Preconditions(metav1.Preconditions{UID: &uid, ResourceVersion: &version})); err != nil {
+		if apierrors.IsConflict(err) {
+			return serviceerrors.NewAborted(s.resource+" resource version changed", err)
+		}
+		if apierrors.IsNotFound(err) {
+			return serviceerrors.NewNotFound(s.resource+" not found", err)
+		}
 		return serviceerrors.NewInternal("Failed to delete "+s.resource, err)
 	}
 	return nil

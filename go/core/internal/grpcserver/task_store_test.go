@@ -45,6 +45,7 @@ import (
 	authimpl "github.com/kagent-dev/kagent/go/core/internal/httpserver/auth"
 	"github.com/kagent-dev/kagent/go/core/internal/jwttest"
 	"github.com/kagent-dev/kagent/go/core/internal/runtimeauth"
+	executionservice "github.com/kagent-dev/kagent/go/core/internal/service/execution"
 	memoryservice "github.com/kagent-dev/kagent/go/core/internal/service/memory"
 	sessionsvc "github.com/kagent-dev/kagent/go/core/internal/service/session"
 	"github.com/kagent-dev/kagent/go/core/internal/service/taskstore"
@@ -97,14 +98,14 @@ type runtimeTaskPolicy struct {
 }
 
 func (p *runtimeTaskPolicy) Check(_ context.Context, principal auth.Principal, _ auth.Verb, resource auth.Resource) error {
-	if principal.Actor != nil && resource.Type == "TaskStore" && p.revoked.Load() {
+	if principal.RuntimeBinding != nil && resource.Type == "TaskStore" && p.revoked.Load() {
 		return fmt.Errorf("runtime task persistence revoked")
 	}
 	return nil
 }
 
-func (s *runtimeMemoryStore) ListAgentMemories(_ context.Context, agentName, userID string) ([]database.Memory, error) {
-	s.agentName, s.userID = agentName, userID
+func (s *runtimeMemoryStore) ListAgentMemories(_ context.Context, scope *runtimev1.MemoryScope, userID string) ([]database.Memory, error) {
+	s.agentName, s.userID = scope.GetAgentName(), userID
 	return nil, nil
 }
 
@@ -157,14 +158,15 @@ func TestRuntimeTaskStoreThroughGRPC(t *testing.T) {
 	runtimeToken := "Bearer " + issuer.Token(t, issuer.Claims("team-a", substrate.ActorName(id), "actor-uid"))
 	memories := &runtimeMemoryStore{Client: store.Client}
 	configuredPolicy := &runtimeTaskPolicy{}
-	policy := runtimeauth.NewAuthorizer(configuredPolicy, store)
+	policy := runtimeauth.NewAuthorizer(configuredPolicy, store, nil)
 	tasks := taskstore.NewService(store, policy, nil, pushWake)
 	server, err := New(Config{
 		Listener: listener, SystemService: testSystemService(),
-		Authenticator:    runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL),
+		Authenticator:    runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL, nil),
 		TaskStoreService: tasks,
 		MemoryService:    memoryservice.NewService(memories, policy),
 		SessionService:   sessionsvc.NewService(store, policy, nil),
+		ExecutionService: executionservice.NewService(store, sessionsvc.NewService(store, policy, nil), nil),
 	})
 	require.NoError(t, err)
 	serverCtx, stopServer := context.WithCancel(t.Context())
@@ -210,7 +212,7 @@ func TestRuntimeTaskStoreThroughGRPC(t *testing.T) {
 	require.NoError(t, err)
 	_, err = publicSessions.GetSession(authenticated, &apiv1.GetSessionRequest{SessionId: uuid.NewString()})
 	require.Equal(t, codes.PermissionDenied, status.Code(err))
-	_, err = controller.MemoryService().List(authenticated, &runtimev1.MemoryServiceListRequest{AgentName: "forged/agent"})
+	_, err = controller.MemoryService().List(authenticated, &runtimev1.MemoryServiceListRequest{Scope: personalMemoryScope("forged/agent")})
 	require.NoError(t, err)
 	require.Equal(t, session.Agent.Namespace+"/"+session.Agent.Name, memories.agentName)
 	require.Equal(t, session.Creator, memories.userID)
@@ -465,7 +467,7 @@ func TestRuntimeTaskStoreThroughGRPC(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, storedConfigs, 2, "stored configs: %+v", storedConfigs)
 	managedService := sessionsvc.NewInteractionService(store, nil, sessionsvc.NewService(store, &auth.NoopAuthorizer{}, nil), true)
-	serviceCtx := auth.AuthSessionTo(publicCtx, &authimpl.SimpleSession{P: auth.Principal{User: auth.User{ID: "alice"}}})
+	serviceCtx := auth.AuthSessionTo(publicCtx, &authimpl.SimpleSession{P: auth.Principal{ID: "alice"}})
 	servicePage, err := managedService.ListTaskPushConfigs(serviceCtx, types.NamespacedName{Namespace: "team-a", Name: "assistant"},
 		&a2a.ListTaskPushConfigRequest{TaskID: a2a.TaskID(parkedID), PageSize: 1})
 	require.NoError(t, err)
@@ -549,6 +551,12 @@ func TestRuntimeTaskStoreThroughGRPC(t *testing.T) {
 	require.NoError(t, err)
 	cancelID := working.GetTask().GetId()
 	require.NotEmpty(t, cancelID)
+	// The first frame is SUBMITTED. Observe persisted WORKING before testing
+	// active cancellation; the initial-save race is exercised separately below.
+	for working.GetTask().GetStatus().GetState() != a2apb.TaskState_TASK_STATE_WORKING && working.GetStatusUpdate().GetStatus().GetState() != a2apb.TaskState_TASK_STATE_WORKING {
+		working, err = cancelStream.Recv()
+		require.NoError(t, err)
+	}
 	result := make(chan error, 1)
 	go func() {
 		ctx, cancel := context.WithTimeout(publicCtx, 5*time.Second)
@@ -688,9 +696,21 @@ func TestRuntimeTaskStoreThroughGRPC(t *testing.T) {
 	}
 	t.Run("settlement publishes without a lifecycle worker", func(t *testing.T) {
 		finished := &a2apb.Task{Id: uuid.NewString(), ContextId: session.ContextId, Status: &a2apb.TaskStatus{State: a2apb.TaskState_TASK_STATE_SUBMITTED}}
-		created, err := private.CreateTask(authenticated, &runtimev1.TaskStoreServiceCreateTaskRequest{SessionId: id, Task: finished})
+		dispatch := uuid.New()
+		require.NoError(t, store.ReserveSessionDispatch(t.Context(), id, dispatch, "", nil))
+		created, err := private.CreateTask(authenticated, &runtimev1.TaskStoreServiceCreateTaskRequest{SessionId: id, Task: finished, DispatchId: new(dispatch.String())})
 		require.NoError(t, err)
 		finished.Status.State = a2apb.TaskState_TASK_STATE_COMPLETED
+		executions := apiv1.NewExecutionServiceClient(publicConn)
+		execution, err := executions.GetTaskExecution(authenticated, &apiv1.GetTaskExecutionRequest{TaskId: finished.Id})
+		require.NoError(t, err)
+		require.Nil(t, execution.Execution.Parent)
+		require.Equal(t, id, execution.Execution.Root.SessionId)
+		page, err := executions.ListTaskExecutions(authenticated, &apiv1.ListTaskExecutionsRequest{RootTaskId: finished.Id, Page: &apiv1.PageRequest{Limit: 1}})
+		require.NoError(t, err)
+		require.Len(t, page.Executions, 1)
+		_, err = executions.ListTaskExecutions(authenticated, &apiv1.ListTaskExecutionsRequest{RootTaskId: finished.Id, Page: &apiv1.PageRequest{Limit: 101}})
+		require.Equal(t, codes.InvalidArgument, status.Code(err))
 		saved, err := private.UpdateTask(authenticated, &runtimev1.TaskStoreServiceUpdateTaskRequest{
 			SessionId: id, Task: finished, ExpectedVersion: created.Version,
 		})

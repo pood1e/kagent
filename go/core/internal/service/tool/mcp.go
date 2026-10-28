@@ -34,7 +34,7 @@ func NewRuntimeMCPClient(kubeClient client.Client) *RuntimeMCPClient {
 }
 
 func (c *RuntimeMCPClient) ListTools(ctx context.Context, ref MCPServerRef) ([]MCPAppTool, error) {
-	session, cleanup, err := c.connect(ctx, ref)
+	session, cleanup, err := c.connect(ctx, ref, true)
 	if err != nil {
 		return nil, serviceerrors.NewInternal("Failed to connect to MCP server", err)
 	}
@@ -62,7 +62,7 @@ func (c *RuntimeMCPClient) ListTools(ctx context.Context, ref MCPServerRef) ([]M
 }
 
 func (c *RuntimeMCPClient) CallTool(ctx context.Context, ref MCPServerRef, toolName string, arguments any) (*mcp.CallToolResult, error) {
-	session, cleanup, err := c.connect(ctx, ref)
+	session, cleanup, err := c.connect(ctx, ref, false)
 	if err != nil {
 		return nil, serviceerrors.NewInternal("Failed to connect to MCP server", err)
 	}
@@ -90,7 +90,7 @@ func (c *RuntimeMCPClient) CallTool(ctx context.Context, ref MCPServerRef, toolN
 }
 
 func (c *RuntimeMCPClient) ReadResource(ctx context.Context, ref MCPServerRef, uri string) (*mcp.ReadResourceResult, error) {
-	session, cleanup, err := c.connect(ctx, ref)
+	session, cleanup, err := c.connect(ctx, ref, true)
 	if err != nil {
 		return nil, serviceerrors.NewInternal("Failed to connect to MCP server", err)
 	}
@@ -121,10 +121,13 @@ func (c *RuntimeMCPClient) ResolveServer(ctx context.Context, ref MCPServerRef) 
 	return server, nil
 }
 
-func (c *RuntimeMCPClient) connect(ctx context.Context, ref MCPServerRef) (*mcp.ClientSession, func(), error) {
+func (c *RuntimeMCPClient) connect(ctx context.Context, ref MCPServerRef, discovery bool) (*mcp.ClientSession, func(), error) {
 	server, err := c.ResolveServer(ctx, ref)
 	if err != nil {
 		return nil, nil, err
+	}
+	if server.Spec.ActorJWT != nil && (!discovery || server.Spec.DiscoveryAuth == nil) {
+		return nil, nil, fmt.Errorf("actorJwt requires an executing Actor; control-plane MCP calls cannot supply it")
 	}
 	timeout := 30 * time.Second
 	if server.Spec.Timeout != nil && server.Spec.Timeout.Duration > 0 {
@@ -138,10 +141,13 @@ func (c *RuntimeMCPClient) connect(ctx context.Context, ref MCPServerRef) (*mcp.
 		return nil, nil, fmt.Errorf("failed to resolve RemoteMCPServer headers: %w", err)
 	}
 
-	httpClient, err := discoveryHTTPClient(server, newMCPAppsHTTPClient(headers))
-	if err != nil {
-		cancel()
-		return nil, nil, err
+	httpClient := newMCPAppsHTTPClient(headers)
+	if discovery && server.Spec.DiscoveryAuth != nil {
+		httpClient, err = c.discoveryHTTPClient(connectCtx, server, httpClient)
+		if err != nil {
+			cancel()
+			return nil, nil, err
+		}
 	}
 	var transport mcp.Transport
 	switch server.Spec.Protocol {

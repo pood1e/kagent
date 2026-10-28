@@ -1,6 +1,6 @@
 {
   "$defs": {
-    "kagent.api.v1.InvokeSessionOutput.jsonschema.json": {
+    "kagent.api.v1.InvokeSessionOutput.schema.json": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
       "properties": {
@@ -53,7 +53,7 @@
       "type": "object"
     }
   },
-  "$id": "kagent.api.v1.InvokeSessionOutput.jsonschema.bundle.json",
-  "$ref": "#/$defs/kagent.api.v1.InvokeSessionOutput.jsonschema.json",
+  "$id": "kagent.api.v1.InvokeSessionOutput.schema.bundle.json",
+  "$ref": "#/$defs/kagent.api.v1.InvokeSessionOutput.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema"
 }

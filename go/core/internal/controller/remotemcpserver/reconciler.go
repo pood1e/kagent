@@ -47,11 +47,6 @@ import (
 const (
 	conditionAccepted = "Accepted"
 	refreshInterval   = 5 * time.Minute
-
-	// discoveryDisabledMessage explains an Accepted RemoteMCPServer that publishes
-	// no discovered tools because its operator opted out of discovery.
-	discoveryDisabledMessage = "Tool discovery is disabled by the " + consts.DiscoveryLabel + "=" + consts.DiscoveryDisabled +
-		" label; agents resolve the tool list at run time"
 )
 
 var remoteGroupKind = v1alpha3.GroupVersion.WithKind("RemoteMCPServer").GroupKind().String()
@@ -94,12 +89,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 		return reconcile.Result{}, r.catalog.Delete(ctx, request.String(), remoteGroupKind)
 	}
 
-	if discoveryDisabled(server) {
-		// The operator opted this server out of discovery (a server that
-		// authenticates every caller has no credential to offer the controller).
-		// Accept it without listing tools: the status carries none and the catalog
-		// keeps the server, disconnected, with no tools.
-		if err := r.updateStatus(ctx, server, nil, metav1.ConditionTrue, "DiscoveryDisabled", discoveryDisabledMessage); err != nil {
+	if message := discoveryDisabledMessage(server); message != "" {
+		// Keep the server in the catalog without a global tool list. Its runtime
+		// discovers tools with the credentials available to that Actor.
+		if err := r.updateStatus(ctx, server, nil, metav1.ConditionTrue, "DiscoveryDisabled", message); err != nil {
 			return reconcile.Result{}, fmt.Errorf("update RemoteMCPServer discovery status: %w", err)
 		}
 		if err := r.updateCatalog(ctx, server, nil, false); err != nil {
@@ -141,10 +134,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 	return reconcile.Result{RequeueAfter: refreshInterval}, nil
 }
 
-// discoveryDisabled reports whether the operator opted the server out of tool
-// discovery with the kagent.dev/discovery=disabled label.
-func discoveryDisabled(server *v1alpha3.RemoteMCPServer) bool {
-	return server.Labels[consts.DiscoveryLabel] == consts.DiscoveryDisabled
+func discoveryDisabledMessage(server *v1alpha3.RemoteMCPServer) string {
+	if server.Spec.ActorJWT != nil && server.Spec.DiscoveryAuth == nil {
+		return "Global tool discovery requires an executing Actor because actorJwt is enabled; agents resolve the tool list at run time"
+	}
+	if server.Labels[consts.DiscoveryLabel] == consts.DiscoveryDisabled {
+		return "Global tool discovery is disabled by the " + consts.DiscoveryLabel + " label; agents resolve the tool list at run time"
+	}
+	return ""
 }
 
 func (r *Reconciler) updateCatalog(ctx context.Context, server *v1alpha3.RemoteMCPServer, tools []*v1alpha3.MCPTool, connected bool) error {
@@ -207,6 +204,9 @@ func (r *Reconciler) requestsForDependency(ctx context.Context, object client.Ob
 func referencesDependency(server *v1alpha3.RemoteMCPServer, object client.Object) bool {
 	switch object.(type) {
 	case *corev1.Secret:
+		if discovery := server.Spec.DiscoveryAuth; discovery != nil && discovery.OAuth2 != nil && discovery.OAuth2.ClientSecretRef.Name == object.GetName() {
+			return true
+		}
 		for i := range server.Spec.HeadersFrom {
 			from := server.Spec.HeadersFrom[i].ValueFrom
 			if from != nil && from.Type == v1alpha3.SecretValueSource && from.Name == object.GetName() {
@@ -214,6 +214,9 @@ func referencesDependency(server *v1alpha3.RemoteMCPServer, object client.Object
 			}
 		}
 	case *corev1.ConfigMap:
+		if discovery := server.Spec.DiscoveryAuth; discovery != nil && discovery.OAuth2 != nil && discovery.OAuth2.CACertificateRef != nil && discovery.OAuth2.CACertificateRef.Name == object.GetName() {
+			return true
+		}
 		for i := range server.Spec.HeadersFrom {
 			from := server.Spec.HeadersFrom[i].ValueFrom
 			if from != nil && from.Type == v1alpha3.ConfigMapValueSource && from.Name == object.GetName() {

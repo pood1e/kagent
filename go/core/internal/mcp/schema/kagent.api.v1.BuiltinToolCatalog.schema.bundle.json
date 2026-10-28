@@ -1,0 +1,56 @@
+{
+  "$defs": {
+    "google.protobuf.Timestamp.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "format": "date-time",
+      "title": "Timestamp",
+      "type": "string"
+    },
+    "kagent.api.v1.BuiltinToolCatalog.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "description": "BuiltinToolCatalog contains SDK-registered tools, independently of MCP discovery.",
+      "patternProperties": {
+        "^(observedAt)$": {
+          "$ref": "#/$defs/google.protobuf.Timestamp.schema.json"
+        }
+      },
+      "properties": {
+        "observed_at": {
+          "$ref": "#/$defs/google.protobuf.Timestamp.schema.json"
+        },
+        "revision": {
+          "default": "",
+          "type": "string"
+        },
+        "tools": {
+          "items": {
+            "$ref": "#/$defs/kagent.api.v1.DiscoveredTool.schema.json"
+          },
+          "type": "array"
+        }
+      },
+      "title": "Builtin Tool Catalog",
+      "type": "object"
+    },
+    "kagent.api.v1.DiscoveredTool.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "default": "",
+          "type": "string"
+        },
+        "name": {
+          "default": "",
+          "type": "string"
+        }
+      },
+      "title": "Discovered Tool",
+      "type": "object"
+    }
+  },
+  "$id": "kagent.api.v1.BuiltinToolCatalog.schema.bundle.json",
+  "$ref": "#/$defs/kagent.api.v1.BuiltinToolCatalog.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

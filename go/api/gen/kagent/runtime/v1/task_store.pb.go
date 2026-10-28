@@ -602,12 +602,12 @@ const file_kagent_runtime_v1_task_store_proto_rawDesc = "" +
 	"\n" +
 	"StoredTask\x12#\n" +
 	"\x04task\x18\x01 \x01(\v2\x0f.lf.a2a.v1.TaskR\x04task\x12\x18\n" +
-	"\aversion\x18\x02 \x01(\x03R\aversion\"\xb1\x02\n" +
+	"\aversion\x18\x02 \x01(\x03R\aversion\"\xb4\x02\n" +
 	"!TaskStoreServiceCreateTaskRequest\x12'\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tsessionId\x12+\n" +
-	"\x04task\x18\x02 \x01(\v2\x0f.lf.a2a.v1.TaskB\x06\xbaH\x03\xc8\x01\x01R\x04task\x12.\n" +
-	"\vdispatch_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\n" +
+	"\x04task\x18\x02 \x01(\v2\x0f.lf.a2a.v1.TaskB\x06\xbaH\x03\xc8\x01\x01R\x04task\x121\n" +
+	"\vdispatch_id\x18\x03 \x01(\tB\v\xbaH\b\xc8\x01\x01r\x03\xb0\x01\x01H\x00R\n" +
 	"dispatchId\x88\x01\x01:v\xbaHs\x1aq\n" +
 	"\x1atask_store.create_identity\x12!task and context IDs are required\x1a0this.task.id != '' && this.task.context_id != ''B\x0e\n" +
 	"\f_dispatch_id\">\n" +
@@ -678,10 +678,10 @@ var file_kagent_runtime_v1_task_store_proto_goTypes = []any{
 	(*TaskStoreServiceListTasksResponse)(nil),  // 8: kagent.runtime.v1.TaskStoreServiceListTasksResponse
 	(*TaskStoreServiceSettleTaskRequest)(nil),  // 9: kagent.runtime.v1.TaskStoreServiceSettleTaskRequest
 	(*TaskStoreServiceSettleTaskResponse)(nil), // 10: kagent.runtime.v1.TaskStoreServiceSettleTaskResponse
-	(*v1.Task)(nil),              // 11: lf.a2a.v1.Task
-	(*v1.StreamResponse)(nil),    // 12: lf.a2a.v1.StreamResponse
-	(*v1.ListTasksRequest)(nil),  // 13: lf.a2a.v1.ListTasksRequest
-	(*v1.ListTasksResponse)(nil), // 14: lf.a2a.v1.ListTasksResponse
+	(*v1.Task)(nil),                            // 11: lf.a2a.v1.Task
+	(*v1.StreamResponse)(nil),                  // 12: lf.a2a.v1.StreamResponse
+	(*v1.ListTasksRequest)(nil),                // 13: lf.a2a.v1.ListTasksRequest
+	(*v1.ListTasksResponse)(nil),               // 14: lf.a2a.v1.ListTasksResponse
 }
 var file_kagent_runtime_v1_task_store_proto_depIdxs = []int32{
 	11, // 0: kagent.runtime.v1.StoredTask.task:type_name -> lf.a2a.v1.Task

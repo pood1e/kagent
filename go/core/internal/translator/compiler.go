@@ -113,14 +113,20 @@ func (c *Compiler) CompileAgent(ctx context.Context, agent *v1alpha3.Agent) (*Co
 		template = &TemplateConfiguration{Name: agent.Name, Namespace: agent.Namespace, Spec: *agent.Spec.Template.Inline.DeepCopy()}
 	} else {
 		key := types.NamespacedName{Namespace: agent.Namespace, Name: agent.Spec.Template.Ref.Name}
-		found := krt.FetchOne(c.ctx, c.collections.AgentTemplates, krt.FilterObjectName(key))
+		found := FetchOne(c.ctx, c.collections.AgentTemplates, krt.FilterObjectName(key))
 		if found == nil {
 			return nil, fmt.Errorf("resolve AgentTemplate %q: not found", key)
 		}
 		template = templateConfiguration(*found)
 	}
+	if agent.Spec.ModelConfigRef != nil {
+		if agent.Spec.ModelConfigRef.Name == "" {
+			return nil, NewValidationError("Agent modelConfigRef.name must not be empty")
+		}
+		template.Spec.ModelConfig = agent.Spec.ModelConfigRef.DeepCopy()
+	}
 	harnessKey := types.NamespacedName{Namespace: agent.Namespace, Name: agent.Spec.HarnessRef.Name}
-	foundHarness := krt.FetchOne(c.ctx, c.collections.Harnesses, krt.FilterObjectName(harnessKey))
+	foundHarness := FetchOne(c.ctx, c.collections.Harnesses, krt.FilterObjectName(harnessKey))
 	if foundHarness == nil {
 		return nil, fmt.Errorf("resolve Harness %q: not found", harnessKey)
 	}
@@ -166,8 +172,9 @@ func (c *Compiler) compileConfiguration(ctx context.Context, agent *v1alpha3.Age
 	if err != nil {
 		return nil, err
 	}
+	result.MCPTools, result.Models = runtimeTargets(input.Root)
 	workerKey := types.NamespacedName{Namespace: harness.Namespace, Name: harness.Spec.Substrate.WorkerPoolRef.Name}
-	workerPool := krt.FetchOne(c.ctx, c.collections.WorkerPools, krt.FilterObjectName(workerKey))
+	workerPool := FetchOne(c.ctx, c.collections.WorkerPools, krt.FilterObjectName(workerKey))
 	if workerPool == nil {
 		return nil, &WorkerPoolNotFoundError{WorkerPool: workerKey}
 	}
@@ -231,7 +238,7 @@ func (c *Compiler) resolveTree(ctx context.Context, harness *HarnessConfiguratio
 			}
 			names[binding.Name] = struct{}{}
 			key := types.NamespacedName{Namespace: template.Namespace, Name: binding.TemplateRef.Name}
-			childTemplate := krt.FetchOne(c.ctx, c.collections.AgentTemplates, krt.FilterObjectName(key))
+			childTemplate := FetchOne(c.ctx, c.collections.AgentTemplates, krt.FilterObjectName(key))
 			if childTemplate == nil {
 				return nil, fmt.Errorf("resolve AgentTemplate %q: not found", binding.TemplateRef.Name)
 			}
@@ -271,7 +278,7 @@ func (c *Compiler) buildInputs(ctx context.Context, tree *resolvedTemplateTree) 
 		}
 		input := &AgentInput{Template: template, Instruction: instruction}
 		if template.Spec.ModelConfig != nil {
-			input.ResolvedModelConfig = krt.FetchOne(c.ctx, c.collections.ResolvedModelConfigs, krt.FilterObjectName(types.NamespacedName{Namespace: template.Namespace, Name: template.Spec.ModelConfig.Name}))
+			input.ResolvedModelConfig = FetchOne(c.ctx, c.collections.ResolvedModelConfigs, krt.FilterObjectName(types.NamespacedName{Namespace: template.Namespace, Name: template.Spec.ModelConfig.Name}))
 			if input.ResolvedModelConfig == nil {
 				return nil, fmt.Errorf("resolve ModelConfig %q: not found", template.Spec.ModelConfig.Name)
 			}
@@ -294,7 +301,7 @@ func (c *Compiler) buildInputs(ctx context.Context, tree *resolvedTemplateTree) 
 				return nil, NewValidationError("unsupported MCP server kind %q", tool.MCP.Server.Kind)
 			}
 			key := types.NamespacedName{Namespace: template.Namespace, Name: tool.MCP.Server.Name}
-			server := krt.FetchOne(c.ctx, c.collections.RemoteMCPServers, krt.FilterObjectName(key))
+			server := FetchOne(c.ctx, c.collections.RemoteMCPServers, krt.FilterObjectName(key))
 			if server == nil {
 				return nil, fmt.Errorf("resolve %s %q: not found", tool.MCP.Server.Kind, tool.MCP.Server.Name)
 			}

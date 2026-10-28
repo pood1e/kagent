@@ -27,7 +27,7 @@ func TestTaskViewsRebuildFromEvents(t *testing.T) {
 	require.NoError(t, err)
 	task := newSessionTask("task", "initial-message")
 	task.ContextID = session.ContextId
-	_, err = client.CreateRuntimeTask(ctx, session.Id, taskMutationHash("request hash"), task, "")
+	_, err = createRuntimeTask(client, ctx, session.Id, taskMutationHash("request hash"), task, "")
 	require.NoError(t, err)
 	assertReplay := func() {
 		t.Helper()
@@ -120,7 +120,7 @@ func TestTaskViewsRebuildFromEvents(t *testing.T) {
 	require.NoError(t, err)
 	_, err = pool.Exec(ctx, "DELETE FROM session_task WHERE history_id = $1", sessionRow.HistoryID)
 	require.NoError(t, err)
-	fork, _, err := client.ForkSession(ctx, checkpoint.Id, "alice", "fork", uuid.NewString())
+	fork, _, err := client.ForkSession(ctx, checkpoint.Id, "alice", "fork", uuid.NewString(), nil)
 	require.NoError(t, err)
 	forkTasks, _, err := client.ListSessionTasks(ctx, fork.Id, "", a2a.TaskStateUnspecified, nil, 10, nil)
 	require.NoError(t, err)

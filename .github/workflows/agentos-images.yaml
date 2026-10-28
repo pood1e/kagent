@@ -3,6 +3,7 @@ name: AgentOS images
 on:
   push:
     branches: ['agentos/**']
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -14,7 +15,7 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io/${{ github.repository }}
-  VERSION: 1.0.0-alpha17-agentos.5
+  VERSION: 1.0.0-alpha17-agentos.6
 
 jobs:
   verify:
@@ -41,18 +42,33 @@ jobs:
           cache-dependency-path: go/go.sum
       - run: psql "$KAGENT_TEST_POSTGRES_URL" -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION vector'
       - run: echo "KUBEBUILDER_ASSETS=$(go tool setup-envtest use 1.37 -p path)" >> "$GITHUB_ENV"
+      - name: Install the matching gateway test binary
+        env:
+          AGENTGATEWAY_VERSION: v1.7.0
+          AGENTGATEWAY_SHA256: 1b2fc01a2de29ca113bbb6258b5cae7b1eb3c724071c09d687a449132f2f42f8
+        run: |
+          binary="$RUNNER_TEMP/agentgateway"
+          curl --fail --location --retry 3 --connect-timeout 15 --max-time 180 \
+            --proto '=https' --tlsv1.2 \
+            "https://github.com/agentgateway/agentgateway/releases/download/${AGENTGATEWAY_VERSION}/agentgateway-linux-amd64" \
+            --output "$binary"
+          printf '%s  %s\n' "$AGENTGATEWAY_SHA256" "$binary" | sha256sum --check --strict
+          chmod 0755 "$binary"
+          echo "KAGENT_TEST_AGENTGATEWAY=$binary" >> "$GITHUB_ENV"
       - name: Test the AgentOS runtime extensions
         run: |
           go test -race -count=1 ./api/a2a ./core/internal/database ./core/pkg/migrations \
-            ./core/internal/runtimeauth ./core/internal/service/memory ./core/internal/service/taskstore \
+            ./core/internal/runtimeauth ./core/internal/executionauth ./core/internal/service/execution ./core/internal/service/admission ./core/internal/service/kubecrud ./core/internal/service/memory ./core/internal/service/taskstore \
             ./core/internal/service/session ./core/internal/service/tool ./core/internal/service/scheduledrun \
             ./core/internal/controller/scheduledrun ./core/internal/grpcserver ./core/internal/a2agateway \
             ./core/internal/mcp ./core/internal/translator/adkconfig ./core/internal/substrate \
-            ./core/internal/translator ./core/internal/utils
+            ./core/internal/translator ./core/internal/utils \
+            ./core/internal/service/inventory ./core/internal/service/system \
+            ./core/pkg/config ./core/pkg/env ./core/pkg/app
           go test -race -count=1 ./core/internal/translator/claude ./core/internal/translator/codex \
             ./harness/... ./adk/pkg/a2a ./adk/pkg/tools ./adk/pkg/controllerclient ./adk/pkg/taskstore \
             ./adk/pkg/embedding
-          go test -race -count=1 ./core/internal/controller -run '^TestStatusForPairPublishesCompilationWarnings$'
+          go test -race -count=1 ./core/internal/controller ./core/internal/httpserver/auth ./core/pkg/auth
       - run: make lint AWK=awk
       - name: Build binaries
         run: |
@@ -79,6 +95,7 @@ jobs:
           retention-days: 1
 
   images:
+    if: github.event_name != 'pull_request'
     needs: verify
     runs-on: ubuntu-24.04
     permissions:
@@ -122,4 +139,86 @@ jobs:
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ env.VERSION }}
       - run: echo "${REGISTRY}/${{ matrix.component }}@${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
+      - name: Export image metadata
+        env:
+          COMPONENT: ${{ matrix.component }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p metadata
+          name="$COMPONENT"
+          if [ "$name" = standard-harness ]; then name=golang-adk; fi
+          jq -n --arg digest "$DIGEST" '{"containerimage.digest": $digest}' > "metadata/$name.json"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: metadata-${{ matrix.component }}
+          path: metadata/
+          if-no-files-found: error
+          retention-days: 1
+
+  charts:
+    if: startsWith(github.ref, 'refs/heads/agentos/')
+    needs: images
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: metadata-*
+          merge-multiple: true
+          path: metadata/
+      - name: Install Helm
+        run: |
+          curl --fail --location --retry 3 --proto '=https' --tlsv1.2 \
+            -o /tmp/helm.tgz https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz
+          echo '0403a88ae20913d11b10a2467b50087721fea7581736da6b9d3992f5357fe54b  /tmp/helm.tgz' | sha256sum --check
+          tar -xzf /tmp/helm.tgz -C /tmp linux-amd64/helm
+          sudo install /tmp/linux-amd64/helm /usr/local/bin/helm
+          python3 -m venv /tmp/chart-venv
+          /tmp/chart-venv/bin/pip install PyYAML==6.0.3
+      - name: Package fork charts
+        run: |
+          cp -R helm /tmp/release-helm
+          mkdir -p /tmp/release-helm/kagent/files
+          bash scripts/harness-image-catalog.sh "$VERSION" metadata \
+            "$REGISTRY/standard-harness" "$REGISTRY/claude-harness" "$REGISTRY/codex-harness" \
+            > /tmp/release-helm/kagent/files/builtin-harness-images.json
+          /tmp/chart-venv/bin/python - <<'PY'
+          import json, os
+          from pathlib import Path
+          import yaml
+          root = Path('/tmp/release-helm')
+          values = root / 'kagent/values.yaml'
+          config = yaml.safe_load(values.read_text())
+          digest = json.loads(Path('metadata/controller.json').read_text())['containerimage.digest']
+          config['controller']['image'].update(registry='ghcr.io', repository=os.environ['GITHUB_REPOSITORY'] + '/controller', tag=os.environ['GITHUB_SHA'] + '@' + digest)
+          config['ui']['replicas'] = 0
+          config['ui']['image']['tag'] = '1.0.0-alpha17@sha256:68dc2ec374a5250a545b85850b6d284c318e3472c73de6e419e534cdcf5b79a1'
+          for name in ('kagent-tools', 'grafana-mcp'):
+              config[name]['enabled'] = False
+          values.write_text(yaml.safe_dump(config, sort_keys=False))
+          for name in ('kagent', 'kagent-crds'):
+              template = root / name / 'Chart-template.yaml'
+              template.write_text(template.read_text().replace('https://github.com/kagent-dev/kagent', 'https://github.com/' + os.environ['GITHUB_REPOSITORY']))
+          PY
+          make helm-version VERSION="$VERSION" HELM_SOURCE_DIR=/tmp/release-helm HELM_DIST_FOLDER=/tmp/release-charts
+          helm lint /tmp/release-charts/kagent-"$VERSION".tgz /tmp/release-charts/kagent-crds-"$VERSION".tgz
+      - name: Publish charts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd /tmp/release-charts
+          sha256sum kagent-"$VERSION".tgz kagent-crds-"$VERSION".tgz > SHA256SUMS
+          printf '%s' "$GH_TOKEN" | helm registry login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          for chart in kagent kagent-crds; do
+            helm push "$chart-$VERSION.tgz" "oci://$REGISTRY/helm"
+          done
+          gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "$VERSION" --prerelease \
+            --notes "Digest-pinned fork runtime charts for revision $GITHUB_SHA." \
+            kagent-"$VERSION".tgz kagent-crds-"$VERSION".tgz SHA256SUMS
+          cat SHA256SUMS >> "$GITHUB_STEP_SUMMARY"

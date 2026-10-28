@@ -164,6 +164,7 @@ func run(logLevel, host, port, configDir string) error {
 		memSvc, err := kagentmemory.New(kagentmemory.Config{
 			ControllerClient: controllerClient,
 			TTLDays:          agentConfig.Memory.TtlDays,
+			TeamNamespace:    agentConfig.Memory.TeamNamespace,
 			EmbeddingConfig:  agentConfig.Memory.Embedding,
 		})
 		if err != nil {

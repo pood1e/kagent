@@ -1,0 +1,37 @@
+{
+  "$defs": {
+    "google.protobuf.Struct.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "Struct",
+      "type": "object"
+    },
+    "kagent.api.v1.StructuredObject.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^(apiVersion)$": {
+          "default": "",
+          "type": "string"
+        }
+      },
+      "properties": {
+        "api_version": {
+          "default": "",
+          "type": "string"
+        },
+        "kind": {
+          "default": "",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/google.protobuf.Struct.schema.json"
+        }
+      },
+      "title": "Structured Object",
+      "type": "object"
+    }
+  },
+  "$id": "kagent.api.v1.StructuredObject.schema.bundle.json",
+  "$ref": "#/$defs/kagent.api.v1.StructuredObject.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

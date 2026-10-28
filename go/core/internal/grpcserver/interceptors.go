@@ -25,10 +25,11 @@ import (
 )
 
 var forwardedMetadataKeys = map[string]string{
-	"authorization": "Authorization",
-	"x-user-id":     "X-User-Id",
-	"x-agent-name":  "X-Agent-Name",
-	"x-share-token": "X-Share-Token",
+	"authorization":           "Authorization",
+	"x-substrate-actor-token": "X-Substrate-Actor-Token",
+	"x-user-id":               "X-User-Id",
+	"x-agent-name":            "X-Agent-Name",
+	"x-share-token":           "X-Share-Token",
 }
 
 func authenticationUnaryInterceptor(authenticator auth.AuthProvider, shareStore sessionsvc.ShareStore, policies MethodPolicies) grpc.UnaryServerInterceptor {
@@ -67,7 +68,7 @@ func authenticate(ctx context.Context, fullMethod string, authenticator auth.Aut
 	if err != nil || session == nil {
 		return ctx, status.Error(codes.Unauthenticated, "invalid credentials")
 	}
-	if access == auth.AccessRuntime && session.Principal().Actor == nil {
+	if access == auth.AccessRuntime && session.Principal().RuntimeBinding == nil {
 		return ctx, status.Error(codes.PermissionDenied, "runtime actor identity is required")
 	}
 	authenticatedContext := auth.AuthSessionTo(ctx, session)

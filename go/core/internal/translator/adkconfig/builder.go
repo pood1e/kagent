@@ -13,6 +13,7 @@ import (
 	"istio.io/istio/pkg/kube/krt"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 
 	runtimeconfig "github.com/kagent-dev/kagent/go/adk/pkg/config"
 	"github.com/kagent-dev/kagent/go/adk/pkg/models"
@@ -189,7 +190,7 @@ func (c *Builder) BuildProvenance(ctx context.Context, harness *translator.Harne
 		entries = append(entries, objectProvenance(v1alpha3.GroupVersion.String(), "ModelConfig", model.Name, model.UID, model.Generation, model.Spec))
 	}
 	for name := range configMaps {
-		fetched := krt.FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(types.NamespacedName{Namespace: harness.Namespace, Name: name}))
+		fetched := translator.FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(types.NamespacedName{Namespace: harness.Namespace, Name: name}))
 		if fetched == nil {
 			return nil, fmt.Errorf("config map %q not found", name)
 		}
@@ -203,7 +204,7 @@ func (c *Builder) BuildProvenance(ctx context.Context, harness *translator.Harne
 			}
 			switch binding.MCP.Server.Kind {
 			case "RemoteMCPServer":
-				fetched := krt.FetchOne(c.ctx, c.collections.RemoteMCPServers, krt.FilterObjectName(types.NamespacedName{Namespace: template.Namespace, Name: binding.MCP.Server.Name}))
+				fetched := translator.FetchOne(c.ctx, c.collections.RemoteMCPServers, krt.FilterObjectName(types.NamespacedName{Namespace: template.Namespace, Name: binding.MCP.Server.Name}))
 				if fetched == nil {
 					return nil, fmt.Errorf("remote MCP server %q not found", binding.MCP.Server.Name)
 				}
@@ -224,7 +225,7 @@ func (c *Builder) BuildProvenance(ctx context.Context, harness *translator.Harne
 			continue
 		}
 		seenSecrets[identity] = struct{}{}
-		fetched := krt.FetchOne(c.ctx, c.collections.Secrets, krt.FilterObjectName(types.NamespacedName{Namespace: harness.Namespace, Name: ref.Name}))
+		fetched := translator.FetchOne(c.ctx, c.collections.Secrets, krt.FilterObjectName(types.NamespacedName{Namespace: harness.Namespace, Name: ref.Name}))
 		if fetched == nil {
 			return nil, fmt.Errorf("secret %q not found", ref.Name)
 		}
@@ -280,7 +281,7 @@ func (c *Builder) resolveValueRef(ctx context.Context, namespace string, ref v1a
 	if ref.ValueFrom.Type != v1alpha3.ConfigMapValueSource {
 		return "", "", fmt.Errorf("unsupported value source type %q", ref.ValueFrom.Type)
 	}
-	fetched := krt.FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(types.NamespacedName{Namespace: namespace, Name: ref.ValueFrom.Name}))
+	fetched := translator.FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(types.NamespacedName{Namespace: namespace, Name: ref.ValueFrom.Name}))
 	if fetched == nil {
 		return "", "", fmt.Errorf("config map %q not found", ref.ValueFrom.Name)
 	}
@@ -358,7 +359,7 @@ func agentConfigDestinations(cfg *configv1.ADKAgentConfig, modelConfig *v1alpha3
 			// ignoring the operator's host. That over-allowed egress: with a
 			// host set the request goes to that host, so api.ollama.com never
 			// needs to be reachable.
-			hasCredential := modelConfig.Spec.APIKeySecret != "" || modelConfig.Spec.TokenPassthrough
+			hasCredential := modelConfig.Spec.APIKeySecret != "" || ptr.Deref(modelConfig.Spec.TokenPassthrough, false) || modelConfig.Spec.ActorJWT != nil
 			if models.OllamaReachesCloud(modelConfig.Spec.Model, ollama.Host, hasCredential) {
 				destinations = append(destinations, "https://api.ollama.com:443")
 			}

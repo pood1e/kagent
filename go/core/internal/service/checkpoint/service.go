@@ -16,6 +16,7 @@ import (
 
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
+	"github.com/kagent-dev/kagent/go/core/internal/executionauth"
 	"github.com/kagent-dev/kagent/go/core/internal/service/serviceerrors"
 	"github.com/kagent-dev/kagent/go/core/internal/substrate"
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
@@ -34,7 +35,7 @@ type store interface {
 	GetSessionCheckpointSnapshot(context.Context, string, string) (*database.SessionTaskSnapshot, string, error)
 	BeginDeleteSessionCheckpoint(context.Context, string, string) (*database.SessionTaskSnapshot, string, error)
 	DeleteSessionCheckpoint(context.Context, string, string) error
-	ForkSession(context.Context, string, string, string, string) (*apiv1.Session, bool, error)
+	ForkSession(context.Context, string, string, string, string, *apiv1.SessionAuthority) (*apiv1.Session, bool, error)
 	UpdateCheckpointName(context.Context, string, string, string) (*apiv1.Checkpoint, error)
 }
 
@@ -58,6 +59,7 @@ type Service struct {
 	authorizer auth.Authorizer
 	tags       tagClient
 	workflow   workflow
+	authority  *executionauth.Service
 }
 
 type ListRequest struct {
@@ -71,8 +73,8 @@ type ListResult struct {
 	NextPageToken string
 }
 
-func NewService(store store, authorizer auth.Authorizer, tags tagClient, workflow workflow) *Service {
-	return &Service{store: store, authorizer: authorizer, tags: tags, workflow: workflow}
+func NewService(store store, authorizer auth.Authorizer, tags tagClient, workflow workflow, authority *executionauth.Service) *Service {
+	return &Service{store: store, authorizer: authorizer, tags: tags, workflow: workflow, authority: authority}
 }
 
 func (s *Service) Create(ctx context.Context, sessionID, requestID, expectedHeadTaskID string) (*apiv1.Checkpoint, error) {
@@ -337,7 +339,14 @@ func (s *Service) Fork(ctx context.Context, checkpointID, requestID string) (*ap
 	if err != nil {
 		return nil, serviceerrors.NewInternal("Failed to generate Session identifier", err)
 	}
-	session, _, err := s.store.ForkSession(ctx, checkpointID, userID, requestID, id.String())
+	var grant *apiv1.SessionAuthority
+	if s.authority != nil {
+		grant, err = s.authority.Bind(ctx, id.String(), userID, nil)
+		if err != nil {
+			return nil, serviceerrors.NewPermissionDenied("Cannot establish fork authority", err)
+		}
+	}
+	session, _, err := s.store.ForkSession(ctx, checkpointID, userID, requestID, id.String(), grant)
 	if errors.Is(err, database.ErrIdempotencyConflict) {
 		return nil, serviceerrors.NewAlreadyExists("request_id was already used for a different Session", err)
 	}
@@ -372,7 +381,7 @@ func (s *Service) authorize(ctx context.Context, verb auth.Verb, resourceType, n
 	if err := s.authorizer.Check(ctx, principal, verb, auth.Resource{Type: resourceType, Name: name}); err != nil {
 		return "", serviceerrors.NewPermissionDenied("Not authorized", err)
 	}
-	return principal.User.ID, nil
+	return principal.ID, nil
 }
 
 func validateCreate(sessionID, requestID string) error {

@@ -16,6 +16,7 @@ import (
 
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
+	"github.com/kagent-dev/kagent/go/core/internal/executionauth"
 	"github.com/kagent-dev/kagent/go/core/internal/service/serviceerrors"
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
 )
@@ -44,7 +45,8 @@ type sessionWorkflow interface {
 }
 
 type ListRequest struct {
-	AllCreators bool
+	RootSessionID string
+	AllCreators   bool
 	// Agent narrows the page to one agent's conversations.
 	// Either may be given alone.
 	Agent     *apiv1.ResourceReference
@@ -67,9 +69,14 @@ type Service struct {
 	authorizer  auth.Authorizer
 	workflow    sessionWorkflow
 	shareMaxTTL time.Duration
+	authority   *executionauth.Service
 }
 
 type Option func(*Service)
+
+func WithExecutionAuthority(authority *executionauth.Service) Option {
+	return func(s *Service) { s.authority = authority }
+}
 
 // WithShareMaxTTL caps how long a share's token grants access. A share created
 // without a ttl receives the cap; zero leaves shares unbounded.
@@ -90,7 +97,7 @@ func NewService(store store, authorizer auth.Authorizer, workflow sessionWorkflo
 // Create reserves and converges a new conversation. name is optional; an empty
 // name leaves the conversation identified by its id, which is how every session
 // created before names existed behaves.
-func (s *Service) Create(ctx context.Context, agent *apiv1.ResourceReference, requestID, name string) (*apiv1.Session, error) {
+func (s *Service) Create(ctx context.Context, agent *apiv1.ResourceReference, requestID, name string, ceiling *apiv1.ScopeCeiling) (*apiv1.Session, error) {
 	if err := validateCreate(agent, requestID); err != nil {
 		return nil, err
 	}
@@ -106,9 +113,19 @@ func (s *Service) Create(ctx context.Context, agent *apiv1.ResourceReference, re
 	if err != nil {
 		return nil, serviceerrors.NewInternal("Failed to generate Session identifier", err)
 	}
+	if err := s.authorizer.Check(ctx, authPrincipal(ctx), auth.VerbGet, auth.Resource{Type: "Agent", Namespace: agent.Namespace, Name: agent.Name}); err != nil {
+		return nil, serviceerrors.NewPermissionDenied("Agent access denied", err)
+	}
+	var grant *apiv1.SessionAuthority
+	if s.authority != nil {
+		grant, err = s.authority.Bind(ctx, id.String(), creator, ceiling)
+		if err != nil {
+			return nil, serviceerrors.NewPermissionDenied("Cannot establish execution authority", err)
+		}
+	}
 	session, _, err := s.store.CreateSession(ctx, &apiv1.Session{
 		Id: id.String(), Creator: creator, Name: name,
-		Agent: agent,
+		Agent: agent, Authority: grant,
 	}, requestID)
 	if errors.Is(err, database.ErrIdempotencyConflict) {
 		return nil, serviceerrors.NewAlreadyExists("request_id was already used for a different Session", err)
@@ -218,14 +235,20 @@ func (s *Service) List(ctx context.Context, request ListRequest) (ListResult, er
 	if err != nil {
 		return ListResult{}, err
 	}
+	if request.RootSessionID != "" {
+		if _, err := s.getAuthorized(ctx, request.RootSessionID, auth.VerbGet); err != nil {
+			return ListResult{}, err
+		}
+	}
 	if request.AllCreators {
 		if _, err := s.authorizeType(ctx, auth.VerbGet, "SessionAllCreators", ""); err != nil {
 			return ListResult{}, err
 		}
 	}
 	query := database.SessionQuery{
-		UserID: userID, AllUsers: request.AllCreators, Agent: request.Agent,
-		AfterID: afterID, Limit: pageSize + 1,
+		UserID: userID, AllUsers: request.AllCreators || request.RootSessionID != "", Agent: request.Agent,
+		RootSessionID: request.RootSessionID,
+		AfterID:       afterID, Limit: pageSize + 1,
 	}
 	result := ListResult{Sessions: []*apiv1.Session{}}
 	for {
@@ -410,7 +433,7 @@ func (s *Service) authorize(ctx context.Context, verb auth.Verb, name string) (s
 	}
 	if share, ok := auth.ShareContextFrom(ctx); ok {
 		session, _ := auth.AuthSessionFrom(ctx)
-		if session.Principal().Actor != nil {
+		if session.Principal().RuntimeBinding != nil {
 			return "", serviceerrors.NewPermissionDenied("Actors cannot use share credentials", nil)
 		}
 		if verb != auth.VerbGet {
@@ -432,7 +455,10 @@ func (s *Service) authorizeType(ctx context.Context, verb auth.Verb, resourceTyp
 	if err := s.authorizer.Check(ctx, principal, verb, auth.Resource{Type: resourceType, Name: name}); err != nil {
 		return "", serviceerrors.NewPermissionDenied("Not authorized", err)
 	}
-	return principal.User.ID, nil
+	if principal.RuntimeBinding != nil {
+		return principal.RuntimeBinding.CreatorID, nil
+	}
+	return principal.ID, nil
 }
 
 func validateCreate(agent *apiv1.ResourceReference, requestID string) error {

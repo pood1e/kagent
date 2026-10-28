@@ -9,6 +9,9 @@ import (
 	atev1alpha1 "go.ate.dev/substrate/pkg/api/v1alpha1"
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
+	corev1 "k8s.io/api/core/v1"
+
+	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 )
 
 func TestRevisionDigestIncludesSandboxClass(t *testing.T) {
@@ -153,4 +156,22 @@ func TestRevisionDigestIncludesResources(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEqual(t, before, after)
 	}
+}
+
+func TestRevisionDigestIncludesNativeGatewayTargets(t *testing.T) {
+	revision := Revision{Namespace: "team", AgentName: "assistant"}
+	original, err := revision.Digest()
+	require.NoError(t, err)
+	revision.Models = []corev1.LocalObjectReference{{Name: "language"}}
+	withModel, err := revision.Digest()
+	require.NoError(t, err)
+	require.NotEqual(t, original, withModel)
+	revision.MCPTools = []v1alpha3.MCPToolBinding{{Server: corev1.TypedLocalObjectReference{Kind: "RemoteMCPServer", Name: "selected"}, Tools: []string{"read"}}}
+	selected, err := revision.Digest()
+	require.NoError(t, err)
+	require.NotEqual(t, withModel, selected)
+	revision.MCPTools[0].Tools = nil
+	all, err := revision.Digest()
+	require.NoError(t, err)
+	require.NotEqual(t, selected, all)
 }

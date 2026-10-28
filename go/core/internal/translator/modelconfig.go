@@ -2,11 +2,13 @@ package translator
 
 import (
 	"fmt"
+	"strings"
 
 	"istio.io/istio/pkg/kube/krt"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 
 	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 	"github.com/kagent-dev/kagent/go/core/pkg/env"
@@ -77,15 +79,19 @@ func ResolveModelConfig(ctx krt.HandlerContext, collections Collections, config 
 		return &ResolvedModelConfig{SemanticFailures: []ModelConfigFailure{{Reason: "ModelConfigMissing", Message: "model config is required"}}}, nil
 	}
 	resolved := &ResolvedModelConfig{Config: config.DeepCopy()}
+	tokenPassthrough := ptr.Deref(config.Spec.TokenPassthrough, false)
 	addSemanticFailure := func(reason, message string) {
 		resolved.SemanticFailures = append(resolved.SemanticFailures, ModelConfigFailure{Reason: reason, Message: message})
 	}
 	addReferenceFailure := func(reason, message string) {
 		resolved.ReferenceFailures = append(resolved.ReferenceFailures, ModelConfigFailure{Reason: reason, Message: message})
 	}
+	if strings.TrimSpace(config.Spec.Model) == "" {
+		addSemanticFailure("ModelRequired", "ModelConfig model is required")
+	}
 	requireSecret := func(name, notFoundReason, keyNotFoundReason string, keys ...string) *corev1.Secret {
 		key := types.NamespacedName{Namespace: config.Namespace, Name: name}
-		fetched := krt.FetchOne(ctx, collections.Secrets, krt.FilterObjectName(key))
+		fetched := FetchOne(ctx, collections.Secrets, krt.FilterObjectName(key))
 		if fetched == nil {
 			addReferenceFailure(notFoundReason, fmt.Sprintf("secret %s not found", name))
 			return nil
@@ -113,11 +119,11 @@ func ResolveModelConfig(ctx krt.HandlerContext, collections Collections, config 
 
 	switch config.Spec.Provider {
 	case v1alpha3.ModelProviderOpenAI:
-		if !config.Spec.TokenPassthrough && config.Spec.APIKeySecret != "" {
+		if !tokenPassthrough && config.Spec.APIKeySecret != "" {
 			requireAPIKey()
 		}
 	case v1alpha3.ModelProviderAnthropic, v1alpha3.ModelProviderAzureOpenAI, v1alpha3.ModelProviderFoundry, v1alpha3.ModelProviderMistral:
-		if !config.Spec.TokenPassthrough && config.Spec.APIKeySecret != "" {
+		if !tokenPassthrough && config.Spec.APIKeySecret != "" {
 			requireAPIKey()
 		}
 	case v1alpha3.ModelProviderGemini:
@@ -150,9 +156,9 @@ func ResolveModelConfig(ctx krt.HandlerContext, collections Collections, config 
 			addSemanticFailure("InvalidProviderConfig", "bedrock model config is required")
 			break
 		}
-		if !config.Spec.TokenPassthrough && config.Spec.APIKeySecret != "" {
+		if !tokenPassthrough && config.Spec.APIKeySecret != "" {
 			key := types.NamespacedName{Namespace: config.Namespace, Name: config.Spec.APIKeySecret}
-			fetched := krt.FetchOne(ctx, collections.Secrets, krt.FilterObjectName(key))
+			fetched := FetchOne(ctx, collections.Secrets, krt.FilterObjectName(key))
 			if fetched == nil {
 				addReferenceFailure("APIKeySecretNotFound", fmt.Sprintf("secret %s not found", config.Spec.APIKeySecret))
 				break
@@ -171,7 +177,7 @@ func ResolveModelConfig(ctx krt.HandlerContext, collections Collections, config 
 		if config.Spec.SAPAICore == nil {
 			addSemanticFailure("InvalidProviderConfig", "sapAICore model config is required")
 		}
-		if !config.Spec.TokenPassthrough && config.Spec.APIKeySecret != "" {
+		if !tokenPassthrough && config.Spec.APIKeySecret != "" {
 			requireSecret(config.Spec.APIKeySecret, "APIKeySecretNotFound", "SAPAICoreCredentialKeyNotFound", "client_id", "client_secret")
 		}
 	case v1alpha3.ModelProviderFoundry:
@@ -184,7 +190,7 @@ func ResolveModelConfig(ctx krt.HandlerContext, collections Collections, config 
 			ref := config.Spec.Foundry.EndpointFrom
 			key := types.NamespacedName{Namespace: config.Namespace, Name: ref.Name}
 			resolved.References = append(resolved.References, ModelConfigReference{NamespacedName: key, Kind: "ConfigMap", Key: ref.Key})
-			fetched := krt.FetchOne(ctx, collections.ConfigMaps, krt.FilterObjectName(key))
+			fetched := FetchOne(ctx, collections.ConfigMaps, krt.FilterObjectName(key))
 			if fetched == nil {
 				addReferenceFailure("EndpointConfigMapNotFound", fmt.Sprintf("config map %s not found", ref.Name))
 			} else {

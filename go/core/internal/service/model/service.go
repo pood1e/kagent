@@ -33,6 +33,7 @@ type Service struct {
 	providerConfigs        *kubecrud.Service[*v1alpha3.ModelProviderConfig, *v1alpha3.ModelProviderConfigList]
 	defaultNamespace       string
 	providerModelRefresher ProviderModelRefresher
+	admission              Admission
 }
 
 type ListRequest struct{}
@@ -114,6 +115,14 @@ func (s *Service) Create(ctx context.Context, request CreateRequest) (*v1alpha3.
 		},
 		Spec: spec,
 	}
+	if s.admission != nil {
+		if err := s.modelConfigs.Authorize(ctx, auth.VerbCreate, ref); err != nil {
+			return nil, err
+		}
+		if err := s.validateAdmission(ctx, modelConfig, request.APIKey, request.Secrets); err != nil {
+			return nil, err
+		}
+	}
 	modelConfig, err = s.modelConfigs.Create(ctx, modelConfig)
 	if err != nil {
 		return nil, err
@@ -174,6 +183,16 @@ func (s *Service) Update(ctx context.Context, request UpdateRequest) (*v1alpha3.
 		spec.APIKeySecretKey = providerAPIKeySecretKey(spec.Provider)
 	}
 
+	candidate := modelConfig.DeepCopy()
+	candidate.Spec = spec
+	var pendingKey string
+	if request.APIKey != nil {
+		pendingKey = *request.APIKey
+	}
+	if err := s.validateAdmission(ctx, candidate, pendingKey, request.Secrets); err != nil {
+		return nil, err
+	}
+
 	if request.APIKey != nil && *request.APIKey != "" && spec.Provider != v1alpha3.ModelProviderOllama {
 		if err := secretmaterial.CreateOrUpdateOwnedOpaqueSecret(
 			ctx,
@@ -230,7 +249,7 @@ func (s *Service) Update(ctx context.Context, request UpdateRequest) (*v1alpha3.
 }
 
 func (s *Service) Delete(ctx context.Context, request DeleteRequest) error {
-	return s.modelConfigs.Delete(ctx, request.Ref)
+	return s.modelConfigs.Delete(ctx, request.Ref, "")
 }
 
 func validateAPIKeySecretRef(apiKeySecret, apiKeySecretKey string, provider v1alpha3.ModelProvider) error {

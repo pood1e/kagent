@@ -158,8 +158,10 @@ func (*GetCurrentUserRequest) Descriptor() ([]byte, []int) {
 }
 
 type GetCurrentUserResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Claims        *structpb.Struct       `protobuf:"bytes,1,opt,name=claims,proto3" json:"claims,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Claims *structpb.Struct       `protobuf:"bytes,1,opt,name=claims,proto3" json:"claims,omitempty"`
+	// Opaque, provider-qualified identity used for Session ownership and delegation.
+	PrincipalId   string `protobuf:"bytes,2,opt,name=principal_id,json=principalId,proto3" json:"principal_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -199,6 +201,13 @@ func (x *GetCurrentUserResponse) GetClaims() *structpb.Struct {
 		return x.Claims
 	}
 	return nil
+}
+
+func (x *GetCurrentUserResponse) GetPrincipalId() string {
+	if x != nil {
+		return x.PrincipalId
+	}
+	return ""
 }
 
 type ListNamespacesRequest struct {
@@ -873,9 +882,10 @@ const file_kagent_api_v1_system_proto_rawDesc = "" +
 	"git_commit\x18\x02 \x01(\tR\tgitCommit\x12\x1d\n" +
 	"\n" +
 	"build_date\x18\x03 \x01(\tR\tbuildDate\"\x17\n" +
-	"\x15GetCurrentUserRequest\"I\n" +
+	"\x15GetCurrentUserRequest\"l\n" +
 	"\x16GetCurrentUserResponse\x12/\n" +
-	"\x06claims\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06claims\"\x17\n" +
+	"\x06claims\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06claims\x12!\n" +
+	"\fprincipal_id\x18\x02 \x01(\tR\vprincipalId\"\x17\n" +
 	"\x15ListNamespacesRequest\"7\n" +
 	"\tNamespace\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +

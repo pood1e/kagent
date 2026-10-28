@@ -414,3 +414,39 @@ Agent's last successful revision.
 This replaces implicit label selection and the old template/Harness inputs as a
 breaking API change. SandboxTemplate hosting configuration is not part of this
 change.
+
+## Runtime tool observations
+
+`Agent.builtin_tools` exposes the model-facing tool registry observed for its
+latest successful revision. The catalog carries its revision and observation
+time. An absent catalog means that revision has not published an observation;
+a present catalog with an empty list is an observed registry without built-ins.
+
+Go ADK observes the root agent's resolved SDK registry before model calls,
+excluding MCP and remote-agent bindings. Claude observes the SDK's `system.init`
+tool list after applying its disabled-tool configuration. Codex revisions retain
+an absent catalog until their runtime protocol provides an authoritative registry.
+Actor authentication binds `ToolInventoryService.Report` to the persisted
+Session and revision. Changed registries are reported immediately; repeated
+observations and failed retries are bounded in the runtime client.
+
+## Control-plane admission
+
+Agent writes and `AgentService.ValidateAgent` compile a namespace-local snapshot
+through the same Harness compilers as reconciliation. AgentTemplate, Harness and
+ModelConfig changes validate their transitive Agent dependents before persistence.
+Model credential material participates in a read-only snapshot before Secret
+writes. Unrelated Agents remain independent. Compilation applies neither a
+runtime revision nor an ActorTemplate.
+
+API clients use native diagnostics for provider, model options, tool bindings and
+resolved-reference validation. Kubernetes-authored resources retain the
+controller's `ResolvedRefs` and `Compatible` readiness conditions.
+
+### Per-Agent model selection
+
+`Agent.spec.modelConfigRef` selects the root model independently of a reusable
+AgentTemplate's default. A single versioned Agent update selects both Harness
+and model, and the native compiler validates the complete candidate. Shared
+subagents retain their own template models. Existing Sessions keep their prepared
+revision and credentials; later Sessions resolve the updated Agent selection.

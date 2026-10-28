@@ -46,13 +46,13 @@ func TestDelegatedMCPOriginRequiresAnActorOfTheAuthenticatedOwner(t *testing.T) 
 	verifier, err := substrate.NewActorJWTVerifier(t.Context(), issuer.URL, issuer.CAFile)
 	require.NoError(t, err)
 	store := newBinding()
-	provider := runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL)
+	provider := runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL, nil)
 	token := "Bearer " + issuer.Token(t, issuer.Claims("team-a", substrate.ActorName(store.session.Id), store.actorUID))
 	headers := http.Header{"X-User-Id": {"owner"}, "X-Substrate-Actor-Token": {token}}
 	caller, err := provider.Authenticate(t.Context(), headers, nil)
 	require.NoError(t, err)
-	require.Nil(t, caller.Principal().Actor, "the origin does not replace the caller's authorization")
-	require.Equal(t, "owner", caller.Principal().User.ID)
+	require.Equal(t, store.session.Id, caller.Principal().RuntimeBinding.SessionID, "verified origin narrows the caller within its native execution")
+	require.Equal(t, "owner", caller.Principal().ID)
 	require.Equal(t, store.session.Id, runtimeauth.Origin(auth.AuthSessionTo(t.Context(), caller)).SessionID)
 	headers.Set("X-User-Id", "other")
 	_, err = provider.Authenticate(t.Context(), headers, nil)
@@ -71,7 +71,7 @@ func TestSharedAuthenticationNeverFallsBackForActorCredentials(t *testing.T) {
 	verifier, err := substrate.NewActorJWTVerifier(t.Context(), issuer.URL, issuer.CAFile)
 	require.NoError(t, err)
 	store := newBinding()
-	provider := runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL)
+	provider := runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL, nil)
 	for _, claims := range []jwt.MapClaims{
 		issuer.Claims("team-a", substrate.ActorName(store.session.Id), "replaced-uid"),
 		issuer.Claims("other", substrate.ActorName(store.session.Id), store.actorUID),
@@ -85,8 +85,8 @@ func TestSharedAuthenticationNeverFallsBackForActorCredentials(t *testing.T) {
 	}
 	user, err := provider.Authenticate(t.Context(), http.Header{"X-User-Id": {"alice"}, "X-Agent-Name": {"team-a/agent"}}, nil)
 	require.NoError(t, err)
-	require.Equal(t, "alice", user.Principal().User.ID)
-	require.Nil(t, user.Principal().Actor)
+	require.Equal(t, "alice", user.Principal().ID)
+	require.Nil(t, user.Principal().RuntimeBinding)
 }
 
 func TestSharedHTTPAuthenticationBindsActorsAndPreservesUserMode(t *testing.T) {
@@ -104,12 +104,12 @@ func TestSharedHTTPAuthenticationBindsActorsAndPreservesUserMode(t *testing.T) {
 		{"proxy", authimpl.NewProxyAuthenticator("sub"), http.StatusUnauthorized},
 	} {
 		t.Run(mode.name, func(t *testing.T) {
-			provider := runtimeauth.NewProvider(mode.users, verifier, store, issuer.URL)
+			provider := runtimeauth.NewProvider(mode.users, verifier, store, issuer.URL, nil)
 			handler := auth.AuthnMiddleware(provider)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				session, ok := auth.AuthSessionFrom(r.Context())
 				require.True(t, ok)
 				if r.Header.Get("Authorization") == token {
-					require.Equal(t, auth.Principal{User: auth.User{ID: "owner"}, Agent: auth.Agent{ID: "team-a/agent"}, Actor: &auth.Actor{SessionID: store.session.Id}}, session.Principal())
+					require.Equal(t, auth.Principal{ID: auth.PrincipalID("substrate-actor", "team-a/actor-uid"), RuntimeBinding: &auth.RuntimeBinding{SessionID: store.session.Id, CreatorID: "owner"}}, session.Principal())
 				}
 				w.WriteHeader(http.StatusOK)
 			}))
@@ -137,16 +137,17 @@ func TestActorUpstreamIdentityIsBoundAndDoesNotForwardBearer(t *testing.T) {
 	verifier, err := substrate.NewActorJWTVerifier(t.Context(), issuer.URL, issuer.CAFile)
 	require.NoError(t, err)
 	store := newBinding()
-	provider := runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL)
+	provider := runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL, nil)
 	identity, err := provider.Authenticate(t.Context(), http.Header{"Authorization": {"Bearer " + issuer.Token(t, issuer.Claims("team-a", substrate.ActorName(store.session.Id), store.actorUID))}}, nil)
 	require.NoError(t, err)
-	target := auth.Principal{Agent: auth.Agent{ID: store.session.Id}}
+	target := store.session.Id
 	request := httptest.NewRequest(http.MethodPost, "http://runtime", nil)
 	request.Header.Set("Authorization", "Bearer untrusted")
 	require.NoError(t, provider.UpstreamAuth(request, identity, target))
 	require.Empty(t, request.Header.Get("Authorization"))
 	require.Equal(t, "owner", request.Header.Get("X-User-Id"))
-	require.Error(t, provider.UpstreamAuth(request, identity, auth.Principal{Agent: auth.Agent{ID: uuid.NewString()}}))
+	require.Error(t, provider.UpstreamAuth(request, identity, ""), "an Actor cannot dispatch to an unbound upstream")
+	require.Error(t, provider.UpstreamAuth(request, identity, uuid.NewString()))
 	store.actorUID = "replacement"
 	require.Error(t, provider.UpstreamAuth(request, identity, target))
 }

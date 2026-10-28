@@ -27,6 +27,8 @@ import (
 	runtimev1 "github.com/kagent-dev/kagent/go/api/gen/kagent/runtime/v1"
 	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 	"github.com/kagent-dev/kagent/go/core/internal/service/checkpoint"
+	"github.com/kagent-dev/kagent/go/core/internal/service/execution"
+	"github.com/kagent-dev/kagent/go/core/internal/service/inventory"
 	"github.com/kagent-dev/kagent/go/core/internal/service/kubecrud"
 	memoryservice "github.com/kagent-dev/kagent/go/core/internal/service/memory"
 	modelservice "github.com/kagent-dev/kagent/go/core/internal/service/model"
@@ -48,6 +50,8 @@ const (
 )
 
 type Config struct {
+	InventoryService       *inventory.Service
+	ExecutionService       *execution.Service
 	SandboxService         *sandbox.Service
 	BindAddress            string
 	MaxMessageBytes        int
@@ -133,7 +137,7 @@ func New(config Config) (*Server, error) {
 	healthServer := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
 	apiv1.RegisterSystemServiceServer(grpcServer, newSystemServer(config.SystemService, config.MaxMessageBytes))
-	apiv1.RegisterAgentServiceServer(grpcServer, newAgentServer(config.AgentService, config.MaxMessageBytes))
+	apiv1.RegisterAgentServiceServer(grpcServer, newAgentServer(config.AgentService, config.MaxMessageBytes, config.InventoryService))
 	apiv1.RegisterAgentTemplateServiceServer(grpcServer, newAgentTemplateServer(config.AgentTemplateService, config.MaxMessageBytes))
 	apiv1.RegisterHarnessServiceServer(grpcServer, newHarnessServer(config.HarnessService, config.MaxMessageBytes))
 	apiv1.RegisterSandboxServiceServer(grpcServer, &sandboxServer{service: config.SandboxService})
@@ -144,6 +148,12 @@ func New(config Config) (*Server, error) {
 	apiv1.RegisterModelServiceServer(grpcServer, newModelServer(config.ModelService, config.MaxMessageBytes))
 	apiv1.RegisterToolServiceServer(grpcServer, newToolServer(config.ToolService, config.MaxMessageBytes))
 	apiv1.RegisterPromptTemplateServiceServer(grpcServer, newPromptTemplateServer(config.PromptTemplateService))
+	if config.InventoryService != nil {
+		runtimev1.RegisterToolInventoryServiceServer(grpcServer, &inventoryServer{service: config.InventoryService})
+	}
+	if config.ExecutionService != nil {
+		apiv1.RegisterExecutionServiceServer(grpcServer, &executionServer{service: config.ExecutionService})
+	}
 	runtimev1.RegisterMemoryServiceServer(grpcServer, newMemoryServer(config.MemoryService))
 	runtimev1.RegisterTaskStoreServiceServer(grpcServer, &taskStoreServer{service: config.TaskStoreService})
 	apiv1.RegisterSessionServiceServer(grpcServer, &sessionServer{service: config.SessionService})

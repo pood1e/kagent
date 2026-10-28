@@ -124,6 +124,7 @@ class KAgentApp:
                     controller_client=controller_client,
                     embedding_config=optional_field(self.config.agent.memory, "embedding"),
                     ttl_days=self.config.agent.memory.ttl_days,
+                    team_namespace=self.config.agent.memory.team_namespace,
                 )
 
         def create_runner() -> Runner:

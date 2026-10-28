@@ -93,7 +93,9 @@ type Session struct {
 	Name string `protobuf:"bytes,13,opt,name=name,proto3" json:"name,omitempty"`
 	// Output only. A2A conversation ID, equal to this session's ID.
 	// Forks receive a new conversation ID and new task IDs.
-	ContextId     string `protobuf:"bytes,14,opt,name=context_id,json=contextId,proto3" json:"context_id,omitempty"`
+	ContextId string `protobuf:"bytes,14,opt,name=context_id,json=contextId,proto3" json:"context_id,omitempty"`
+	// Output only. Immutable execution authority captured at creation.
+	Authority     *SessionAuthority `protobuf:"bytes,16,opt,name=authority,proto3" json:"authority,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -212,12 +214,20 @@ func (x *Session) GetContextId() string {
 	return ""
 }
 
+func (x *Session) GetAuthority() *SessionAuthority {
+	if x != nil {
+		return x.Authority
+	}
+	return nil
+}
+
 type CreateSessionRequest struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	Agent     *ResourceReference     `protobuf:"bytes,5,opt,name=agent,proto3" json:"agent,omitempty"`
 	RequestId string                 `protobuf:"bytes,3,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	// Optional display name. Empty means unnamed.
-	Name          string `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
+	Name          string        `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
+	ScopeCeiling  *ScopeCeiling `protobuf:"bytes,6,opt,name=scope_ceiling,json=scopeCeiling,proto3" json:"scope_ceiling,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -271,6 +281,13 @@ func (x *CreateSessionRequest) GetName() string {
 		return x.Name
 	}
 	return ""
+}
+
+func (x *CreateSessionRequest) GetScopeCeiling() *ScopeCeiling {
+	if x != nil {
+		return x.ScopeCeiling
+	}
+	return nil
 }
 
 type CreateSessionResponse struct {
@@ -411,7 +428,9 @@ type ListSessionsRequest struct {
 	AllCreators bool         `protobuf:"varint,2,opt,name=all_creators,json=allCreators,proto3" json:"all_creators,omitempty"`
 	Page        *PageRequest `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
 	// Filters by the Agent that produced each session's pinned revision.
-	Agent         *ResourceReference `protobuf:"bytes,6,opt,name=agent,proto3" json:"agent,omitempty"`
+	Agent *ResourceReference `protobuf:"bytes,6,opt,name=agent,proto3" json:"agent,omitempty"`
+	// Narrows the page to a native authority tree. Each Session is authorized.
+	RootSessionId string `protobuf:"bytes,7,opt,name=root_session_id,json=rootSessionId,proto3" json:"root_session_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -465,6 +484,13 @@ func (x *ListSessionsRequest) GetAgent() *ResourceReference {
 		return x.Agent
 	}
 	return nil
+}
+
+func (x *ListSessionsRequest) GetRootSessionId() string {
+	if x != nil {
+		return x.RootSessionId
+	}
+	return ""
 }
 
 type ListSessionsResponse struct {
@@ -1247,10 +1273,10 @@ var File_kagent_api_v1_sessions_proto protoreflect.FileDescriptor
 
 const file_kagent_api_v1_sessions_proto_rawDesc = "" +
 	"\n" +
-	"\x1ckagent/api/v1/sessions.proto\x12\rkagent.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1akagent/api/v1/common.proto\x1a\x1bkagent/api/v1/runtime.proto\";\n" +
+	"\x1ckagent/api/v1/sessions.proto\x12\rkagent.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1akagent/api/v1/common.proto\x1a\x1dkagent/api/v1/execution.proto\x1a\x1bkagent/api/v1/runtime.proto\";\n" +
 	"\aFailure\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\xbd\x04\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\xfc\x04\n" +
 	"\aSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\acreator\x18\x02 \x01(\tR\acreator\x126\n" +
@@ -1267,24 +1293,27 @@ const file_kagent_api_v1_sessions_proto_rawDesc = "" +
 	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x12\n" +
 	"\x04name\x18\r \x01(\tR\x04name\x12\x1d\n" +
 	"\n" +
-	"context_id\x18\x0e \x01(\tR\tcontextIdJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\f\x10\rR\aharnessR\x0eagent_templateR\x06labels\"\xf9\x01\n" +
+	"context_id\x18\x0e \x01(\tR\tcontextId\x12=\n" +
+	"\tauthority\x18\x10 \x01(\v2\x1f.kagent.api.v1.SessionAuthorityR\tauthorityJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\f\x10\rR\aharnessR\x0eagent_templateR\x06labels\"\xbb\x02\n" +
 	"\x14CreateSessionRequest\x12>\n" +
 	"\x05agent\x18\x05 \x01(\v2 .kagent.api.v1.ResourceReferenceB\x06\xbaH\x03\xc8\x01\x01R\x05agent\x12)\n" +
 	"\n" +
 	"request_id\x18\x03 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\trequestId\x12Q\n" +
-	"\x04name\x18\x04 \x01(\tB=\xbaH:r8\x18\xc8\x0123^(?:$|[^\\p{Z}\\p{Cc}](?:[^\\p{Cc}]*[^\\p{Z}\\p{Cc}])?)$R\x04nameJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\aharnessR\x0eagent_template\"I\n" +
+	"\x04name\x18\x04 \x01(\tB=\xbaH:r8\x18\xc8\x0123^(?:$|[^\\p{Z}\\p{Cc}](?:[^\\p{Cc}]*[^\\p{Z}\\p{Cc}])?)$R\x04name\x12@\n" +
+	"\rscope_ceiling\x18\x06 \x01(\v2\x1b.kagent.api.v1.ScopeCeilingR\fscopeCeilingJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\aharnessR\x0eagent_template\"I\n" +
 	"\x15CreateSessionResponse\x120\n" +
 	"\asession\x18\x01 \x01(\v2\x16.kagent.api.v1.SessionR\asession\"<\n" +
 	"\x11GetSessionRequest\x12'\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tsessionId\"F\n" +
 	"\x12GetSessionResponse\x120\n" +
-	"\asession\x18\x01 \x01(\v2\x16.kagent.api.v1.SessionR\asession\"\xd9\x01\n" +
+	"\asession\x18\x01 \x01(\v2\x16.kagent.api.v1.SessionR\asession\"\xda\x02\n" +
 	"\x13ListSessionsRequest\x12!\n" +
 	"\fall_creators\x18\x02 \x01(\bR\vallCreators\x12.\n" +
 	"\x04page\x18\x03 \x01(\v2\x1a.kagent.api.v1.PageRequestR\x04page\x126\n" +
-	"\x05agent\x18\x06 \x01(\v2 .kagent.api.v1.ResourceReferenceR\x05agentJ\x04\b\x01\x10\x02J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\fmatch_labelsR\x0eagent_templateR\aharness\"{\n" +
+	"\x05agent\x18\x06 \x01(\v2 .kagent.api.v1.ResourceReferenceR\x05agent\x12\x7f\n" +
+	"\x0froot_session_id\x18\a \x01(\tBW\xbaHTrR2P^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$R\rrootSessionIdJ\x04\b\x01\x10\x02J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\fmatch_labelsR\x0eagent_templateR\aharness\"{\n" +
 	"\x14ListSessionsResponse\x122\n" +
 	"\bsessions\x18\x01 \x03(\v2\x16.kagent.api.v1.SessionR\bsessions\x12/\n" +
 	"\x04page\x18\x02 \x01(\v2\x1b.kagent.api.v1.PageResponseR\x04page\"\x96\x01\n" +
@@ -1388,9 +1417,11 @@ var file_kagent_api_v1_sessions_proto_goTypes = []any{
 	(RuntimeState)(0),                  // 24: kagent.api.v1.RuntimeState
 	(RuntimeOperation)(0),              // 25: kagent.api.v1.RuntimeOperation
 	(*timestamppb.Timestamp)(nil),      // 26: google.protobuf.Timestamp
-	(*PageRequest)(nil),                // 27: kagent.api.v1.PageRequest
-	(*PageResponse)(nil),               // 28: kagent.api.v1.PageResponse
-	(*durationpb.Duration)(nil),        // 29: google.protobuf.Duration
+	(*SessionAuthority)(nil),           // 27: kagent.api.v1.SessionAuthority
+	(*ScopeCeiling)(nil),               // 28: kagent.api.v1.ScopeCeiling
+	(*PageRequest)(nil),                // 29: kagent.api.v1.PageRequest
+	(*PageResponse)(nil),               // 30: kagent.api.v1.PageResponse
+	(*durationpb.Duration)(nil),        // 31: google.protobuf.Duration
 }
 var file_kagent_api_v1_sessions_proto_depIdxs = []int32{
 	23, // 0: kagent.api.v1.Session.agent:type_name -> kagent.api.v1.ResourceReference
@@ -1399,49 +1430,51 @@ var file_kagent_api_v1_sessions_proto_depIdxs = []int32{
 	0,  // 3: kagent.api.v1.Session.failure:type_name -> kagent.api.v1.Failure
 	26, // 4: kagent.api.v1.Session.created_at:type_name -> google.protobuf.Timestamp
 	26, // 5: kagent.api.v1.Session.updated_at:type_name -> google.protobuf.Timestamp
-	23, // 6: kagent.api.v1.CreateSessionRequest.agent:type_name -> kagent.api.v1.ResourceReference
-	1,  // 7: kagent.api.v1.CreateSessionResponse.session:type_name -> kagent.api.v1.Session
-	1,  // 8: kagent.api.v1.GetSessionResponse.session:type_name -> kagent.api.v1.Session
-	27, // 9: kagent.api.v1.ListSessionsRequest.page:type_name -> kagent.api.v1.PageRequest
-	23, // 10: kagent.api.v1.ListSessionsRequest.agent:type_name -> kagent.api.v1.ResourceReference
-	1,  // 11: kagent.api.v1.ListSessionsResponse.sessions:type_name -> kagent.api.v1.Session
-	28, // 12: kagent.api.v1.ListSessionsResponse.page:type_name -> kagent.api.v1.PageResponse
-	1,  // 13: kagent.api.v1.UpdateSessionNameResponse.session:type_name -> kagent.api.v1.Session
-	1,  // 14: kagent.api.v1.SuspendSessionResponse.session:type_name -> kagent.api.v1.Session
-	1,  // 15: kagent.api.v1.ResumeSessionResponse.session:type_name -> kagent.api.v1.Session
-	1,  // 16: kagent.api.v1.DeleteSessionResponse.session:type_name -> kagent.api.v1.Session
-	26, // 17: kagent.api.v1.SessionShare.created_at:type_name -> google.protobuf.Timestamp
-	26, // 18: kagent.api.v1.SessionShare.expires_at:type_name -> google.protobuf.Timestamp
-	29, // 19: kagent.api.v1.CreateSessionShareRequest.ttl:type_name -> google.protobuf.Duration
-	16, // 20: kagent.api.v1.CreateSessionShareResponse.share:type_name -> kagent.api.v1.SessionShare
-	27, // 21: kagent.api.v1.ListSessionSharesRequest.page:type_name -> kagent.api.v1.PageRequest
-	16, // 22: kagent.api.v1.ListSessionSharesResponse.shares:type_name -> kagent.api.v1.SessionShare
-	28, // 23: kagent.api.v1.ListSessionSharesResponse.page:type_name -> kagent.api.v1.PageResponse
-	2,  // 24: kagent.api.v1.SessionService.CreateSession:input_type -> kagent.api.v1.CreateSessionRequest
-	4,  // 25: kagent.api.v1.SessionService.GetSession:input_type -> kagent.api.v1.GetSessionRequest
-	6,  // 26: kagent.api.v1.SessionService.ListSessions:input_type -> kagent.api.v1.ListSessionsRequest
-	8,  // 27: kagent.api.v1.SessionService.UpdateSessionName:input_type -> kagent.api.v1.UpdateSessionNameRequest
-	10, // 28: kagent.api.v1.SessionService.SuspendSession:input_type -> kagent.api.v1.SuspendSessionRequest
-	12, // 29: kagent.api.v1.SessionService.ResumeSession:input_type -> kagent.api.v1.ResumeSessionRequest
-	14, // 30: kagent.api.v1.SessionService.DeleteSession:input_type -> kagent.api.v1.DeleteSessionRequest
-	17, // 31: kagent.api.v1.SessionService.CreateSessionShare:input_type -> kagent.api.v1.CreateSessionShareRequest
-	19, // 32: kagent.api.v1.SessionService.ListSessionShares:input_type -> kagent.api.v1.ListSessionSharesRequest
-	21, // 33: kagent.api.v1.SessionService.RevokeSessionShare:input_type -> kagent.api.v1.RevokeSessionShareRequest
-	3,  // 34: kagent.api.v1.SessionService.CreateSession:output_type -> kagent.api.v1.CreateSessionResponse
-	5,  // 35: kagent.api.v1.SessionService.GetSession:output_type -> kagent.api.v1.GetSessionResponse
-	7,  // 36: kagent.api.v1.SessionService.ListSessions:output_type -> kagent.api.v1.ListSessionsResponse
-	9,  // 37: kagent.api.v1.SessionService.UpdateSessionName:output_type -> kagent.api.v1.UpdateSessionNameResponse
-	11, // 38: kagent.api.v1.SessionService.SuspendSession:output_type -> kagent.api.v1.SuspendSessionResponse
-	13, // 39: kagent.api.v1.SessionService.ResumeSession:output_type -> kagent.api.v1.ResumeSessionResponse
-	15, // 40: kagent.api.v1.SessionService.DeleteSession:output_type -> kagent.api.v1.DeleteSessionResponse
-	18, // 41: kagent.api.v1.SessionService.CreateSessionShare:output_type -> kagent.api.v1.CreateSessionShareResponse
-	20, // 42: kagent.api.v1.SessionService.ListSessionShares:output_type -> kagent.api.v1.ListSessionSharesResponse
-	22, // 43: kagent.api.v1.SessionService.RevokeSessionShare:output_type -> kagent.api.v1.RevokeSessionShareResponse
-	34, // [34:44] is the sub-list for method output_type
-	24, // [24:34] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	27, // 6: kagent.api.v1.Session.authority:type_name -> kagent.api.v1.SessionAuthority
+	23, // 7: kagent.api.v1.CreateSessionRequest.agent:type_name -> kagent.api.v1.ResourceReference
+	28, // 8: kagent.api.v1.CreateSessionRequest.scope_ceiling:type_name -> kagent.api.v1.ScopeCeiling
+	1,  // 9: kagent.api.v1.CreateSessionResponse.session:type_name -> kagent.api.v1.Session
+	1,  // 10: kagent.api.v1.GetSessionResponse.session:type_name -> kagent.api.v1.Session
+	29, // 11: kagent.api.v1.ListSessionsRequest.page:type_name -> kagent.api.v1.PageRequest
+	23, // 12: kagent.api.v1.ListSessionsRequest.agent:type_name -> kagent.api.v1.ResourceReference
+	1,  // 13: kagent.api.v1.ListSessionsResponse.sessions:type_name -> kagent.api.v1.Session
+	30, // 14: kagent.api.v1.ListSessionsResponse.page:type_name -> kagent.api.v1.PageResponse
+	1,  // 15: kagent.api.v1.UpdateSessionNameResponse.session:type_name -> kagent.api.v1.Session
+	1,  // 16: kagent.api.v1.SuspendSessionResponse.session:type_name -> kagent.api.v1.Session
+	1,  // 17: kagent.api.v1.ResumeSessionResponse.session:type_name -> kagent.api.v1.Session
+	1,  // 18: kagent.api.v1.DeleteSessionResponse.session:type_name -> kagent.api.v1.Session
+	26, // 19: kagent.api.v1.SessionShare.created_at:type_name -> google.protobuf.Timestamp
+	26, // 20: kagent.api.v1.SessionShare.expires_at:type_name -> google.protobuf.Timestamp
+	31, // 21: kagent.api.v1.CreateSessionShareRequest.ttl:type_name -> google.protobuf.Duration
+	16, // 22: kagent.api.v1.CreateSessionShareResponse.share:type_name -> kagent.api.v1.SessionShare
+	29, // 23: kagent.api.v1.ListSessionSharesRequest.page:type_name -> kagent.api.v1.PageRequest
+	16, // 24: kagent.api.v1.ListSessionSharesResponse.shares:type_name -> kagent.api.v1.SessionShare
+	30, // 25: kagent.api.v1.ListSessionSharesResponse.page:type_name -> kagent.api.v1.PageResponse
+	2,  // 26: kagent.api.v1.SessionService.CreateSession:input_type -> kagent.api.v1.CreateSessionRequest
+	4,  // 27: kagent.api.v1.SessionService.GetSession:input_type -> kagent.api.v1.GetSessionRequest
+	6,  // 28: kagent.api.v1.SessionService.ListSessions:input_type -> kagent.api.v1.ListSessionsRequest
+	8,  // 29: kagent.api.v1.SessionService.UpdateSessionName:input_type -> kagent.api.v1.UpdateSessionNameRequest
+	10, // 30: kagent.api.v1.SessionService.SuspendSession:input_type -> kagent.api.v1.SuspendSessionRequest
+	12, // 31: kagent.api.v1.SessionService.ResumeSession:input_type -> kagent.api.v1.ResumeSessionRequest
+	14, // 32: kagent.api.v1.SessionService.DeleteSession:input_type -> kagent.api.v1.DeleteSessionRequest
+	17, // 33: kagent.api.v1.SessionService.CreateSessionShare:input_type -> kagent.api.v1.CreateSessionShareRequest
+	19, // 34: kagent.api.v1.SessionService.ListSessionShares:input_type -> kagent.api.v1.ListSessionSharesRequest
+	21, // 35: kagent.api.v1.SessionService.RevokeSessionShare:input_type -> kagent.api.v1.RevokeSessionShareRequest
+	3,  // 36: kagent.api.v1.SessionService.CreateSession:output_type -> kagent.api.v1.CreateSessionResponse
+	5,  // 37: kagent.api.v1.SessionService.GetSession:output_type -> kagent.api.v1.GetSessionResponse
+	7,  // 38: kagent.api.v1.SessionService.ListSessions:output_type -> kagent.api.v1.ListSessionsResponse
+	9,  // 39: kagent.api.v1.SessionService.UpdateSessionName:output_type -> kagent.api.v1.UpdateSessionNameResponse
+	11, // 40: kagent.api.v1.SessionService.SuspendSession:output_type -> kagent.api.v1.SuspendSessionResponse
+	13, // 41: kagent.api.v1.SessionService.ResumeSession:output_type -> kagent.api.v1.ResumeSessionResponse
+	15, // 42: kagent.api.v1.SessionService.DeleteSession:output_type -> kagent.api.v1.DeleteSessionResponse
+	18, // 43: kagent.api.v1.SessionService.CreateSessionShare:output_type -> kagent.api.v1.CreateSessionShareResponse
+	20, // 44: kagent.api.v1.SessionService.ListSessionShares:output_type -> kagent.api.v1.ListSessionSharesResponse
+	22, // 45: kagent.api.v1.SessionService.RevokeSessionShare:output_type -> kagent.api.v1.RevokeSessionShareResponse
+	36, // [36:46] is the sub-list for method output_type
+	26, // [26:36] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_kagent_api_v1_sessions_proto_init() }
@@ -1450,6 +1483,7 @@ func file_kagent_api_v1_sessions_proto_init() {
 		return
 	}
 	file_kagent_api_v1_common_proto_init()
+	file_kagent_api_v1_execution_proto_init()
 	file_kagent_api_v1_runtime_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{

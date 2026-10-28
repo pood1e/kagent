@@ -22,9 +22,17 @@ func saveRuntimeTask(t *testing.T, client *Client, sessionID string, task *a2a.T
 	stored, version, err := client.GetVersionedSessionTask(ctx, sessionID, string(task.ID))
 	digest := taskMutationHash(uuid.NewString())
 	if errors.Is(err, ErrNotFound) {
-		version, err = client.CreateRuntimeTask(ctx, sessionID, digest, task, "")
+		version, err = createRuntimeTask(client, ctx, sessionID, digest, task, "")
 	} else if err == nil {
-		version, err = client.UpdateSessionTask(ctx, sessionID, version, digest, task, event, "")
+		dispatch := ""
+		if (stored.Status.State == a2a.TaskStateInputRequired || stored.Status.State == a2a.TaskStateAuthRequired) && stored.Status.State != task.Status.State && task.Status.State != a2a.TaskStateCanceled {
+			id := uuid.New()
+			if err := client.ReserveSessionDispatch(ctx, sessionID, id, "", nil); err != nil {
+				return err
+			}
+			dispatch = id.String()
+		}
+		version, err = client.UpdateSessionTask(ctx, sessionID, version, digest, task, event, dispatch)
 	}
 	if err != nil {
 		return err
@@ -96,7 +104,7 @@ func waitingTaskWithPushFixture(t *testing.T, client *Client, config *a2a.PushCo
 	require.NoError(t, err)
 	task := newSessionTask(uuid.NewString(), "initial")
 	task.ContextID = session.ContextId
-	_, err = client.CreateRuntimeTask(t.Context(), session.Id, taskMutationHash("initial request"), task, "")
+	_, err = createRuntimeTask(client, t.Context(), session.Id, taskMutationHash("initial request"), task, "")
 	require.NoError(t, err)
 	if config != nil {
 		require.NoError(t, client.SaveTaskPushConfig(t.Context(), session.Id, string(task.ID), config))
@@ -104,4 +112,16 @@ func waitingTaskWithPushFixture(t *testing.T, client *Client, config *a2a.PushCo
 	task.Status = a2a.TaskStatus{State: a2a.TaskStateInputRequired, Message: a2a.NewMessage(a2a.MessageRoleAgent, a2a.NewTextPart("Which database?"))}
 	require.NoError(t, saveRuntimeTask(t, client, session.Id, task, task, nil))
 	return session, task
+}
+
+// createRuntimeTask admits fixture inputs through the native dispatch boundary.
+func createRuntimeTask(client *Client, ctx context.Context, sessionID string, hash []byte, task *a2a.Task, dispatchID string) (int64, error) {
+	if _, _, err := client.GetVersionedSessionTask(ctx, sessionID, string(task.ID)); errors.Is(err, ErrNotFound) {
+		id := uuid.New()
+		if err := client.ReserveSessionDispatch(ctx, sessionID, id, "", nil); err != nil {
+			return 0, err
+		}
+		dispatchID = id.String()
+	}
+	return client.CreateRuntimeTask(ctx, sessionID, hash, task, dispatchID)
 }

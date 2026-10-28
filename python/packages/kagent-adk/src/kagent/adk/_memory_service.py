@@ -44,6 +44,7 @@ class KagentMemoryService(BaseMemoryService):
         controller_client: AsyncControllerClient,
         embedding_config: Optional[EmbeddingConfig] = None,
         ttl_days: int = 0,
+        team_namespace: str = "",
     ):
         """Initialize KagentMemoryService.
 
@@ -55,6 +56,7 @@ class KagentMemoryService(BaseMemoryService):
         self.client = controller_client
         self.embedding_config = embedding_config
         self.ttl_days = ttl_days
+        self.scope = memory_pb2.MemoryScope(team_namespace=team_namespace) if team_namespace else None
         self._embedding_client = KAgentEmbedding(embedding_config) if embedding_config else None
 
     async def add_session_to_memory(self, session: Session, model: Optional[Any] = None) -> None:
@@ -132,7 +134,7 @@ class KagentMemoryService(BaseMemoryService):
                 return
 
             response = await self.client.memory_service.AddSessionBatch(
-                memory_pb2.MemoryServiceAddSessionBatchRequest(items=batch_items),
+                memory_pb2.MemoryServiceAddSessionBatchRequest(items=batch_items, scope=self.scope),
                 **await self.client.call_options(user_id),
             )
             logger.info("Successfully saved %d memory items via batch RPC", response.count)
@@ -181,7 +183,7 @@ class KagentMemoryService(BaseMemoryService):
 
         try:
             response = await self.client.memory_service.AddSession(
-                memory_pb2.MemoryServiceAddSessionRequest(memory=memory),
+                memory_pb2.MemoryServiceAddSessionRequest(memory=memory, scope=self.scope),
                 **await self.client.call_options(user_id),
             )
             logger.info("Successfully saved memory item (id=%s)", response.id)
@@ -218,6 +220,7 @@ class KagentMemoryService(BaseMemoryService):
         try:
             response = await self.client.memory_service.Search(
                 memory_pb2.MemoryServiceSearchRequest(
+                    scope=self.scope,
                     vector=vector,
                     limit=5,
                     min_score=0.3,

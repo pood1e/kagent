@@ -1,0 +1,68 @@
+{
+  "$defs": {
+    "google.protobuf.Timestamp.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "format": "date-time",
+      "title": "Timestamp",
+      "type": "string"
+    },
+    "kagent.api.v1.SessionAuthority.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "description": "SessionAuthority separates the initiator from the Actor and storage owner.\n Parent and root identities are derived by the controller, never caller input.",
+      "patternProperties": {
+        "^(expiresAt)$": {
+          "$ref": "#/$defs/google.protobuf.Timestamp.schema.json"
+        },
+        "^(initiatorId)$": {
+          "default": "",
+          "type": "string"
+        },
+        "^(parentSessionId)$": {
+          "default": "",
+          "type": "string"
+        },
+        "^(rootSessionId)$": {
+          "default": "",
+          "type": "string"
+        },
+        "^(sessionId)$": {
+          "default": "",
+          "type": "string"
+        }
+      },
+      "properties": {
+        "expires_at": {
+          "$ref": "#/$defs/google.protobuf.Timestamp.schema.json"
+        },
+        "initiator_id": {
+          "default": "",
+          "type": "string"
+        },
+        "parent_session_id": {
+          "default": "",
+          "type": "string"
+        },
+        "root_session_id": {
+          "default": "",
+          "type": "string"
+        },
+        "scopes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "session_id": {
+          "default": "",
+          "type": "string"
+        }
+      },
+      "title": "Session Authority",
+      "type": "object"
+    }
+  },
+  "$id": "kagent.api.v1.SessionAuthority.schema.bundle.json",
+  "$ref": "#/$defs/kagent.api.v1.SessionAuthority.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

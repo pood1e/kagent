@@ -27,7 +27,7 @@ func TestCheckpointSummary(t *testing.T) {
 }
 
 func TestCheckpointToolsAreRegistered(t *testing.T) {
-	h, err := New(testSessionService(), testCheckpointService(), &a2asrv.InterceptedHandler{Handler: &fakeGateway{}}, nil, nil)
+	h, err := New(testSessionService(), testCheckpointService(), &a2asrv.InterceptedHandler{Handler: &fakeGateway{}}, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

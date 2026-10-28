@@ -13,17 +13,17 @@ import (
 // records the verified runtime that originated a delegated MCP call.
 type originSession struct {
 	auth.Session
-	origin auth.Actor
+	origin runtimeSession
 }
 
 // Origin identifies the verified initiating runtime, never a caller supplied ID.
-func Origin(ctx context.Context) *auth.Actor {
+func Origin(ctx context.Context) *auth.RuntimeBinding {
 	session, _ := auth.AuthSessionFrom(ctx)
 	if delegated, ok := session.(originSession); ok {
-		return &delegated.origin
+		return delegated.origin.Principal().RuntimeBinding
 	}
 	if session != nil {
-		return session.Principal().Actor
+		return session.Principal().RuntimeBinding
 	}
 	return nil
 }
@@ -34,7 +34,7 @@ func (p *Provider) withOrigin(ctx context.Context, headers http.Header, caller a
 	if len(values) == 0 {
 		return caller, nil
 	}
-	if len(values) != 1 || caller == nil {
+	if len(values) != 1 || caller == nil || caller.Principal().Execution != nil {
 		return nil, fmt.Errorf("one originating actor proof is required")
 	}
 	proof := strings.TrimPrefix(values[0], "Bearer ")
@@ -46,8 +46,23 @@ func (p *Provider) withOrigin(ctx context.Context, headers http.Header, caller a
 	if err != nil {
 		return nil, err
 	}
-	if session.Creator == "" || session.Creator != caller.Principal().User.ID {
+	if session.Creator == "" || session.Creator != caller.Principal().ID {
 		return nil, fmt.Errorf("originating actor belongs to another caller")
 	}
-	return originSession{Session: caller, origin: auth.Actor{SessionID: session.Id}}, nil
+	return originSession{Session: caller, origin: runtimeSession{sessionID: session.Id, atespace: origin.(runtimeSession).atespace, actorUID: origin.(runtimeSession).actorUID, owner: session.Creator}}, nil
+}
+
+func (s originSession) Principal() auth.Principal {
+	principal := s.Session.Principal()
+	principal.RuntimeBinding = s.origin.Principal().RuntimeBinding
+	return principal
+}
+
+func authSessionOrigin(ctx context.Context) (auth.Principal, bool) {
+	session, _ := auth.AuthSessionFrom(ctx)
+	origin, ok := session.(originSession)
+	if !ok {
+		return auth.Principal{}, false
+	}
+	return origin.Session.Principal(), true
 }

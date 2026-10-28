@@ -1,0 +1,89 @@
+{
+  "$defs": {
+    "kagent.api.v1.CreateSessionRequest.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^(requestId)$": {
+          "default": "",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "^(scopeCeiling)$": {
+          "$ref": "#/$defs/kagent.api.v1.ScopeCeiling.schema.json"
+        }
+      },
+      "properties": {
+        "agent": {
+          "$ref": "#/$defs/kagent.api.v1.ResourceReference.schema.json"
+        },
+        "name": {
+          "default": "",
+          "description": "Optional display name. Empty means unnamed.",
+          "maxLength": 200,
+          "pattern": "^(?:$|[^\\p{Z}\\p{Cc}](?:[^\\p{Cc}]*[^\\p{Z}\\p{Cc}])?)$",
+          "type": "string"
+        },
+        "request_id": {
+          "default": "",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "scope_ceiling": {
+          "$ref": "#/$defs/kagent.api.v1.ScopeCeiling.schema.json"
+        }
+      },
+      "required": [
+        "agent"
+      ],
+      "title": "Create Session Request",
+      "type": "object"
+    },
+    "kagent.api.v1.ResourceReference.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "default": "",
+          "maxLength": 253,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?([.][a-z0-9]([-a-z0-9]*[a-z0-9])?)*$",
+          "type": "string"
+        },
+        "namespace": {
+          "default": "",
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+          "type": "string"
+        }
+      },
+      "title": "Resource Reference",
+      "type": "object"
+    },
+    "kagent.api.v1.ScopeCeiling.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "description": "ScopeCeiling is an immutable upper bound. Absent means inherit; present and\n empty means no scopes. Every use also applies the initiator's current scopes.",
+      "properties": {
+        "scopes": {
+          "items": {
+            "maxLength": 256,
+            "minLength": 1,
+            "pattern": "^\\S+$",
+            "type": "string"
+          },
+          "maxItems": 256,
+          "type": "array"
+        }
+      },
+      "title": "Scope Ceiling",
+      "type": "object"
+    }
+  },
+  "$id": "kagent.api.v1.CreateSessionRequest.schema.bundle.json",
+  "$ref": "#/$defs/kagent.api.v1.CreateSessionRequest.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

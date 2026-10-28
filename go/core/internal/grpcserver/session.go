@@ -13,7 +13,7 @@ type sessionServer struct {
 }
 
 func (s *sessionServer) CreateSession(ctx context.Context, request *apiv1.CreateSessionRequest) (*apiv1.CreateSessionResponse, error) {
-	session, err := s.service.Create(ctx, request.GetAgent(), request.GetRequestId(), request.GetName())
+	session, err := s.service.Create(ctx, request.GetAgent(), request.GetRequestId(), request.GetName(), request.GetScopeCeiling())
 	if err != nil {
 		return nil, err
 	}
@@ -30,9 +30,10 @@ func (s *sessionServer) GetSession(ctx context.Context, request *apiv1.GetSessio
 
 func (s *sessionServer) ListSessions(ctx context.Context, request *apiv1.ListSessionsRequest) (*apiv1.ListSessionsResponse, error) {
 	result, err := s.service.List(ctx, sessionsvc.ListRequest{
-		AllCreators: request.GetAllCreators(),
-		Agent:       request.GetAgent(),
-		PageSize:    int(request.GetPage().GetLimit()), PageToken: request.GetPage().GetPageToken(),
+		AllCreators:   request.GetAllCreators(),
+		RootSessionID: request.GetRootSessionId(),
+		Agent:         request.GetAgent(),
+		PageSize:      int(request.GetPage().GetLimit()), PageToken: request.GetPage().GetPageToken(),
 	})
 	if err != nil {
 		return nil, err

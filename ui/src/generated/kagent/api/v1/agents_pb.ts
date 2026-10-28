@@ -5,15 +5,19 @@
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { PageRequest, PageResponse, ResourceReference, StructuredObject } from "./common_pb";
 import { file_kagent_api_v1_common } from "./common_pb";
+import type { DiscoveredTool } from "./tools_pb";
+import { file_kagent_api_v1_tools } from "./tools_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file kagent/api/v1/agents.proto.
  */
 export const file_kagent_api_v1_agents: GenFile = /*@__PURE__*/
-  fileDesc("ChprYWdlbnQvYXBpL3YxL2FnZW50cy5wcm90bxINa2FnZW50LmFwaS52MSJpCgVBZ2VudBItCgNyZWYYASABKAsyIC5rYWdlbnQuYXBpLnYxLlJlc291cmNlUmVmZXJlbmNlEjEKCHJlc291cmNlGAIgASgLMh8ua2FnZW50LmFwaS52MS5TdHJ1Y3R1cmVkT2JqZWN0In0KEUxpc3RBZ2VudHNSZXF1ZXN0Ej4KCW5hbWVzcGFjZRgBIAEoCUIrukgo2AEBciMYPzIfXlthLXowLTldKFstYS16MC05XSpbYS16MC05XSk/JBIoCgRwYWdlGAIgASgLMhoua2FnZW50LmFwaS52MS5QYWdlUmVxdWVzdCJlChJMaXN0QWdlbnRzUmVzcG9uc2USJAoGYWdlbnRzGAEgAygLMhQua2FnZW50LmFwaS52MS5BZ2VudBIpCgRwYWdlGAIgASgLMhsua2FnZW50LmFwaS52MS5QYWdlUmVzcG9uc2UiSAoPR2V0QWdlbnRSZXF1ZXN0EjUKA3JlZhgBIAEoCzIgLmthZ2VudC5hcGkudjEuUmVzb3VyY2VSZWZlcmVuY2VCBrpIA8gBASI3ChBHZXRBZ2VudFJlc3BvbnNlEiMKBWFnZW50GAEgASgLMhQua2FnZW50LmFwaS52MS5BZ2VudCKGAQoSQ3JlYXRlQWdlbnRSZXF1ZXN0EjUKA3JlZhgBIAEoCzIgLmthZ2VudC5hcGkudjEuUmVzb3VyY2VSZWZlcmVuY2VCBrpIA8gBARI5CghyZXNvdXJjZRgCIAEoCzIfLmthZ2VudC5hcGkudjEuU3RydWN0dXJlZE9iamVjdEIGukgDyAEBIjoKE0NyZWF0ZUFnZW50UmVzcG9uc2USIwoFYWdlbnQYASABKAsyFC5rYWdlbnQuYXBpLnYxLkFnZW50IoYBChJVcGRhdGVBZ2VudFJlcXVlc3QSNQoDcmVmGAEgASgLMiAua2FnZW50LmFwaS52MS5SZXNvdXJjZVJlZmVyZW5jZUIGukgDyAEBEjkKCHJlc291cmNlGAIgASgLMh8ua2FnZW50LmFwaS52MS5TdHJ1Y3R1cmVkT2JqZWN0Qga6SAPIAQEiOgoTVXBkYXRlQWdlbnRSZXNwb25zZRIjCgVhZ2VudBgBIAEoCzIULmthZ2VudC5hcGkudjEuQWdlbnQiSwoSRGVsZXRlQWdlbnRSZXF1ZXN0EjUKA3JlZhgBIAEoCzIgLmthZ2VudC5hcGkudjEuUmVzb3VyY2VSZWZlcmVuY2VCBrpIA8gBASIVChNEZWxldGVBZ2VudFJlc3BvbnNlMrADCgxBZ2VudFNlcnZpY2USUQoKTGlzdEFnZW50cxIgLmthZ2VudC5hcGkudjEuTGlzdEFnZW50c1JlcXVlc3QaIS5rYWdlbnQuYXBpLnYxLkxpc3RBZ2VudHNSZXNwb25zZRJLCghHZXRBZ2VudBIeLmthZ2VudC5hcGkudjEuR2V0QWdlbnRSZXF1ZXN0Gh8ua2FnZW50LmFwaS52MS5HZXRBZ2VudFJlc3BvbnNlElQKC0NyZWF0ZUFnZW50EiEua2FnZW50LmFwaS52MS5DcmVhdGVBZ2VudFJlcXVlc3QaIi5rYWdlbnQuYXBpLnYxLkNyZWF0ZUFnZW50UmVzcG9uc2USVAoLVXBkYXRlQWdlbnQSIS5rYWdlbnQuYXBpLnYxLlVwZGF0ZUFnZW50UmVxdWVzdBoiLmthZ2VudC5hcGkudjEuVXBkYXRlQWdlbnRSZXNwb25zZRJUCgtEZWxldGVBZ2VudBIhLmthZ2VudC5hcGkudjEuRGVsZXRlQWdlbnRSZXF1ZXN0GiIua2FnZW50LmFwaS52MS5EZWxldGVBZ2VudFJlc3BvbnNlQj1aO2dpdGh1Yi5jb20va2FnZW50LWRldi9rYWdlbnQvZ28vYXBpL2dlbi9rYWdlbnQvYXBpL3YxO2FwaXYxYgZwcm90bzM", [file_buf_validate_validate, file_kagent_api_v1_common]);
+  fileDesc("ChprYWdlbnQvYXBpL3YxL2FnZW50cy5wcm90bxINa2FnZW50LmFwaS52MSKjAQoFQWdlbnQSLQoDcmVmGAEgASgLMiAua2FnZW50LmFwaS52MS5SZXNvdXJjZVJlZmVyZW5jZRIxCghyZXNvdXJjZRgCIAEoCzIfLmthZ2VudC5hcGkudjEuU3RydWN0dXJlZE9iamVjdBI4Cg1idWlsdGluX3Rvb2xzGAMgASgLMiEua2FnZW50LmFwaS52MS5CdWlsdGluVG9vbENhdGFsb2cifQoRTGlzdEFnZW50c1JlcXVlc3QSPgoJbmFtZXNwYWNlGAEgASgJQiu6SCjYAQFyIxg/Mh9eW2EtejAtOV0oWy1hLXowLTldKlthLXowLTldKT8kEigKBHBhZ2UYAiABKAsyGi5rYWdlbnQuYXBpLnYxLlBhZ2VSZXF1ZXN0ImUKEkxpc3RBZ2VudHNSZXNwb25zZRIkCgZhZ2VudHMYASADKAsyFC5rYWdlbnQuYXBpLnYxLkFnZW50EikKBHBhZ2UYAiABKAsyGy5rYWdlbnQuYXBpLnYxLlBhZ2VSZXNwb25zZSJICg9HZXRBZ2VudFJlcXVlc3QSNQoDcmVmGAEgASgLMiAua2FnZW50LmFwaS52MS5SZXNvdXJjZVJlZmVyZW5jZUIGukgDyAEBIjcKEEdldEFnZW50UmVzcG9uc2USIwoFYWdlbnQYASABKAsyFC5rYWdlbnQuYXBpLnYxLkFnZW50IoYBChJDcmVhdGVBZ2VudFJlcXVlc3QSNQoDcmVmGAEgASgLMiAua2FnZW50LmFwaS52MS5SZXNvdXJjZVJlZmVyZW5jZUIGukgDyAEBEjkKCHJlc291cmNlGAIgASgLMh8ua2FnZW50LmFwaS52MS5TdHJ1Y3R1cmVkT2JqZWN0Qga6SAPIAQEiOgoTQ3JlYXRlQWdlbnRSZXNwb25zZRIjCgVhZ2VudBgBIAEoCzIULmthZ2VudC5hcGkudjEuQWdlbnQihgEKElVwZGF0ZUFnZW50UmVxdWVzdBI1CgNyZWYYASABKAsyIC5rYWdlbnQuYXBpLnYxLlJlc291cmNlUmVmZXJlbmNlQga6SAPIAQESOQoIcmVzb3VyY2UYAiABKAsyHy5rYWdlbnQuYXBpLnYxLlN0cnVjdHVyZWRPYmplY3RCBrpIA8gBASI6ChNVcGRhdGVBZ2VudFJlc3BvbnNlEiMKBWFnZW50GAEgASgLMhQua2FnZW50LmFwaS52MS5BZ2VudCJvChJEZWxldGVBZ2VudFJlcXVlc3QSIgoQcmVzb3VyY2VfdmVyc2lvbhgCIAEoCUIIukgFcgMYgAESNQoDcmVmGAEgASgLMiAua2FnZW50LmFwaS52MS5SZXNvdXJjZVJlZmVyZW5jZUIGukgDyAEBIhUKE0RlbGV0ZUFnZW50UmVzcG9uc2UiiAEKFFZhbGlkYXRlQWdlbnRSZXF1ZXN0EjUKA3JlZhgBIAEoCzIgLmthZ2VudC5hcGkudjEuUmVzb3VyY2VSZWZlcmVuY2VCBrpIA8gBARI5CghyZXNvdXJjZRgCIAEoCzIfLmthZ2VudC5hcGkudjEuU3RydWN0dXJlZE9iamVjdEIGukgDyAEBIhcKFVZhbGlkYXRlQWdlbnRSZXNwb25zZSKFAQoSQnVpbHRpblRvb2xDYXRhbG9nEhAKCHJldmlzaW9uGAEgASgJEiwKBXRvb2xzGAIgAygLMh0ua2FnZW50LmFwaS52MS5EaXNjb3ZlcmVkVG9vbBIvCgtvYnNlcnZlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAyjAQKDEFnZW50U2VydmljZRJRCgpMaXN0QWdlbnRzEiAua2FnZW50LmFwaS52MS5MaXN0QWdlbnRzUmVxdWVzdBohLmthZ2VudC5hcGkudjEuTGlzdEFnZW50c1Jlc3BvbnNlEksKCEdldEFnZW50Eh4ua2FnZW50LmFwaS52MS5HZXRBZ2VudFJlcXVlc3QaHy5rYWdlbnQuYXBpLnYxLkdldEFnZW50UmVzcG9uc2USVAoLQ3JlYXRlQWdlbnQSIS5rYWdlbnQuYXBpLnYxLkNyZWF0ZUFnZW50UmVxdWVzdBoiLmthZ2VudC5hcGkudjEuQ3JlYXRlQWdlbnRSZXNwb25zZRJUCgtVcGRhdGVBZ2VudBIhLmthZ2VudC5hcGkudjEuVXBkYXRlQWdlbnRSZXF1ZXN0GiIua2FnZW50LmFwaS52MS5VcGRhdGVBZ2VudFJlc3BvbnNlElQKC0RlbGV0ZUFnZW50EiEua2FnZW50LmFwaS52MS5EZWxldGVBZ2VudFJlcXVlc3QaIi5rYWdlbnQuYXBpLnYxLkRlbGV0ZUFnZW50UmVzcG9uc2USWgoNVmFsaWRhdGVBZ2VudBIjLmthZ2VudC5hcGkudjEuVmFsaWRhdGVBZ2VudFJlcXVlc3QaJC5rYWdlbnQuYXBpLnYxLlZhbGlkYXRlQWdlbnRSZXNwb25zZUI9WjtnaXRodWIuY29tL2thZ2VudC1kZXYva2FnZW50L2dvL2FwaS9nZW4va2FnZW50L2FwaS92MTthcGl2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp, file_kagent_api_v1_common, file_kagent_api_v1_tools]);
 
 /**
  * @generated from message kagent.api.v1.Agent
@@ -30,6 +34,13 @@ export type Agent = Message<"kagent.api.v1.Agent"> & {
    * @generated from field: kagent.api.v1.StructuredObject resource = 2;
    */
   resource?: StructuredObject | undefined;
+
+  /**
+   * Runtime-observed tools of the effective revision. Absent until observed.
+   *
+   * @generated from field: kagent.api.v1.BuiltinToolCatalog builtin_tools = 3;
+   */
+  builtinTools?: BuiltinToolCatalog | undefined;
 };
 
 /**
@@ -202,6 +213,13 @@ export const UpdateAgentResponseSchema: GenMessage<UpdateAgentResponse> = /*@__P
  */
 export type DeleteAgentRequest = Message<"kagent.api.v1.DeleteAgentRequest"> & {
   /**
+   * Optional Kubernetes optimistic concurrency precondition.
+   *
+   * @generated from field: string resource_version = 2;
+   */
+  resourceVersion: string;
+
+  /**
    * @generated from field: kagent.api.v1.ResourceReference ref = 1;
    */
   ref?: ResourceReference | undefined;
@@ -226,6 +244,70 @@ export type DeleteAgentResponse = Message<"kagent.api.v1.DeleteAgentResponse"> &
  */
 export const DeleteAgentResponseSchema: GenMessage<DeleteAgentResponse> = /*@__PURE__*/
   messageDesc(file_kagent_api_v1_agents, 10);
+
+/**
+ * @generated from message kagent.api.v1.ValidateAgentRequest
+ */
+export type ValidateAgentRequest = Message<"kagent.api.v1.ValidateAgentRequest"> & {
+  /**
+   * @generated from field: kagent.api.v1.ResourceReference ref = 1;
+   */
+  ref?: ResourceReference | undefined;
+
+  /**
+   * @generated from field: kagent.api.v1.StructuredObject resource = 2;
+   */
+  resource?: StructuredObject | undefined;
+};
+
+/**
+ * Describes the message kagent.api.v1.ValidateAgentRequest.
+ * Use `create(ValidateAgentRequestSchema)` to create a new message.
+ */
+export const ValidateAgentRequestSchema: GenMessage<ValidateAgentRequest> = /*@__PURE__*/
+  messageDesc(file_kagent_api_v1_agents, 11);
+
+/**
+ * @generated from message kagent.api.v1.ValidateAgentResponse
+ */
+export type ValidateAgentResponse = Message<"kagent.api.v1.ValidateAgentResponse"> & {
+};
+
+/**
+ * Describes the message kagent.api.v1.ValidateAgentResponse.
+ * Use `create(ValidateAgentResponseSchema)` to create a new message.
+ */
+export const ValidateAgentResponseSchema: GenMessage<ValidateAgentResponse> = /*@__PURE__*/
+  messageDesc(file_kagent_api_v1_agents, 12);
+
+/**
+ * BuiltinToolCatalog contains SDK-registered tools, independently of MCP discovery.
+ *
+ * @generated from message kagent.api.v1.BuiltinToolCatalog
+ */
+export type BuiltinToolCatalog = Message<"kagent.api.v1.BuiltinToolCatalog"> & {
+  /**
+   * @generated from field: string revision = 1;
+   */
+  revision: string;
+
+  /**
+   * @generated from field: repeated kagent.api.v1.DiscoveredTool tools = 2;
+   */
+  tools: DiscoveredTool[];
+
+  /**
+   * @generated from field: google.protobuf.Timestamp observed_at = 3;
+   */
+  observedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message kagent.api.v1.BuiltinToolCatalog.
+ * Use `create(BuiltinToolCatalogSchema)` to create a new message.
+ */
+export const BuiltinToolCatalogSchema: GenMessage<BuiltinToolCatalog> = /*@__PURE__*/
+  messageDesc(file_kagent_api_v1_agents, 13);
 
 /**
  * AgentService manages runnable definitions pairing templates and harnesses.
@@ -272,6 +354,16 @@ export const AgentService: GenService<{
     methodKind: "unary";
     input: typeof DeleteAgentRequestSchema;
     output: typeof DeleteAgentResponseSchema;
+  },
+  /**
+   * Compiles a candidate definition through the installed native Harness.
+   *
+   * @generated from rpc kagent.api.v1.AgentService.ValidateAgent
+   */
+  validateAgent: {
+    methodKind: "unary";
+    input: typeof ValidateAgentRequestSchema;
+    output: typeof ValidateAgentResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_kagent_api_v1_agents, 0);

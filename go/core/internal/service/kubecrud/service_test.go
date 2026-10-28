@@ -24,7 +24,7 @@ import (
 type testSession struct{}
 
 func (testSession) Principal() auth.Principal {
-	return auth.Principal{User: auth.User{ID: "test-user"}}
+	return auth.Principal{ID: "test-user"}
 }
 
 type authorizationCall struct {
@@ -99,7 +99,7 @@ func TestServiceFiltersBeforeSortingAndUsesTrustedAttributes(t *testing.T) {
 	if _, err := service.Update(ctx, mutable); err != nil {
 		t.Fatalf("Update() error = %v", err)
 	}
-	if err := service.Delete(ctx, types.NamespacedName{Namespace: "team", Name: "b"}); err != nil {
+	if err := service.Delete(ctx, types.NamespacedName{Namespace: "team", Name: "b"}, ""); err != nil {
 		t.Fatalf("Delete() error = %v", err)
 	}
 
@@ -178,7 +178,7 @@ func TestSandboxTemplateAuthorization(t *testing.T) {
 	require.Equal(t, v1alpha3.SandboxTemplateKind, authorizer.scopeType)
 	created, err := service.Create(ctx, &v1alpha3.SandboxTemplate{ObjectMeta: metav1.ObjectMeta{Namespace: "team", Name: "created"}})
 	require.NoError(t, err)
-	require.NoError(t, service.Delete(ctx, types.NamespacedName{Namespace: created.Namespace, Name: created.Name}))
+	require.NoError(t, service.Delete(ctx, types.NamespacedName{Namespace: created.Namespace, Name: created.Name}, ""))
 	require.Equal(t, []authorizationCall{
 		{verb: auth.VerbCreate, resource: auth.Resource{Type: v1alpha3.SandboxTemplateKind, Namespace: "team", Name: "created"}},
 		{verb: auth.VerbDelete, resource: auth.Resource{Type: v1alpha3.SandboxTemplateKind, Namespace: "team", Name: "created"}},
@@ -188,7 +188,7 @@ func TestSandboxTemplateAuthorization(t *testing.T) {
 	require.True(t, serviceerrors.IsCode(err, serviceerrors.CodePermissionDenied))
 	err = kubeClient.Get(ctx, types.NamespacedName{Namespace: "team", Name: "forbidden"}, &v1alpha3.SandboxTemplate{})
 	require.True(t, apierrors.IsNotFound(err))
-	require.Error(t, service.Delete(ctx, types.NamespacedName{Namespace: "team", Name: "a"}))
+	require.Error(t, service.Delete(ctx, types.NamespacedName{Namespace: "team", Name: "a"}, ""))
 	require.NoError(t, kubeClient.Get(ctx, types.NamespacedName{Namespace: "team", Name: "a"}, &v1alpha3.SandboxTemplate{}))
 	authorizer.scope = apiauthorization.AuthorizationScope{Kind: apiauthorization.ScopeAnyOf}
 	_, err = service.List(ctx, "")
@@ -249,7 +249,7 @@ func TestDeniedSingleResourceOperationsDoNotRevealExistence(t *testing.T) {
 			return err
 		},
 		"Delete": func(s *kubecrud.Service[*v1alpha3.AgentTemplate, *v1alpha3.AgentTemplateList], ctx context.Context, ref types.NamespacedName) error {
-			return s.Delete(ctx, ref)
+			return s.Delete(ctx, ref, "")
 		},
 	}
 	for operation, call := range operations {
@@ -371,7 +371,7 @@ func TestAgentServiceFiltersAndAuthorizesStoredObjects(t *testing.T) {
 	if _, err := service.Update(ctx, mutable); err != nil {
 		t.Fatalf("Update() error = %v", err)
 	}
-	if err := service.Delete(ctx, types.NamespacedName{Namespace: "team", Name: "b"}); err != nil {
+	if err := service.Delete(ctx, types.NamespacedName{Namespace: "team", Name: "b"}, ""); err != nil {
 		t.Fatalf("Delete() error = %v", err)
 	}
 

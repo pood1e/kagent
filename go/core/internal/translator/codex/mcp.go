@@ -11,6 +11,7 @@ import (
 	"istio.io/istio/pkg/kube/krt"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 
 	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 	"github.com/kagent-dev/kagent/go/core/internal/translator"
@@ -40,7 +41,7 @@ func (c *Compiler) compileMCP(ctx context.Context, namespace string, tools []tra
 		if server == nil {
 			return mcpCompilation{}, fmt.Errorf("resolved Codex MCP binding has no server")
 		}
-		if server.Spec.TokenPassthrough {
+		if ptr.Deref(server.Spec.TokenPassthrough, false) {
 			return mcpCompilation{}, translator.NewValidationError("Codex does not support RemoteMCPServer %q tokenPassthrough", server.Name)
 		}
 		name := names[i]
@@ -65,6 +66,10 @@ func (c *Compiler) compileMCP(ctx context.Context, namespace string, tools []tra
 		if err != nil {
 			return mcpCompilation{}, fmt.Errorf("compile RemoteMCPServer %q headers: %w", server.Name, err)
 		}
+		if server.Spec.ActorJWT != nil {
+			headers = translator.MCPActorJWTHeaders(headers)
+		}
+
 		selected := append([]string(nil), tool.Binding.Tools...)
 		slices.Sort(selected)
 		selected = slices.Compact(selected)
@@ -116,7 +121,7 @@ func (c *Compiler) compileMCPHeaders(ctx context.Context, namespace string, refs
 		case ref.ValueFrom == nil:
 			headers[ref.Name] = ref.Value
 		case ref.ValueFrom.Type == v1alpha3.ConfigMapValueSource:
-			configMap := krt.FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(types.NamespacedName{Namespace: namespace, Name: ref.ValueFrom.Name}))
+			configMap := translator.FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(types.NamespacedName{Namespace: namespace, Name: ref.ValueFrom.Name}))
 			if configMap == nil {
 				return nil, nil, fmt.Errorf("ConfigMap %q not found", ref.ValueFrom.Name)
 			}

@@ -24,7 +24,7 @@ type modelResult struct {
 
 // buildModel translates a standalone ModelConfig without building an agent.
 func (c *Builder) buildModel(namespace, name string) (*modelResult, error) {
-	resolved := krt.FetchOne(c.ctx, c.collections.ResolvedModelConfigs, krt.FilterObjectName(types.NamespacedName{Namespace: namespace, Name: name}))
+	resolved := translator.FetchOne(c.ctx, c.collections.ResolvedModelConfigs, krt.FilterObjectName(types.NamespacedName{Namespace: namespace, Name: name}))
 	if resolved == nil {
 		return nil, fmt.Errorf("model config %q not found", name)
 	}
@@ -129,7 +129,7 @@ func (c *Builder) applyMemory(result *Result, harness *translator.HarnessConfigu
 	if err != nil {
 		return fmt.Errorf("resolve memory ModelConfig %q: %w", name, err)
 	}
-	result.Config.Memory = &configv1.ADKMemoryConfig{TtlDays: int64(memory.TTLDays), Embedding: runtimeconfig.ModelToEmbeddingConfig(model.Model)}
+	result.Config.Memory = &configv1.ADKMemoryConfig{TeamNamespace: memory.TeamNamespace, TtlDays: int64(memory.TTLDays), Embedding: runtimeconfig.ModelToEmbeddingConfig(model.Model)}
 	result.Models = append(result.Models, model.Resolved)
 	result.Environment = append(result.Environment, model.Environment...)
 	result.Egress = append(result.Egress, model.Egress...)

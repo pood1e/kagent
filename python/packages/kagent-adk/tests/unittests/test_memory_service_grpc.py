@@ -169,3 +169,13 @@ async def test_background_memory_keeps_scheduling_callers_identity(service, clie
     finally:
         request_user_id.reset(token)
     client.call_options.assert_awaited_once_with("alice")
+
+
+async def test_team_scope_is_explicit_on_every_request(client, caller):
+    service = KagentMemoryService(controller_client=client, team_namespace="team-a")
+    service._embedding_client = MagicMock()
+    service._embedding_client.generate = AsyncMock(return_value=[0.25, 0.75])
+    await service.add_memory(app_name="ignored", content="shared finding")
+    await service.search_memory(app_name="ignored", user_id="ignored", query="finding")
+    assert client.memory_service.AddSession.await_args.args[0].scope.team_namespace == "team-a"
+    assert client.memory_service.Search.await_args.args[0].scope.team_namespace == "team-a"

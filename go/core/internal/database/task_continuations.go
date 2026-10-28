@@ -23,6 +23,24 @@ type TaskContinuation struct {
 // may delegate, and an ancestor cannot be invoked as its own descendant.
 func (c *Client) RegisterTaskContinuation(ctx context.Context, parentID, childID, messageID string) error {
 	return c.withTx(ctx, func(tx pgx.Tx) error {
+		if err := lockSessionAuthority(ctx, tx, parentID); err != nil {
+			return err
+		}
+		if err := requireRelatedAuthority(ctx, tx, parentID, childID); err != nil {
+			return err
+		}
+
+		type execution struct{ TaskID, RootTaskID string }
+		current, err := queryOne(ctx, tx, `
+ SELECT e.task_id, e.root_task_id FROM task_execution e JOIN session_task t ON t.id = e.task_id
+ JOIN session s ON s.history_id = t.history_id WHERE s.id = $1 AND t.state = 'TASK_STATE_WORKING'
+ `, pgx.RowToStructByName[execution], parentID)
+		if err != nil {
+			return notFoundOr(err)
+		}
+		if err := lockExecutionRoot(ctx, tx, current.RootTaskID); err != nil {
+			return err
+		}
 		parent, err := lockSession(ctx, tx, parentID)
 		if err != nil {
 			return notFoundOr(err)
@@ -45,6 +63,16 @@ func (c *Client) RegisterTaskContinuation(ctx context.Context, parentID, childID
    `, pgx.RowTo[string], parent.HistoryID)
 		if err != nil {
 			return notFoundOr(err)
+		}
+		if taskID != current.TaskID {
+			return ErrFailedPrecondition
+		}
+		canceled, err := queryOne(ctx, tx, `SELECT EXISTS (SELECT 1 FROM task_cancellation WHERE task_id = $1)`, pgx.RowTo[bool], taskID)
+		if err != nil {
+			return err
+		}
+		if canceled {
+			return ErrFailedPrecondition
 		}
 		return execSQL(ctx, tx, `
      INSERT INTO task_continuation(id, parent_session_id, parent_task_id, child_session_id, child_message_id)
@@ -163,31 +191,6 @@ func (c *Client) withContinuationClaims(ctx context.Context, limit int) ([]TaskC
 		return err
 	})
 	return claimed, err
-}
-
-// CancelTaskContinuations fences a task's pending resumes, including a dispatch
-// reserved before cancellation but not yet persisted by the runtime.
-func (c *Client) CancelTaskContinuations(ctx context.Context, sessionID, taskID string) error {
-	return c.withTx(ctx, func(tx pgx.Tx) error {
-		session, err := lockSession(ctx, tx, sessionID)
-		if err != nil {
-			return notFoundOr(err)
-		}
-		tag, err := tx.Exec(ctx, `
-     WITH RECURSIVE descendants(task_id) AS (
-       SELECT parent_task_id FROM task_continuation WHERE parent_session_id = $1 AND parent_task_id = $2
-       UNION SELECT child.id FROM descendants previous
-         JOIN task_continuation d ON d.parent_task_id = previous.task_id
-         CROSS JOIN LATERAL (VALUES (d.child_task_id), (d.resume_task_id)) child(id)
-         WHERE child.id IS NOT NULL
-     ) UPDATE task_continuation SET abandoned = TRUE, claim_token = NULL, lease_until = NULL
-       WHERE parent_task_id IN (SELECT task_id FROM descendants) AND NOT delivered AND NOT abandoned
-   `, session.ID, taskID)
-		if err != nil || tag.RowsAffected() == 0 {
-			return err
-		}
-		return execSQL(ctx, tx, `UPDATE session SET dispatch_id = NULL, dispatch_expires_at = NULL WHERE id = $1`, session.ID)
-	})
 }
 
 // CompleteTaskContinuation releases the lease after a send, or schedules a retry.

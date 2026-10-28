@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -23,13 +24,13 @@ import (
 )
 
 type interactionStore interface {
-	CancelTaskContinuations(context.Context, string, string) error
+	RequestTaskCancellation(context.Context, string, string) error
 	RegisterSessionPushNotification(context.Context, string, string, string, *a2atype.PushConfig) error
 	SaveTaskPushConfig(context.Context, string, string, *a2atype.PushConfig) error
 	GetTaskPushConfig(context.Context, string, string, string) (*database.TaskPushConfig, error)
 	ListTaskPushConfigs(context.Context, string, string, string, int) ([]database.TaskPushConfig, error)
 	DeleteTaskPushConfig(context.Context, string, string, string) error
-	ReserveSessionDispatch(context.Context, string, uuid.UUID, string) error
+	ReserveSessionDispatch(context.Context, string, uuid.UUID, string, *database.DispatchOrigin) error
 	RevokeSessionDispatch(context.Context, string, uuid.UUID, string) (bool, error)
 	GetRuntimeRevision(context.Context, string) (*database.RuntimeRevision, error)
 	GetSessionTaskByMessage(context.Context, string, string, string) (*a2atype.Task, error)
@@ -64,6 +65,7 @@ type PreparedSend struct {
 	Session      *apiv1.Session
 	DispatchID   uuid.UUID
 	AcceptedTask *a2atype.Task
+	AuthSession  auth.Session
 }
 
 // storedSession keeps operation permissions and Agent membership checks private.
@@ -179,7 +181,15 @@ func (s *InteractionService) PrepareSend(ctx context.Context, agent types.Namesp
 		config.PushConfig = nil
 		req.Config = &config
 	}
-	id, err := s.reserveDispatch(ctx, session.Id, initialID)
+	origin := dispatchOrigin(ctx, req)
+	authorized, err := s.sessions.sendAuthority(ctx, session.Id, req.Message.TaskID != "")
+	if err != nil {
+		return nil, interactionError(ctx, err)
+	}
+	if strings.HasPrefix(initialID, "kagent-continuation-") && (origin == nil || origin.ContinuationID == uuid.Nil) {
+		return nil, a2atype.NewError(a2atype.ErrInvalidRequest, "reserved continuation message ID")
+	}
+	id, err := s.reserveDispatch(ctx, session.Id, initialID, origin)
 	if errors.Is(err, database.ErrMessageAccepted) {
 		var historyLength *int
 		if req.Config != nil {
@@ -189,13 +199,13 @@ func (s *InteractionService) PrepareSend(ctx context.Context, agent types.Namesp
 		if err != nil {
 			return nil, err
 		}
-		return &PreparedSend{Session: session, AcceptedTask: task}, nil
+		return &PreparedSend{Session: session, AcceptedTask: task, AuthSession: authorized}, nil
 	}
 	if err != nil {
 		return nil, err
 	}
 	apia2a.SetTimelinePosition(req.Message, time.Now().UTC())
-	return &PreparedSend{Session: session, DispatchID: id}, nil
+	return &PreparedSend{Session: session, DispatchID: id, AuthSession: authorized}, nil
 }
 
 // PrepareCancelTask authorizes cancellation and returns the actor target and
@@ -208,7 +218,7 @@ func (s *InteractionService) PrepareCancelTask(ctx context.Context, agent types.
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := s.store.CancelTaskContinuations(ctx, session.Id, string(req.ID)); err != nil {
+	if err := s.store.RequestTaskCancellation(ctx, session.Id, string(req.ID)); err != nil {
 		return nil, nil, interactionStoreError(ctx, err)
 	}
 	return session, task, nil
@@ -237,12 +247,12 @@ func (s *InteractionService) prepareTask(ctx context.Context, agent types.Namesp
 
 // reserveDispatch waits only before forwarding input. No runtime send is retried
 // on an ambiguous transport error, and no SQL lock is held during dispatch.
-func (s *InteractionService) reserveDispatch(ctx context.Context, sessionID, initialID string) (uuid.UUID, error) {
+func (s *InteractionService) reserveDispatch(ctx context.Context, sessionID, initialID string, origin *database.DispatchOrigin) (uuid.UUID, error) {
 	id := uuid.New()
 	deadline := time.NewTimer(10 * time.Second)
 	defer deadline.Stop()
 	for {
-		err := s.store.ReserveSessionDispatch(ctx, sessionID, id, initialID)
+		err := s.store.ReserveSessionDispatch(ctx, sessionID, id, initialID, origin)
 		if err == nil {
 			return id, nil
 		}
@@ -428,7 +438,7 @@ func (s *InteractionService) resolveSend(ctx context.Context, agent types.Namesp
 		}
 		// Session creation already deduplicates request IDs per authenticated creator.
 		requestID := uuid.NewSHA1(uuid.NameSpaceURL, []byte("a2a/"+agent.Namespace+"/"+agent.Name+"/"+req.Message.ID)).String()
-		session, err = s.sessions.Create(ctx, &apiv1.ResourceReference{Namespace: agent.Namespace, Name: agent.Name}, requestID, "")
+		session, err = s.sessions.Create(ctx, &apiv1.ResourceReference{Namespace: agent.Namespace, Name: agent.Name}, requestID, "", nil)
 		if err != nil {
 			return nil, interactionError(ctx, err)
 		}

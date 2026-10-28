@@ -53,6 +53,13 @@ type AgentSpec struct {
 	// +required
 	HarnessRef corev1.LocalObjectReference `json:"harnessRef"`
 
+	// ModelConfigRef selects the root model for this Agent. Omitted references
+	// inherit the reusable template's model. Harness and model changes share one
+	// versioned Agent update while templates retain their portable defaults.
+	// +optional
+	// +kubebuilder:validation:XValidation:rule="has(self.name) && self.name != ''",message="modelConfigRef.name must not be empty"
+	ModelConfigRef *corev1.LocalObjectReference `json:"modelConfigRef,omitempty"`
+
 	// EgressPolicyRefs grants additional access to the whole runtime, including
 	// shared subagents. Policies resolve in this Agent's namespace. Integration
 	// access inferred from models and tools is always included. Changes update

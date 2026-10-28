@@ -86,7 +86,7 @@ func (c *Compiler) resolveOutputSchema(_ context.Context, template *TemplateConf
 	case template.Spec.OutputSchemaFrom != nil:
 		ref := template.Spec.OutputSchemaFrom
 		key := types.NamespacedName{Namespace: template.Namespace, Name: ref.Name}
-		configMap := krt.FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(key))
+		configMap := FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(key))
 		if configMap == nil {
 			return nil, fmt.Errorf("resolve output schema ConfigMap %q: not found", ref.Name)
 		}

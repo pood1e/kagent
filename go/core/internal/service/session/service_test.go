@@ -22,7 +22,7 @@ import (
 type serviceTestSession struct{ userID string }
 
 func (s serviceTestSession) Principal() auth.Principal {
-	return auth.Principal{User: auth.User{ID: s.userID}}
+	return auth.Principal{ID: s.userID}
 }
 
 type serviceTestAuthorizer struct{ err error }
@@ -144,7 +144,7 @@ func TestServiceCreateUsesAuthenticatedOwnerAndGeneratedUUID(t *testing.T) {
 	store := &serviceTestStore{}
 	service := NewService(store, serviceTestAuthorizer{}, serviceTestWorkflow{})
 
-	session, err := service.Create(serviceTestContext("alice"), &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}, "request-1", "")
+	session, err := service.Create(serviceTestContext("alice"), &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}, "request-1", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,7 +174,7 @@ func TestServiceCreateMapsStoreErrors(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			service := NewService(&serviceTestStore{createErr: test.err}, serviceTestAuthorizer{}, serviceTestWorkflow{})
-			_, err := service.Create(serviceTestContext("alice"), &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}, "request-1", "")
+			_, err := service.Create(serviceTestContext("alice"), &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}, "request-1", "", nil)
 			if !serviceerrors.IsCode(err, test.code) {
 				t.Fatalf("Create() error = %v, want code %s", err, test.code)
 			}
@@ -196,7 +196,7 @@ func TestServiceCreateRejectsInvalidOrUnauthorizedRequests(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			service := NewService(&serviceTestStore{}, test.authorizer, serviceTestWorkflow{})
-			_, err := service.Create(test.ctx, &apiv1.ResourceReference{Namespace: test.namespace, Name: "assistant"}, "request-1", "")
+			_, err := service.Create(test.ctx, &apiv1.ResourceReference{Namespace: test.namespace, Name: "assistant"}, "request-1", "", nil)
 			if !serviceerrors.IsCode(err, test.code) {
 				t.Fatalf("Create() error = %v, want code %s", err, test.code)
 			}
@@ -371,7 +371,7 @@ func TestServiceCreateCarriesTheNameAndLeavesAnOmittedOneEmpty(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			store := &serviceTestStore{}
 			service := NewService(store, serviceTestAuthorizer{}, serviceTestWorkflow{})
-			session, err := service.Create(serviceTestContext("alice"), &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}, "request-1", test.given)
+			session, err := service.Create(serviceTestContext("alice"), &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}, "request-1", test.given, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -520,7 +520,7 @@ func TestServiceGetScopesReadsToAuthorizedIdentity(t *testing.T) {
 			}
 			if test.share == nil || !test.share.IsForSession(id) {
 				caller, _ := auth.AuthSessionFrom(ctx)
-				if authorizer.verb != auth.VerbGet || authorizer.resource.Type != "Session" || authorizer.resource.Name != id || authorizer.principal.User.ID != caller.Principal().User.ID {
+				if authorizer.verb != auth.VerbGet || authorizer.resource.Type != "Session" || authorizer.resource.Name != id || authorizer.principal.ID != caller.Principal().ID {
 					t.Fatalf("unexpected authorization: %+v", authorizer)
 				}
 			}
@@ -583,7 +583,7 @@ func TestServiceRejectsReadOnlyShareMutationsWithoutTransport(t *testing.T) {
 func TestServiceShareCannotCreateSession(t *testing.T) {
 	ctx := auth.ShareContextTo(serviceTestContext("alice"), &auth.ShareContext{SessionID: uuid.NewString(), UserID: "alice"})
 	service := NewService(nil, serviceTestAuthorizer{}, nil)
-	_, err := service.Create(ctx, &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}, "request-1", "")
+	_, err := service.Create(ctx, &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}, "request-1", "", nil)
 	if !serviceerrors.IsCode(err, serviceerrors.CodePermissionDenied) {
 		t.Fatalf("Create() = %v, want permission denied", err)
 	}
@@ -592,7 +592,7 @@ func TestServiceShareCannotCreateSession(t *testing.T) {
 func TestActorCannotUseShareAuthorityWithoutTransport(t *testing.T) {
 	id := uuid.NewString()
 	ctx := auth.AuthSessionTo(t.Context(), &authimpl.SimpleSession{P: auth.Principal{
-		User: auth.User{ID: "owner"}, Actor: &auth.Actor{SessionID: uuid.NewString()},
+		ID: "owner", RuntimeBinding: &auth.RuntimeBinding{SessionID: uuid.NewString()},
 	}})
 	if _, err := ResolveShare(ctx, nil, "share-token"); !serviceerrors.IsCode(err, serviceerrors.CodePermissionDenied) {
 		t.Fatalf("ResolveShare() = %v, want permission denied before reading the share", err)

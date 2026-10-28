@@ -4,6 +4,7 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
 import type { ResourceReference, StructuredObject } from "./common_pb";
 import { file_kagent_api_v1_common } from "./common_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -12,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file kagent/api/v1/harnesses.proto.
  */
 export const file_kagent_api_v1_harnesses: GenFile = /*@__PURE__*/
-  fileDesc("Ch1rYWdlbnQvYXBpL3YxL2hhcm5lc3Nlcy5wcm90bxINa2FnZW50LmFwaS52MSKjAQoHSGFybmVzcxItCgNyZWYYASABKAsyIC5rYWdlbnQuYXBpLnYxLlJlc291cmNlUmVmZXJlbmNlEjEKCHJlc291cmNlGAIgASgLMh8ua2FnZW50LmFwaS52MS5TdHJ1Y3R1cmVkT2JqZWN0Eg8KB3J1bnRpbWUYAyABKAkSFgoOd29ya2xvYWRfaW1hZ2UYBCABKAkSDQoFcmVhZHkYBSABKAgiKQoUTGlzdEhhcm5lc3Nlc1JlcXVlc3QSEQoJbmFtZXNwYWNlGAEgASgJIkIKFUxpc3RIYXJuZXNzZXNSZXNwb25zZRIpCgloYXJuZXNzZXMYASADKAsyFi5rYWdlbnQuYXBpLnYxLkhhcm5lc3MieAoUQ3JlYXRlSGFybmVzc1JlcXVlc3QSLQoDcmVmGAEgASgLMiAua2FnZW50LmFwaS52MS5SZXNvdXJjZVJlZmVyZW5jZRIxCghyZXNvdXJjZRgCIAEoCzIfLmthZ2VudC5hcGkudjEuU3RydWN0dXJlZE9iamVjdCJAChVDcmVhdGVIYXJuZXNzUmVzcG9uc2USJwoHaGFybmVzcxgBIAEoCzIWLmthZ2VudC5hcGkudjEuSGFybmVzcyJFChREZWxldGVIYXJuZXNzUmVxdWVzdBItCgNyZWYYASABKAsyIC5rYWdlbnQuYXBpLnYxLlJlc291cmNlUmVmZXJlbmNlIhcKFURlbGV0ZUhhcm5lc3NSZXNwb25zZTKkAgoOSGFybmVzc1NlcnZpY2USWgoNTGlzdEhhcm5lc3NlcxIjLmthZ2VudC5hcGkudjEuTGlzdEhhcm5lc3Nlc1JlcXVlc3QaJC5rYWdlbnQuYXBpLnYxLkxpc3RIYXJuZXNzZXNSZXNwb25zZRJaCg1DcmVhdGVIYXJuZXNzEiMua2FnZW50LmFwaS52MS5DcmVhdGVIYXJuZXNzUmVxdWVzdBokLmthZ2VudC5hcGkudjEuQ3JlYXRlSGFybmVzc1Jlc3BvbnNlEloKDURlbGV0ZUhhcm5lc3MSIy5rYWdlbnQuYXBpLnYxLkRlbGV0ZUhhcm5lc3NSZXF1ZXN0GiQua2FnZW50LmFwaS52MS5EZWxldGVIYXJuZXNzUmVzcG9uc2VCPVo7Z2l0aHViLmNvbS9rYWdlbnQtZGV2L2thZ2VudC9nby9hcGkvZ2VuL2thZ2VudC9hcGkvdjE7YXBpdjFiBnByb3RvMw", [file_kagent_api_v1_common]);
+  fileDesc("Ch1rYWdlbnQvYXBpL3YxL2hhcm5lc3Nlcy5wcm90bxINa2FnZW50LmFwaS52MSKjAQoHSGFybmVzcxItCgNyZWYYASABKAsyIC5rYWdlbnQuYXBpLnYxLlJlc291cmNlUmVmZXJlbmNlEjEKCHJlc291cmNlGAIgASgLMh8ua2FnZW50LmFwaS52MS5TdHJ1Y3R1cmVkT2JqZWN0Eg8KB3J1bnRpbWUYAyABKAkSFgoOd29ya2xvYWRfaW1hZ2UYBCABKAkSDQoFcmVhZHkYBSABKAgiKQoUTGlzdEhhcm5lc3Nlc1JlcXVlc3QSEQoJbmFtZXNwYWNlGAEgASgJIkIKFUxpc3RIYXJuZXNzZXNSZXNwb25zZRIpCgloYXJuZXNzZXMYASADKAsyFi5rYWdlbnQuYXBpLnYxLkhhcm5lc3MieAoUQ3JlYXRlSGFybmVzc1JlcXVlc3QSLQoDcmVmGAEgASgLMiAua2FnZW50LmFwaS52MS5SZXNvdXJjZVJlZmVyZW5jZRIxCghyZXNvdXJjZRgCIAEoCzIfLmthZ2VudC5hcGkudjEuU3RydWN0dXJlZE9iamVjdCJAChVDcmVhdGVIYXJuZXNzUmVzcG9uc2USJwoHaGFybmVzcxgBIAEoCzIWLmthZ2VudC5hcGkudjEuSGFybmVzcyJpChREZWxldGVIYXJuZXNzUmVxdWVzdBIiChByZXNvdXJjZV92ZXJzaW9uGAIgASgJQgi6SAVyAxiAARItCgNyZWYYASABKAsyIC5rYWdlbnQuYXBpLnYxLlJlc291cmNlUmVmZXJlbmNlIhcKFURlbGV0ZUhhcm5lc3NSZXNwb25zZSJKChFHZXRIYXJuZXNzUmVxdWVzdBI1CgNyZWYYASABKAsyIC5rYWdlbnQuYXBpLnYxLlJlc291cmNlUmVmZXJlbmNlQga6SAPIAQEiPQoSR2V0SGFybmVzc1Jlc3BvbnNlEicKB2hhcm5lc3MYASABKAsyFi5rYWdlbnQuYXBpLnYxLkhhcm5lc3MiiAEKFFVwZGF0ZUhhcm5lc3NSZXF1ZXN0EjUKA3JlZhgBIAEoCzIgLmthZ2VudC5hcGkudjEuUmVzb3VyY2VSZWZlcmVuY2VCBrpIA8gBARI5CghyZXNvdXJjZRgCIAEoCzIfLmthZ2VudC5hcGkudjEuU3RydWN0dXJlZE9iamVjdEIGukgDyAEBIkAKFVVwZGF0ZUhhcm5lc3NSZXNwb25zZRInCgdoYXJuZXNzGAEgASgLMhYua2FnZW50LmFwaS52MS5IYXJuZXNzMtMDCg5IYXJuZXNzU2VydmljZRJaCg1MaXN0SGFybmVzc2VzEiMua2FnZW50LmFwaS52MS5MaXN0SGFybmVzc2VzUmVxdWVzdBokLmthZ2VudC5hcGkudjEuTGlzdEhhcm5lc3Nlc1Jlc3BvbnNlElEKCkdldEhhcm5lc3MSIC5rYWdlbnQuYXBpLnYxLkdldEhhcm5lc3NSZXF1ZXN0GiEua2FnZW50LmFwaS52MS5HZXRIYXJuZXNzUmVzcG9uc2USWgoNVXBkYXRlSGFybmVzcxIjLmthZ2VudC5hcGkudjEuVXBkYXRlSGFybmVzc1JlcXVlc3QaJC5rYWdlbnQuYXBpLnYxLlVwZGF0ZUhhcm5lc3NSZXNwb25zZRJaCg1DcmVhdGVIYXJuZXNzEiMua2FnZW50LmFwaS52MS5DcmVhdGVIYXJuZXNzUmVxdWVzdBokLmthZ2VudC5hcGkudjEuQ3JlYXRlSGFybmVzc1Jlc3BvbnNlEloKDURlbGV0ZUhhcm5lc3MSIy5rYWdlbnQuYXBpLnYxLkRlbGV0ZUhhcm5lc3NSZXF1ZXN0GiQua2FnZW50LmFwaS52MS5EZWxldGVIYXJuZXNzUmVzcG9uc2VCPVo7Z2l0aHViLmNvbS9rYWdlbnQtZGV2L2thZ2VudC9nby9hcGkvZ2VuL2thZ2VudC9hcGkvdjE7YXBpdjFiBnByb3RvMw", [file_buf_validate_validate, file_kagent_api_v1_common]);
 
 /**
  * @generated from message kagent.api.v1.Harness
@@ -141,6 +142,13 @@ export const CreateHarnessResponseSchema: GenMessage<CreateHarnessResponse> = /*
  */
 export type DeleteHarnessRequest = Message<"kagent.api.v1.DeleteHarnessRequest"> & {
   /**
+   * Optional Kubernetes optimistic concurrency precondition.
+   *
+   * @generated from field: string resource_version = 2;
+   */
+  resourceVersion: string;
+
+  /**
    * @generated from field: kagent.api.v1.ResourceReference ref = 1;
    */
   ref?: ResourceReference | undefined;
@@ -167,6 +175,79 @@ export const DeleteHarnessResponseSchema: GenMessage<DeleteHarnessResponse> = /*
   messageDesc(file_kagent_api_v1_harnesses, 6);
 
 /**
+ * @generated from message kagent.api.v1.GetHarnessRequest
+ */
+export type GetHarnessRequest = Message<"kagent.api.v1.GetHarnessRequest"> & {
+  /**
+   * @generated from field: kagent.api.v1.ResourceReference ref = 1;
+   */
+  ref?: ResourceReference | undefined;
+};
+
+/**
+ * Describes the message kagent.api.v1.GetHarnessRequest.
+ * Use `create(GetHarnessRequestSchema)` to create a new message.
+ */
+export const GetHarnessRequestSchema: GenMessage<GetHarnessRequest> = /*@__PURE__*/
+  messageDesc(file_kagent_api_v1_harnesses, 7);
+
+/**
+ * @generated from message kagent.api.v1.GetHarnessResponse
+ */
+export type GetHarnessResponse = Message<"kagent.api.v1.GetHarnessResponse"> & {
+  /**
+   * @generated from field: kagent.api.v1.Harness harness = 1;
+   */
+  harness?: Harness | undefined;
+};
+
+/**
+ * Describes the message kagent.api.v1.GetHarnessResponse.
+ * Use `create(GetHarnessResponseSchema)` to create a new message.
+ */
+export const GetHarnessResponseSchema: GenMessage<GetHarnessResponse> = /*@__PURE__*/
+  messageDesc(file_kagent_api_v1_harnesses, 8);
+
+/**
+ * @generated from message kagent.api.v1.UpdateHarnessRequest
+ */
+export type UpdateHarnessRequest = Message<"kagent.api.v1.UpdateHarnessRequest"> & {
+  /**
+   * @generated from field: kagent.api.v1.ResourceReference ref = 1;
+   */
+  ref?: ResourceReference | undefined;
+
+  /**
+   * @generated from field: kagent.api.v1.StructuredObject resource = 2;
+   */
+  resource?: StructuredObject | undefined;
+};
+
+/**
+ * Describes the message kagent.api.v1.UpdateHarnessRequest.
+ * Use `create(UpdateHarnessRequestSchema)` to create a new message.
+ */
+export const UpdateHarnessRequestSchema: GenMessage<UpdateHarnessRequest> = /*@__PURE__*/
+  messageDesc(file_kagent_api_v1_harnesses, 9);
+
+/**
+ * @generated from message kagent.api.v1.UpdateHarnessResponse
+ */
+export type UpdateHarnessResponse = Message<"kagent.api.v1.UpdateHarnessResponse"> & {
+  /**
+   * @generated from field: kagent.api.v1.Harness harness = 1;
+   */
+  harness?: Harness | undefined;
+};
+
+/**
+ * Describes the message kagent.api.v1.UpdateHarnessResponse.
+ * Use `create(UpdateHarnessResponseSchema)` to create a new message.
+ */
+export const UpdateHarnessResponseSchema: GenMessage<UpdateHarnessResponse> = /*@__PURE__*/
+  messageDesc(file_kagent_api_v1_harnesses, 10);
+
+/**
  * HarnessService manages reusable runtime and execution configuration.
  * An Agent selects a Harness by reference. Session creation names that Agent
  * and pins its latest successful revision.
@@ -181,6 +262,22 @@ export const HarnessService: GenService<{
     methodKind: "unary";
     input: typeof ListHarnessesRequestSchema;
     output: typeof ListHarnessesResponseSchema;
+  },
+  /**
+   * @generated from rpc kagent.api.v1.HarnessService.GetHarness
+   */
+  getHarness: {
+    methodKind: "unary";
+    input: typeof GetHarnessRequestSchema;
+    output: typeof GetHarnessResponseSchema;
+  },
+  /**
+   * @generated from rpc kagent.api.v1.HarnessService.UpdateHarness
+   */
+  updateHarness: {
+    methodKind: "unary";
+    input: typeof UpdateHarnessRequestSchema;
+    output: typeof UpdateHarnessResponseSchema;
   },
   /**
    * @generated from rpc kagent.api.v1.HarnessService.CreateHarness

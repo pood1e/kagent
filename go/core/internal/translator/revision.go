@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 	"github.com/kagent-dev/kagent/go/core/internal/egress"
 	"github.com/kagent-dev/kagent/go/core/pkg/egresspolicy"
 )
@@ -72,6 +73,9 @@ type Revision struct {
 	TokenPassthroughTargets []egresspolicy.GatewayTarget
 	// EgressDestinations is the HTTP(S) origin allowlist required by this revision.
 	EgressDestinations []string
+	// MCPTools and Models retain the exact resolved execution targets.
+	MCPTools []v1alpha3.MCPToolBinding
+	Models   []corev1.LocalObjectReference
 }
 
 // Equals compares the Agent Card's contents without inspecting protobuf caches.
@@ -96,24 +100,26 @@ func (r *Revision) Digest() (RevisionID, error) {
 		return RevisionID{}, fmt.Errorf("unsupported sandbox class %q", sandboxClass)
 	}
 	raw, err := json.Marshal(struct {
-		ActorTemplateVersion    int                          `json:"actorTemplateVersion"`
-		AgentName               string                       `json:"agentName"`
-		AgentUID                string                       `json:"agentUID"`
-		Namespace               string                       `json:"namespace"`
-		CPU                     string                       `json:"cpu"`
-		Memory                  string                       `json:"memory"`
-		Image                   string                       `json:"image"`
-		Command                 []string                     `json:"command,omitempty"`
-		Args                    []string                     `json:"args,omitempty"`
-		Environment             []corev1.EnvVar              `json:"environment"`
-		ConfigJSON              json.RawMessage              `json:"config"`
-		SkillImages             []SkillImage                 `json:"skillImages,omitempty"`
-		WorkerPoolName          string                       `json:"workerPoolName"`
-		SnapshotLocation        string                       `json:"snapshotLocation"`
-		Credentials             []egress.Credential          `json:"credentials,omitempty"`
-		TokenPassthroughTargets []egresspolicy.GatewayTarget `json:"tokenPassthroughTargets,omitempty"`
-		EgressDestinations      []string                     `json:"egressDestinations"`
-		SandboxClass            atev1alpha1.SandboxClass     `json:"sandboxClass"`
+		ActorTemplateVersion    int                           `json:"actorTemplateVersion"`
+		AgentName               string                        `json:"agentName"`
+		AgentUID                string                        `json:"agentUID"`
+		Namespace               string                        `json:"namespace"`
+		CPU                     string                        `json:"cpu"`
+		Memory                  string                        `json:"memory"`
+		Image                   string                        `json:"image"`
+		Command                 []string                      `json:"command,omitempty"`
+		Args                    []string                      `json:"args,omitempty"`
+		Environment             []corev1.EnvVar               `json:"environment"`
+		ConfigJSON              json.RawMessage               `json:"config"`
+		SkillImages             []SkillImage                  `json:"skillImages,omitempty"`
+		WorkerPoolName          string                        `json:"workerPoolName"`
+		SnapshotLocation        string                        `json:"snapshotLocation"`
+		Credentials             []egress.Credential           `json:"credentials,omitempty"`
+		TokenPassthroughTargets []egresspolicy.GatewayTarget  `json:"tokenPassthroughTargets,omitempty"`
+		EgressDestinations      []string                      `json:"egressDestinations"`
+		MCPTools                []v1alpha3.MCPToolBinding     `json:"mcpTools"`
+		Models                  []corev1.LocalObjectReference `json:"models"`
+		SandboxClass            atev1alpha1.SandboxClass      `json:"sandboxClass"`
 
 		// Placement now matches the pool's namespace as well as its name.
 		// Hash it explicitly so existing immutable templates do not conflict after upgrades.
@@ -127,6 +133,7 @@ func (r *Revision) Digest() (RevisionID, error) {
 		WorkerPoolName: r.WorkerPoolName, SnapshotLocation: r.SnapshotLocation,
 		TokenPassthroughTargets: r.TokenPassthroughTargets, Credentials: r.Credentials, EgressDestinations: r.EgressDestinations,
 		SandboxClass: sandboxClass, WorkerPoolNamespace: r.Namespace,
+		MCPTools: r.MCPTools, Models: r.Models,
 	})
 	if err != nil {
 		return RevisionID{}, fmt.Errorf("marshal runtime revision inputs: %w", err)

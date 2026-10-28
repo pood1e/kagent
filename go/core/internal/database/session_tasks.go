@@ -30,11 +30,40 @@ var ErrMessageAccepted = errors.New("message already accepted")
 // ReserveSessionDispatch prevents pause/suspend between routing a request
 // and its first persisted task. The attempt expires after two minutes; a late
 // first save must fail before native execution. This is not a native work lease.
-func (c *Client) ReserveSessionDispatch(ctx context.Context, sessionID string, dispatchID uuid.UUID, initialMessageID string) error {
+func (c *Client) ReserveSessionDispatch(ctx context.Context, sessionID string, dispatchID uuid.UUID, initialMessageID string, origin *DispatchOrigin) error {
 	return c.withTx(ctx, func(tx pgx.Tx) error {
+		if err := lockSessionAuthority(ctx, tx, sessionID); err != nil {
+			return err
+		}
+		if err := requireActiveAuthority(ctx, tx, sessionID); err != nil {
+			return err
+		}
+		if origin != nil && initialMessageID != "" {
+			accepted, err := queryOne(ctx, tx, `
+ SELECT EXISTS (SELECT 1 FROM session_task_event e JOIN session s ON s.history_id = e.history_id WHERE s.id = $1 AND e.message_id = $2)
+ `, pgx.RowTo[bool], sessionID, initialMessageID)
+			if err != nil {
+				return err
+			}
+			if accepted {
+				return ErrMessageAccepted
+			}
+		}
+		if origin != nil && origin.SessionID != "" {
+			if err := requireRelatedAuthority(ctx, tx, origin.SessionID, sessionID); err != nil {
+				return err
+			}
+		}
+		parent, err := dispatchParent(ctx, tx, origin, sessionID, initialMessageID)
+		if err != nil {
+			return err
+		}
 		session, err := lockSession(ctx, tx, sessionID)
 		if err != nil {
 			return notFoundOr(err)
+		}
+		if session.State == "RUNTIME_STATE_DELETED" {
+			return ErrNotFound
 		}
 		if initialMessageID != "" {
 			accepted, err := queryOne(ctx, tx, `
@@ -49,6 +78,9 @@ func (c *Client) ReserveSessionDispatch(ctx context.Context, sessionID string, d
 			}
 		}
 		if id, ok := strings.CutPrefix(initialMessageID, "kagent-continuation-"); ok {
+			if origin == nil || origin.ContinuationID == uuid.Nil || origin.ContinuationID.String() != id {
+				return ErrFailedPrecondition
+			}
 			parsed, err := uuid.Parse(id)
 			if err != nil {
 				return ErrFailedPrecondition
@@ -75,10 +107,25 @@ func (c *Client) ReserveSessionDispatch(ctx context.Context, sessionID string, d
 		if blocked {
 			return ErrConflict
 		}
+		if parent != nil {
+			crossRoot, err := queryOne(ctx, tx, `
+ SELECT EXISTS (SELECT 1 FROM session_task t JOIN task_execution e ON e.task_id = t.id
+ WHERE t.history_id = $1 AND t.state IN ('TASK_STATE_INPUT_REQUIRED','TASK_STATE_AUTH_REQUIRED') AND e.root_task_id <> $2)
+ `, pgx.RowTo[bool], session.HistoryID, parent.Root.TaskId)
+			if err != nil {
+				return err
+			}
+			if crossRoot {
+				return ErrFailedPrecondition
+			}
+		}
 		if err := requireSettledRuntime(ctx, tx, session.HistoryID, ""); err != nil {
 			if errors.Is(err, ErrFailedPrecondition) {
 				return ErrDispatchBusy
 			}
+			return err
+		}
+		if err := recordTaskDispatch(ctx, tx, session.ID, dispatchID, parent, origin); err != nil {
 			return err
 		}
 		return execSQL(ctx, tx, `
@@ -103,6 +150,9 @@ func (c *Client) RevokeSessionDispatch(ctx context.Context, sessionID string, di
 			WHERE id = $1 AND dispatch_id = $2
 		`, session.ID, dispatchID)
 		if err != nil || tag.RowsAffected() == 0 {
+			return err
+		}
+		if err := execSQL(ctx, tx, `DELETE FROM task_dispatch WHERE session_id = $1 AND dispatch_id = $2`, session.ID, dispatchID); err != nil {
 			return err
 		}
 		// A continuation may have saved its input while still marked waiting.
@@ -140,6 +190,17 @@ func (c *Client) writeRuntimeTask(ctx context.Context, sessionID string, expecte
 	}
 	var version int64
 	err := c.withTx(ctx, func(tx pgx.Tx) error {
+		if err := lockSessionAuthority(ctx, tx, sessionID); err != nil {
+			return err
+		}
+		if expectedVersion == 0 || !task.Status.State.Terminal() {
+			if err := requireActiveAuthority(ctx, tx, sessionID); err != nil {
+				return err
+			}
+		}
+		if err := runtimeExecutionLock(ctx, tx, string(task.ID), dispatchID); err != nil {
+			return err
+		}
 		session, err := lockSession(ctx, tx, sessionID)
 		if err != nil {
 			return notFoundOr(err)
@@ -200,6 +261,18 @@ func (c *Client) writeRuntimeTask(ctx context.Context, sessionID string, expecte
 			}
 		}
 		wasWaiting := stored != nil && (stored.Status.State == a2a.TaskStateInputRequired || stored.Status.State == a2a.TaskStateAuthRequired)
+		if stored != nil && !task.Status.State.Terminal() {
+			canceled, err := queryOne(ctx, tx, `SELECT EXISTS (SELECT 1 FROM task_cancellation WHERE task_id = $1)`, pgx.RowTo[bool], string(task.ID))
+			if err != nil {
+				return err
+			}
+			if canceled {
+				return ErrFailedPrecondition
+			}
+		}
+		if dispatchID == "" && (stored == nil || wasWaiting && (task.Status.State == a2a.TaskStateSubmitted || task.Status.State == a2a.TaskStateWorking)) {
+			return fmt.Errorf("native task admission requires a dispatch: %w", ErrFailedPrecondition)
+		}
 		if session.State != "RUNTIME_STATE_READY" || session.Operation != "RUNTIME_OPERATION_NONE" {
 			return fmt.Errorf("session cannot accept runtime updates during a lifecycle operation: %w", ErrConflict)
 		}
@@ -241,6 +314,15 @@ func (c *Client) writeRuntimeTask(ctx context.Context, sessionID string, expecte
 		}
 		if err := storeSessionTaskEvent(ctx, tx, session, task, event, boundary); err != nil {
 			return err
+		}
+		if stored == nil {
+			if err := bindTaskExecution(ctx, tx, session, string(task.ID), dispatchID); err != nil {
+				return err
+			}
+		} else if wasWaiting && stored.Status.State != task.Status.State && dispatchID != "" {
+			if err := execSQL(ctx, tx, `DELETE FROM task_dispatch WHERE session_id = $1 AND dispatch_id::text = $2`, session.ID, dispatchID); err != nil {
+				return err
+			}
 		}
 		// Clear the old waiting notice when execution resumes. Input-only saves
 		// while waiting and ordinary active progress do not need this cleanup.
