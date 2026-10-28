@@ -139,6 +139,7 @@ jobs:
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ env.VERSION }}
       - run: echo "${REGISTRY}/${{ matrix.component }}@${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
       - name: Export image metadata
         env:
@@ -162,6 +163,7 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+      packages: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -211,6 +213,10 @@ jobs:
         run: |
           cd /tmp/release-charts
           sha256sum kagent-"$VERSION".tgz kagent-crds-"$VERSION".tgz > SHA256SUMS
+          printf '%s' "$GH_TOKEN" | helm registry login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          for chart in kagent kagent-crds; do
+            helm push "$chart-$VERSION.tgz" "oci://$REGISTRY/helm"
+          done
           gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
             --title "$VERSION" --prerelease \
             --notes "Digest-pinned fork runtime charts for revision $GITHUB_SHA." \
