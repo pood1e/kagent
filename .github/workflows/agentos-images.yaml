@@ -1,0 +1,125 @@
+name: AgentOS images
+
+on:
+  push:
+    branches: ['agentos/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agentos-images-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io/${{ github.repository }}
+  VERSION: 1.0.0-alpha17-agentos.4
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.7-pg18-bookworm@sha256:2358fcba361ed2233a5ed81b5fe4ca779ccb304120ce531a3bf51c0ed7e2bc11
+        env:
+          POSTGRES_DB: kagent
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: kagent-ci
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U postgres -d kagent" --health-interval 2s --health-retries 15
+    env:
+      KAGENT_TEST_POSTGRES_URL: postgresql://postgres:kagent-ci@localhost:5432/kagent?sslmode=disable
+    defaults:
+      run:
+        working-directory: go
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go/go.mod
+          cache-dependency-path: go/go.sum
+      - run: psql "$KAGENT_TEST_POSTGRES_URL" -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION vector'
+      - run: echo "KUBEBUILDER_ASSETS=$(go tool setup-envtest use 1.37 -p path)" >> "$GITHUB_ENV"
+      - name: Test the AgentOS runtime extensions
+        run: |
+          go test -race -count=1 ./api/a2a ./core/internal/database ./core/pkg/migrations \
+            ./core/internal/runtimeauth ./core/internal/service/memory ./core/internal/service/taskstore \
+            ./core/internal/service/session ./core/internal/service/tool ./core/internal/service/scheduledrun \
+            ./core/internal/controller/scheduledrun ./core/internal/grpcserver ./core/internal/a2agateway \
+            ./core/internal/mcp ./core/internal/translator/adkconfig ./core/internal/substrate \
+            ./core/internal/translator ./core/internal/utils
+          go test -race -count=1 ./core/internal/translator/claude ./core/internal/translator/codex \
+            ./harness/... ./adk/pkg/a2a ./adk/pkg/tools ./adk/pkg/controllerclient ./adk/pkg/taskstore \
+            ./adk/pkg/embedding
+          go test -race -count=1 ./core/internal/controller -run '^TestStatusForPairPublishesCompilationWarnings$'
+      - run: make lint AWK=awk
+      - name: Build binaries
+        run: |
+          out=../dist
+          mkdir -p "$out/controller" "$out/claude-harness" "$out/standard-harness/rootfs" \
+            "$out/codex-harness/rootfs/usr/local/bin"
+          for harness in claude-harness standard-harness codex-harness; do
+            cp ../agentos/images/toolbox.sh "$out/$harness/toolbox.sh"
+          done
+          CGO_ENABLED=0 go build -trimpath -buildvcs=false \
+            -ldflags "-s -w -X github.com/kagent-dev/kagent/go/core/internal/version.Version=$VERSION -X github.com/kagent-dev/kagent/go/core/internal/version.GitCommit=$GITHUB_SHA -X github.com/kagent-dev/kagent/go/core/internal/version.SubstrateVersion=0.6.0-alpha3" \
+            -o "$out/controller/kagent-controller" ./core/cmd/controller
+          CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags '-s -w' \
+            -o "$out/claude-harness/kagent-claude" ./harness/claude/cmd
+          CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags '-s -w' \
+            -o "$out/standard-harness/rootfs/app" ./adk/cmd
+          CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags '-s -w' \
+            -o "$out/codex-harness/rootfs/usr/local/bin/kagent-codex" ./harness/codex/cmd
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: contexts
+          path: dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  images:
+    needs: verify
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - component: controller
+            dockerfile: controller
+          - component: claude-harness
+            dockerfile: claude-harness
+          - component: standard-harness
+            dockerfile: harness
+            base: ghcr.io/kagent-dev/kagent/golang-adk:1.0.0-alpha17@sha256:d20d411759d7bb549f00b7d6e8d669b91694aeb57dce847dcd2cbb68aa0d45f3
+          - component: codex-harness
+            dockerfile: harness
+            base: ghcr.io/kagent-dev/kagent/codex-harness:1.0.0-alpha17@sha256:1c8565efce78c420b6726c68eaf010363fafd4eeec0c1afcd317d9e517434c22
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: contexts
+          path: dist/
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: dist/${{ matrix.component }}
+          file: agentos/images/${{ matrix.dockerfile }}/Dockerfile
+          build-args: ${{ matrix.base && format('HARNESS_IMAGE={0}', matrix.base) || '' }}
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: ${{ env.REGISTRY }}/${{ matrix.component }}:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+      - run: echo "${REGISTRY}/${{ matrix.component }}@${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
