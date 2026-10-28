@@ -45,6 +45,7 @@ import (
 	authimpl "github.com/kagent-dev/kagent/go/core/internal/httpserver/auth"
 	"github.com/kagent-dev/kagent/go/core/internal/jwttest"
 	"github.com/kagent-dev/kagent/go/core/internal/runtimeauth"
+	executionservice "github.com/kagent-dev/kagent/go/core/internal/service/execution"
 	memoryservice "github.com/kagent-dev/kagent/go/core/internal/service/memory"
 	sessionsvc "github.com/kagent-dev/kagent/go/core/internal/service/session"
 	"github.com/kagent-dev/kagent/go/core/internal/service/taskstore"
@@ -165,6 +166,7 @@ func TestRuntimeTaskStoreThroughGRPC(t *testing.T) {
 		TaskStoreService: tasks,
 		MemoryService:    memoryservice.NewService(memories, policy),
 		SessionService:   sessionsvc.NewService(store, policy, nil),
+		ExecutionService: executionservice.NewService(store, sessionsvc.NewService(store, policy, nil)),
 	})
 	require.NoError(t, err)
 	serverCtx, stopServer := context.WithCancel(t.Context())
@@ -688,9 +690,21 @@ func TestRuntimeTaskStoreThroughGRPC(t *testing.T) {
 	}
 	t.Run("settlement publishes without a lifecycle worker", func(t *testing.T) {
 		finished := &a2apb.Task{Id: uuid.NewString(), ContextId: session.ContextId, Status: &a2apb.TaskStatus{State: a2apb.TaskState_TASK_STATE_SUBMITTED}}
-		created, err := private.CreateTask(authenticated, &runtimev1.TaskStoreServiceCreateTaskRequest{SessionId: id, Task: finished})
+		dispatch := uuid.New()
+		require.NoError(t, store.ReserveSessionDispatch(t.Context(), id, dispatch, "", nil))
+		created, err := private.CreateTask(authenticated, &runtimev1.TaskStoreServiceCreateTaskRequest{SessionId: id, Task: finished, DispatchId: new(dispatch.String())})
 		require.NoError(t, err)
 		finished.Status.State = a2apb.TaskState_TASK_STATE_COMPLETED
+		executions := apiv1.NewExecutionServiceClient(publicConn)
+		execution, err := executions.GetTaskExecution(authenticated, &apiv1.GetTaskExecutionRequest{TaskId: finished.Id})
+		require.NoError(t, err)
+		require.Nil(t, execution.Execution.Parent)
+		require.Equal(t, id, execution.Execution.Root.SessionId)
+		page, err := executions.ListTaskExecutions(authenticated, &apiv1.ListTaskExecutionsRequest{RootTaskId: finished.Id, Page: &apiv1.PageRequest{Limit: 1}})
+		require.NoError(t, err)
+		require.Len(t, page.Executions, 1)
+		_, err = executions.ListTaskExecutions(authenticated, &apiv1.ListTaskExecutionsRequest{RootTaskId: finished.Id, Page: &apiv1.PageRequest{Limit: 101}})
+		require.Equal(t, codes.InvalidArgument, status.Code(err))
 		saved, err := private.UpdateTask(authenticated, &runtimev1.TaskStoreServiceUpdateTaskRequest{
 			SessionId: id, Task: finished, ExpectedVersion: created.Version,
 		})

@@ -125,19 +125,19 @@ func TestRuntimeTaskCreateRetries(t *testing.T) {
 	message.ContextID = session.ContextId
 	task := a2a.NewSubmittedTask(message, message)
 	hash := sha256.Sum256([]byte("create"))
-	version, err := client.CreateRuntimeTask(t.Context(), session.Id, hash[:], task, "")
+	version, err := createRuntimeTask(client, t.Context(), session.Id, hash[:], task, "")
 	require.NoError(t, err)
-	retry, err := client.CreateRuntimeTask(t.Context(), session.Id, hash[:], task, "")
+	retry, err := createRuntimeTask(client, t.Context(), session.Id, hash[:], task, "")
 	require.NoError(t, err)
 	require.Equal(t, version, retry)
 	different := sha256.Sum256([]byte("different create"))
-	_, err = client.CreateRuntimeTask(t.Context(), session.Id, different[:], task, "")
+	_, err = createRuntimeTask(client, t.Context(), session.Id, different[:], task, "")
 	require.ErrorIs(t, err, ErrIdempotencyConflict)
 	working := *task
 	working.Status.State = a2a.TaskStateWorking
 	_, err = client.UpdateSessionTask(t.Context(), session.Id, version, different[:], &working, &working, "")
 	require.NoError(t, err)
-	retry, err = client.CreateRuntimeTask(t.Context(), session.Id, hash[:], task, "")
+	retry, err = createRuntimeTask(client, t.Context(), session.Id, hash[:], task, "")
 	require.NoError(t, err)
 	require.Equal(t, version, retry)
 }
@@ -151,12 +151,14 @@ func resumeRuntimeTask(t *testing.T, client *Client, sessionID string, reply *a2
 		task.History = append(task.History, task.Status.Message)
 	}
 	task.History = append(task.History, reply)
+	dispatch := uuid.New()
+	require.NoError(t, client.ReserveSessionDispatch(t.Context(), sessionID, dispatch, reply.ID, nil))
 	hash := sha256.Sum256([]byte("input " + reply.ID))
-	version, err = client.UpdateSessionTask(t.Context(), sessionID, version, hash[:], task, task, "")
+	version, err = client.UpdateSessionTask(t.Context(), sessionID, version, hash[:], task, task, dispatch.String())
 	require.NoError(t, err)
 	task.Status = a2a.TaskStatus{State: a2a.TaskStateWorking}
 	hash = sha256.Sum256([]byte("start " + reply.ID))
-	version, err = client.UpdateSessionTask(t.Context(), sessionID, version, hash[:], task, task, "")
+	version, err = client.UpdateSessionTask(t.Context(), sessionID, version, hash[:], task, task, dispatch.String())
 	require.NoError(t, err)
 	return task, version
 }
@@ -204,8 +206,8 @@ func TestRuntimeCompletionDoesNotWaitForSnapshot(t *testing.T) {
 
 	fresh := a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart("next"))
 	fresh.ContextID = session.ContextId
-	_, err = client.CreateRuntimeTask(t.Context(), session.Id, hash[:], a2a.NewSubmittedTask(fresh, fresh), "")
-	require.ErrorIs(t, err, ErrFailedPrecondition)
+	_, err = createRuntimeTask(client, t.Context(), session.Id, hash[:], a2a.NewSubmittedTask(fresh, fresh), "")
+	require.ErrorIs(t, err, ErrDispatchBusy)
 	snapshot := &SessionTaskSnapshot{Atespace: "team-a", URI: "s3://snapshot/exact", Fidelity: "SNAPSHOT_FIDELITY_VOLUMES"}
 	require.NoError(t, client.FinishSessionQuiescence(t.Context(), work, snapshot))
 	require.NoError(t, client.FinishSessionQuiescence(t.Context(), work, snapshot))
@@ -242,7 +244,7 @@ func TestRuntimeForkRetainsOnlyTheCheckpointBoundary(t *testing.T) {
 	newInput := a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart("source after checkpoint"))
 	newInput.ContextID = source.ContextId
 	later := a2a.NewSubmittedTask(newInput, newInput)
-	_, err = client.CreateRuntimeTask(t.Context(), source.Id, hash[:], later, "")
+	_, err = createRuntimeTask(client, t.Context(), source.Id, hash[:], later, "")
 	require.NoError(t, err)
 	fork, _, err := client.ForkSession(t.Context(), checkpoint.Id, "alice", uuid.NewString(), uuid.NewString())
 	require.NoError(t, err)
@@ -292,7 +294,7 @@ func TestRuntimeForkRetainsOnlyTheCheckpointBoundary(t *testing.T) {
 	newInput.ContextID = fork.Id
 	newInput.Parts = a2a.ContentParts{a2a.NewTextPart("independent fork")}
 	forkInput := a2a.NewSubmittedTask(newInput, newInput)
-	_, err = client.CreateRuntimeTask(t.Context(), fork.Id, hash[:], forkInput, "")
+	_, err = createRuntimeTask(client, t.Context(), fork.Id, hash[:], forkInput, "")
 	require.NoError(t, err)
 	_, err = client.GetSessionTask(t.Context(), source.Id, string(forkInput.ID), nil)
 	require.ErrorIs(t, err, ErrNotFound)
@@ -326,7 +328,7 @@ func TestNewExecutionRacesIdleClaim(t *testing.T) {
 		dispatchID := uuid.New()
 		go func() {
 			<-start
-			err := client.ReserveSessionDispatch(ctx, session.Id, dispatchID, "")
+			err := client.ReserveSessionDispatch(ctx, session.Id, dispatchID, "", nil)
 			writeErrors <- err
 		}()
 		close(start)
@@ -334,7 +336,7 @@ func TestNewExecutionRacesIdleClaim(t *testing.T) {
 		if claimErr == nil {
 			require.ErrorIs(t, writeErr, ErrDispatchBusy)
 			require.NoError(t, client.FinishSessionQuiescence(ctx, work, &SessionTaskSnapshot{Atespace: "team-a", URI: "snapshot", Fidelity: "SNAPSHOT_FIDELITY_VOLUMES"}))
-			require.NoError(t, client.ReserveSessionDispatch(ctx, session.Id, dispatchID, ""))
+			require.NoError(t, client.ReserveSessionDispatch(ctx, session.Id, dispatchID, "", nil))
 		} else {
 			require.ErrorIs(t, claimErr, ErrNotFound)
 			require.NoError(t, writeErr)
@@ -364,7 +366,7 @@ func TestRuntimeTaskLookupRejectsAmbiguousMessageIDs(t *testing.T) {
 	message := a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart("another task"))
 	message.ID, message.ContextID = messageID, session.ContextId
 	task := a2a.NewSubmittedTask(message, message)
-	_, err = client.CreateRuntimeTask(t.Context(), session.Id, taskMutationHash("another task"), task, "")
+	_, err = createRuntimeTask(client, t.Context(), session.Id, taskMutationHash("another task"), task, "")
 	require.NoError(t, err)
 	_, err = client.GetSessionTaskByMessage(t.Context(), session.Id, "", messageID)
 	require.ErrorIs(t, err, ErrConflict)
@@ -381,10 +383,10 @@ func TestDispatchFencesIdleWorkAndLateAcceptance(t *testing.T) {
 	sessionFixture(t, client, ctx, "team-a", "revision", "assistant", "kagent")
 	session, waiting := waitingTaskFixture(t, client)
 	dispatchID := uuid.New()
-	require.NoError(t, client.ReserveSessionDispatch(ctx, session.Id, dispatchID, ""))
+	require.NoError(t, client.ReserveSessionDispatch(ctx, session.Id, dispatchID, "", nil))
 	_, err := client.ClaimSessionQuiescence(ctx)
 	require.ErrorIs(t, err, ErrNotFound)
-	require.ErrorIs(t, client.ReserveSessionDispatch(ctx, session.Id, uuid.New(), ""), ErrDispatchBusy)
+	require.ErrorIs(t, client.ReserveSessionDispatch(ctx, session.Id, uuid.New(), "", nil), ErrDispatchBusy)
 	revoked, err := client.RevokeSessionDispatch(ctx, session.Id, dispatchID, "new-input")
 	require.NoError(t, err)
 	require.True(t, revoked)
@@ -396,7 +398,7 @@ func TestDispatchFencesIdleWorkAndLateAcceptance(t *testing.T) {
 	require.ErrorIs(t, err, ErrFailedPrecondition)
 
 	dispatchID = uuid.New()
-	require.NoError(t, client.ReserveSessionDispatch(ctx, session.Id, dispatchID, ""))
+	require.NoError(t, client.ReserveSessionDispatch(ctx, session.Id, dispatchID, "", nil))
 	// SDKs may first append input while retaining the waiting state.
 	version, err = client.UpdateSessionTask(ctx, session.Id, version, taskMutationHash("input-only"), waiting, waiting, dispatchID.String())
 	require.NoError(t, err)
@@ -407,7 +409,7 @@ func TestDispatchFencesIdleWorkAndLateAcceptance(t *testing.T) {
 	revoked, err = client.RevokeSessionDispatch(ctx, session.Id, dispatchID, "new-input")
 	require.NoError(t, err)
 	require.False(t, revoked, "accepted work must never be reported retryable")
-	require.ErrorIs(t, client.ReserveSessionDispatch(ctx, session.Id, uuid.New(), ""), ErrConflict)
+	require.ErrorIs(t, client.ReserveSessionDispatch(ctx, session.Id, uuid.New(), "", nil), ErrConflict)
 }
 
 func TestDispatchExpiryRejectsLateSave(t *testing.T) {
@@ -416,7 +418,7 @@ func TestDispatchExpiryRejectsLateSave(t *testing.T) {
 	sessionFixture(t, client, ctx, "team-a", "revision", "assistant", "kagent")
 	session, waiting := waitingTaskFixture(t, client)
 	id := uuid.New()
-	require.NoError(t, client.ReserveSessionDispatch(ctx, session.Id, id, ""))
+	require.NoError(t, client.ReserveSessionDispatch(ctx, session.Id, id, "", nil))
 	_, err := client.db.Exec(ctx, `UPDATE session SET dispatch_expires_at = clock_timestamp() - INTERVAL '1 second' WHERE id = $1`, session.Id)
 	require.NoError(t, err)
 	next := newSessionTask(uuid.NewString(), "next-message")
@@ -424,7 +426,7 @@ func TestDispatchExpiryRejectsLateSave(t *testing.T) {
 	_, err = client.CreateRuntimeTask(ctx, session.Id, taskMutationHash("expired"), next, id.String())
 	require.ErrorIs(t, err, ErrFailedPrecondition)
 	newID := uuid.New()
-	require.NoError(t, client.ReserveSessionDispatch(ctx, session.Id, newID, ""))
+	require.NoError(t, client.ReserveSessionDispatch(ctx, session.Id, newID, "", nil))
 	revoked, err := client.RevokeSessionDispatch(ctx, session.Id, id, "next-message")
 	require.NoError(t, err)
 	require.False(t, revoked)
@@ -443,7 +445,7 @@ func TestRevokedContinuationWithSavedInputIsNotRetryable(t *testing.T) {
 	sessionFixture(t, client, ctx, "team-a", "revision", "assistant", "kagent")
 	session, waiting := waitingTaskFixture(t, client)
 	id := uuid.New()
-	require.NoError(t, client.ReserveSessionDispatch(ctx, session.Id, id, ""))
+	require.NoError(t, client.ReserveSessionDispatch(ctx, session.Id, id, "", nil))
 	_, version, err := client.GetVersionedSessionTask(ctx, session.Id, string(waiting.ID))
 	require.NoError(t, err)
 	input := a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart("continue"))
@@ -480,7 +482,7 @@ func TestCheckpointPinsExpectedTaskWhileSnapshotIsPending(t *testing.T) {
 	require.NoError(t, err)
 	next := newSessionTask(uuid.NewString(), "next-message")
 	next.ContextID = session.ContextId
-	_, err = client.CreateRuntimeTask(ctx, session.Id, taskMutationHash("next"), next, "")
+	_, err = createRuntimeTask(client, ctx, session.Id, taskMutationHash("next"), next, "")
 	require.NoError(t, err)
 	_, _, err = client.ReserveSessionCheckpoint(ctx, request, "alice", "checkpoint")
 	require.ErrorIs(t, err, ErrCheckpointAdvanced)
@@ -501,22 +503,22 @@ func TestInitialMessageReservationDeduplicatesAfterAcceptance(t *testing.T) {
 	session, err = markSessionReady(ctx, client, session.Id, "runtime")
 	require.NoError(t, err)
 	dispatch := uuid.New()
-	require.NoError(t, client.ReserveSessionDispatch(ctx, session.Id, dispatch, "first-message"))
-	require.ErrorIs(t, client.ReserveSessionDispatch(ctx, session.Id, uuid.New(), "first-message"), ErrDispatchBusy)
+	require.NoError(t, client.ReserveSessionDispatch(ctx, session.Id, dispatch, "first-message", nil))
+	require.ErrorIs(t, client.ReserveSessionDispatch(ctx, session.Id, uuid.New(), "first-message", nil), ErrDispatchBusy)
 	message := a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart("hello"))
 	message.ID, message.ContextID = "first-message", session.Id
 	task := a2a.NewSubmittedTask(message, message)
 	_, err = client.CreateRuntimeTask(ctx, session.Id, taskMutationHash("first"), task, dispatch.String())
 	require.NoError(t, err)
-	require.ErrorIs(t, client.ReserveSessionDispatch(ctx, session.Id, uuid.New(), "first-message"), ErrMessageAccepted)
-	require.ErrorIs(t, client.ReserveSessionDispatch(ctx, session.Id, uuid.New(), "different-message"), ErrConflict)
+	require.ErrorIs(t, client.ReserveSessionDispatch(ctx, session.Id, uuid.New(), "first-message", nil), ErrMessageAccepted)
+	require.ErrorIs(t, client.ReserveSessionDispatch(ctx, session.Id, uuid.New(), "different-message", nil), ErrConflict)
 	recovered, err := client.GetSessionTaskByMessage(ctx, session.Id, "", "first-message")
 	require.NoError(t, err)
 	require.Equal(t, task.ID, recovered.ID)
 	// Two concurrent retries both observe acceptance, never a new dispatch.
 	results := make(chan error, 2)
 	for range 2 {
-		go func() { results <- client.ReserveSessionDispatch(ctx, session.Id, uuid.New(), "first-message") }()
+		go func() { results <- client.ReserveSessionDispatch(ctx, session.Id, uuid.New(), "first-message", nil) }()
 	}
 	for range 2 {
 		require.ErrorIs(t, <-results, ErrMessageAccepted)

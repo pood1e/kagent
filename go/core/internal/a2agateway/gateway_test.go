@@ -71,14 +71,14 @@ type gatewayTestStore struct {
 	created          map[string]*apiv1.Session
 }
 
-func (*gatewayTestStore) CancelTaskContinuations(context.Context, string, string) error { return nil }
+func (*gatewayTestStore) RequestTaskCancellation(context.Context, string, string) error { return nil }
 
 func (s *gatewayTestStore) RegisterSessionPushNotification(_ context.Context, sessionID, messageID, taskID string, config *a2atype.PushConfig) error {
 	s.pushConfig, s.pushSessionID, s.pushMessageID = config, sessionID, messageID
 	return s.pushErr
 }
 
-func (s *gatewayTestStore) ReserveSessionDispatch(_ context.Context, _ string, _ uuid.UUID, initialID string) error {
+func (s *gatewayTestStore) ReserveSessionDispatch(_ context.Context, _ string, _ uuid.UUID, initialID string, _ *database.DispatchOrigin) error {
 	s.reserveCalls++
 	s.initialID = initialID
 	return s.reserveErr

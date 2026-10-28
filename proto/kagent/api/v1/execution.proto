@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package kagent.api.v1;
+
+import "buf/validate/validate.proto";
+import "kagent/api/v1/common.proto";
+
+option go_package = "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1;apiv1";
+
+// ExecutionService exposes control-plane-derived A2A task relationships.
+service ExecutionService {
+  rpc GetTaskExecution(GetTaskExecutionRequest) returns (GetTaskExecutionResponse);
+  rpc ListTaskExecutions(ListTaskExecutionsRequest) returns (ListTaskExecutionsResponse);
+}
+
+message TaskReference {
+  string session_id = 1 [(buf.validate.field).string.uuid = true];
+  string task_id = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 256
+  }];
+}
+
+enum TaskRelation {
+  TASK_RELATION_UNSPECIFIED = 0;
+  TASK_RELATION_ROOT = 1;
+  TASK_RELATION_DELEGATION = 2;
+  TASK_RELATION_CONTINUATION = 3;
+}
+
+// TaskExecution is immutable. Message metadata and reference_task_ids never
+// establish ancestry. Cancellation follows these persisted relationships.
+message TaskExecution {
+  TaskReference task = 1;
+  TaskReference parent = 2;
+  TaskReference root = 3;
+  TaskRelation relation = 4;
+  bool background = 5;
+}
+
+message GetTaskExecutionRequest {
+  string task_id = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 256
+  }];
+}
+message GetTaskExecutionResponse {
+  TaskExecution execution = 1;
+}
+message ListTaskExecutionsRequest {
+  string root_task_id = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 256
+  }];
+  PageRequest page = 2;
+}
+message ListTaskExecutionsResponse {
+  repeated TaskExecution executions = 1;
+  PageResponse page = 2;
+}

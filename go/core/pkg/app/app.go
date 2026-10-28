@@ -57,6 +57,7 @@ import (
 	"github.com/kagent-dev/kagent/go/core/internal/runtimeauth"
 	"github.com/kagent-dev/kagent/go/core/internal/service/admission"
 	"github.com/kagent-dev/kagent/go/core/internal/service/checkpoint"
+	"github.com/kagent-dev/kagent/go/core/internal/service/execution"
 	"github.com/kagent-dev/kagent/go/core/internal/service/inventory"
 	"github.com/kagent-dev/kagent/go/core/internal/service/kubecrud"
 	memoryservice "github.com/kagent-dev/kagent/go/core/internal/service/memory"
@@ -389,6 +390,9 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 	if err := manager.Add(continuations); err != nil {
 		return fmt.Errorf("register task continuations: %w", err)
 	}
+	if err := manager.Add(sessionsvc.NewCancellations(store, gateway)); err != nil {
+		return fmt.Errorf("register recursive task cancellation: %w", err)
+	}
 	schedules := scheduledrun.NewService(store, manager.GetClient(), authorizer)
 	if err := manager.Add(scheduledruncontroller.NewScheduler(store, cfg.GetScheduledRuns().GetPollInterval().AsDuration())); err != nil {
 		return fmt.Errorf("add scheduled run scheduler: %w", err)
@@ -456,6 +460,7 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 		SystemService:         system,
 		MemoryService:         memory,
 		InventoryService:      inventory.NewService(store, authorizer),
+		ExecutionService:      execution.NewService(store, sessions),
 		TaskStoreService:      runtimeTasks,
 		SessionService:        sessions,
 		ScheduledRunService:   schedules,

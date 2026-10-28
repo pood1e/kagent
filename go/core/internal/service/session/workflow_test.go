@@ -316,7 +316,7 @@ func lifecycleForkFixture(t *testing.T, store *lifecycleTestStore, actors *lifec
 	message.ContextID = source.ContextId
 	task := a2a.NewSubmittedTask(message, message)
 	createHash := sha256.Sum256([]byte("fixture-create"))
-	initialVersion, err := store.CreateRuntimeTask(t.Context(), source.Id, createHash[:], task, "")
+	initialVersion, err := createRuntimeTask(t, store, source.Id, createHash[:], task, "")
 	require.NoError(t, err)
 	task.Status.State = a2a.TaskStateCompleted
 	hash := sha256.Sum256([]byte("fixture-complete"))

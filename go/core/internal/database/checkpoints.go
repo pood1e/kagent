@@ -623,7 +623,7 @@ func readCheckpointEvents(ctx context.Context, db dbExecutor, checkpointID uuid.
 // and snapshot boundary. Callers provide the destination history and
 // transaction after validating the replay.
 func insertReplayedTask(ctx context.Context, db dbExecutor, task sessionTaskRow) error {
-	return execSQL(ctx, db, `
+	if err := execSQL(ctx, db, `
 		INSERT INTO session_task (
 		    history_id, id, state, status_timestamp, data, created_at,
 		    snapshot_atespace, snapshot_uri,
@@ -633,7 +633,10 @@ func insertReplayedTask(ctx context.Context, db dbExecutor, task sessionTaskRow)
 		task.HistoryID, task.ID, task.State, task.StatusTimestamp, task.Data, task.CreatedAt,
 		task.SnapshotAtespace, task.SnapshotURI,
 		task.SnapshotFidelity, task.HistorySequence, task.Position,
-	)
+	); err != nil {
+		return err
+	}
+	return execSQL(ctx, db, `INSERT INTO task_execution (task_id, history_id, root_task_id, relation) VALUES ($1, $2, $1, 'TASK_RELATION_ROOT')`, task.ID, task.HistoryID)
 }
 
 // readCheckpoint reads an owned checkpoint, optionally restricted to one lifecycle state.

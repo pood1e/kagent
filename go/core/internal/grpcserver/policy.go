@@ -16,6 +16,8 @@ type MethodPolicies map[string]auth.AccessMode
 
 func DefaultMethodPolicies() MethodPolicies {
 	policies := MethodPolicies{
+		apiv1.ExecutionService_GetTaskExecution_FullMethodName:           auth.AccessRead,
+		apiv1.ExecutionService_ListTaskExecutions_FullMethodName:         auth.AccessRead,
 		runtimev1.ToolInventoryService_Report_FullMethodName:             auth.AccessRuntime,
 		apiv1.SystemService_GetVersion_FullMethodName:                    auth.AccessPublic,
 		apiv1.SystemService_GetCurrentUser_FullMethodName:                auth.AccessRead,

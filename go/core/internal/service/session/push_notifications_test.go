@@ -235,7 +235,7 @@ func TestPushWorkerInflightResponseCannotAcknowledgeNewState(t *testing.T) {
 	defer unblock()
 	task := &a2a.Task{ID: "task", ContextID: session.ContextId, Status: a2a.TaskStatus{State: a2a.TaskStateWorking}}
 	digest := sha256.Sum256([]byte("create"))
-	version, err := store.CreateRuntimeTask(t.Context(), session.Id, digest[:], task, "")
+	version, err := createRuntimeTask(t, store, session.Id, digest[:], task, "")
 	require.NoError(t, err)
 	require.NoError(t, store.SaveTaskPushConfig(t.Context(), session.Id, string(task.ID), &a2a.PushConfig{ID: "callback", URL: receiver.URL}))
 	task.Status.State = a2a.TaskStateInputRequired
@@ -307,7 +307,7 @@ func TestPushWorkerDurableHTTPDelivery(t *testing.T) {
 			require.NoError(t, store.RegisterSessionPushNotification(t.Context(), session.Id, "input", "", config))
 			task := &a2a.Task{ID: "task", ContextID: session.ContextId, Status: a2a.TaskStatus{State: a2a.TaskStateWorking}, History: []*a2a.Message{{ID: "input", Role: a2a.MessageRoleUser}}}
 			digest := sha256.Sum256([]byte("create"))
-			version, err := store.CreateRuntimeTask(t.Context(), session.Id, digest[:], task, "")
+			version, err := createRuntimeTask(t, store, session.Id, digest[:], task, "")
 			require.NoError(t, err)
 			sender := NewHTTPPushSender(time.Second, true, true)
 			_, err = NewPushWorker(store, sender, signer, nil, time.Minute).poll(t.Context())

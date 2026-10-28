@@ -26,11 +26,11 @@ type interactionTestStore struct {
 	dispatchErr error
 }
 
-func (*interactionTestStore) CancelTaskContinuations(context.Context, string, string) error {
+func (*interactionTestStore) RequestTaskCancellation(context.Context, string, string) error {
 	return nil
 }
 
-func (s *interactionTestStore) ReserveSessionDispatch(context.Context, string, uuid.UUID, string) error {
+func (s *interactionTestStore) ReserveSessionDispatch(context.Context, string, uuid.UUID, string, *database.DispatchOrigin) error {
 	return s.dispatchErr
 }
 

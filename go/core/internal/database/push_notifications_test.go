@@ -677,7 +677,7 @@ func TestPushDeliveryResumeClearsWaitingWork(t *testing.T) {
 			_, version, err := client.GetVersionedSessionTask(ctx, session.Id, string(task.ID))
 			require.NoError(t, err)
 			dispatch := uuid.New()
-			require.NoError(t, client.ReserveSessionDispatch(ctx, session.Id, dispatch, "continue"))
+			require.NoError(t, client.ReserveSessionDispatch(ctx, session.Id, dispatch, "continue", nil))
 			input := a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart("continue"))
 			input.ID, input.TaskID, input.ContextID = "continue", task.ID, task.ContextID
 			task.History = append(task.History, input)
@@ -695,7 +695,7 @@ func TestPushDeliveryResumeClearsWaitingWork(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, pending, "a failed resume must leave pending work intact")
 			dispatch = uuid.New()
-			require.NoError(t, client.ReserveSessionDispatch(ctx, session.Id, dispatch, ""))
+			require.NoError(t, client.ReserveSessionDispatch(ctx, session.Id, dispatch, "", nil))
 			_, err = client.UpdateSessionTask(ctx, session.Id, version, taskMutationHash("resume"), task, task, dispatch.String())
 			require.NoError(t, err)
 			pending, err = client.HasPendingPushDelivery(ctx)
@@ -724,7 +724,9 @@ func TestPushDeliveryOldMutationRetryCannotClearLaterBoundary(t *testing.T) {
 	require.NoError(t, err)
 	working := *waiting
 	working.Status = a2a.TaskStatus{State: a2a.TaskStateWorking}
-	activeVersion, err := client.UpdateSessionTask(ctx, session.Id, firstVersion, taskMutationHash("active"), &working, &working, "")
+	dispatch := uuid.New()
+	require.NoError(t, client.ReserveSessionDispatch(ctx, session.Id, dispatch, "", nil))
+	activeVersion, err := client.UpdateSessionTask(ctx, session.Id, firstVersion, taskMutationHash("active"), &working, &working, dispatch.String())
 	require.NoError(t, err)
 	waiting.Status.State = a2a.TaskStateAuthRequired
 	boundaryVersion, err := client.UpdateSessionTask(ctx, session.Id, activeVersion, taskMutationHash("auth"), waiting, waiting, "")
@@ -789,7 +791,7 @@ func TestPushDeliveryRegistrationConstraints(t *testing.T) {
 	}
 	otherTask := newSessionTask(uuid.NewString(), "another-input")
 	otherTask.ContextID = session.ContextId
-	_, err := client.CreateRuntimeTask(ctx, session.Id, taskMutationHash("another-task"), otherTask, "")
+	_, err := createRuntimeTask(client, ctx, session.Id, taskMutationHash("another-task"), otherTask, "")
 	require.NoError(t, err)
 	_, err = client.db.Exec(ctx, `UPDATE session_push_registration SET task_id = $1`, otherTask.ID)
 	require.Error(t, err, "a pending event must belong to the registration's task")
