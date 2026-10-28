@@ -277,7 +277,7 @@ func (c *Compiler) requireSecretKey(ctx context.Context, namespace, name, key st
 }
 
 func (c *Compiler) secret(ctx context.Context, namespace, name string) (*corev1.Secret, error) {
-	secret := krt.FetchOne(c.ctx, c.collections.Secrets, krt.FilterObjectName(types.NamespacedName{Namespace: namespace, Name: name}))
+	secret := translator.FetchOne(c.ctx, c.collections.Secrets, krt.FilterObjectName(types.NamespacedName{Namespace: namespace, Name: name}))
 	if secret == nil {
 		return nil, fmt.Errorf("read Codex credential Secret %q: not found", name)
 	}
@@ -357,7 +357,7 @@ func (c *Compiler) buildProvenance(ctx context.Context, input *translator.Harnes
 	}
 	addAgent(input.Root)
 	for name := range configMaps {
-		configMap := krt.FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(types.NamespacedName{Namespace: input.Harness.Namespace, Name: name}))
+		configMap := translator.FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(types.NamespacedName{Namespace: input.Harness.Namespace, Name: name}))
 		if configMap == nil {
 			return nil, fmt.Errorf("ConfigMap %q not found", name)
 		}

@@ -76,6 +76,10 @@ func TestReadOnlyShareCannotRenameAConversation(t *testing.T) {
 			name:   "read-only share may not rename",
 			method: apiv1.SessionService_UpdateSessionName_FullMethodName, wantCode: codes.PermissionDenied,
 		},
+		{
+			name:   "read-only share cannot validate candidate configuration",
+			method: apiv1.AgentService_ValidateAgent_FullMethodName, wantCode: codes.PermissionDenied,
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			shareStore := &testShareStore{

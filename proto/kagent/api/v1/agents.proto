@@ -16,6 +16,8 @@ service AgentService {
   rpc CreateAgent(CreateAgentRequest) returns (CreateAgentResponse);
   rpc UpdateAgent(UpdateAgentRequest) returns (UpdateAgentResponse);
   rpc DeleteAgent(DeleteAgentRequest) returns (DeleteAgentResponse);
+  // Compiles a candidate definition through the installed native Harness.
+  rpc ValidateAgent(ValidateAgentRequest) returns (ValidateAgentResponse);
 }
 
 message Agent {
@@ -75,6 +77,13 @@ message DeleteAgentRequest {
 }
 
 message DeleteAgentResponse {}
+
+message ValidateAgentRequest {
+  ResourceReference ref = 1 [(buf.validate.field).required = true];
+  StructuredObject resource = 2 [(buf.validate.field).required = true];
+}
+
+message ValidateAgentResponse {}
 
 // BuiltinToolCatalog contains SDK-registered tools, independently of MCP discovery.
 message BuiltinToolCatalog {

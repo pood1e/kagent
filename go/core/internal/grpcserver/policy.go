@@ -55,6 +55,7 @@ func DefaultMethodPolicies() MethodPolicies {
 		apiv1.AgentService_CreateAgent_FullMethodName:                    auth.AccessCreate,
 		apiv1.AgentService_UpdateAgent_FullMethodName:                    auth.AccessUpdate,
 		apiv1.AgentService_DeleteAgent_FullMethodName:                    auth.AccessDelete,
+		apiv1.AgentService_ValidateAgent_FullMethodName:                  auth.AccessCreate,
 		apiv1.AgentTemplateService_ListAgentTemplates_FullMethodName:     auth.AccessRead,
 		apiv1.AgentTemplateService_GetAgentTemplate_FullMethodName:       auth.AccessRead,
 		apiv1.AgentTemplateService_CreateAgentTemplate_FullMethodName:    auth.AccessCreate,

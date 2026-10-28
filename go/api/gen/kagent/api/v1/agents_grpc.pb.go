@@ -19,11 +19,12 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AgentService_ListAgents_FullMethodName  = "/kagent.api.v1.AgentService/ListAgents"
-	AgentService_GetAgent_FullMethodName    = "/kagent.api.v1.AgentService/GetAgent"
-	AgentService_CreateAgent_FullMethodName = "/kagent.api.v1.AgentService/CreateAgent"
-	AgentService_UpdateAgent_FullMethodName = "/kagent.api.v1.AgentService/UpdateAgent"
-	AgentService_DeleteAgent_FullMethodName = "/kagent.api.v1.AgentService/DeleteAgent"
+	AgentService_ListAgents_FullMethodName    = "/kagent.api.v1.AgentService/ListAgents"
+	AgentService_GetAgent_FullMethodName      = "/kagent.api.v1.AgentService/GetAgent"
+	AgentService_CreateAgent_FullMethodName   = "/kagent.api.v1.AgentService/CreateAgent"
+	AgentService_UpdateAgent_FullMethodName   = "/kagent.api.v1.AgentService/UpdateAgent"
+	AgentService_DeleteAgent_FullMethodName   = "/kagent.api.v1.AgentService/DeleteAgent"
+	AgentService_ValidateAgent_FullMethodName = "/kagent.api.v1.AgentService/ValidateAgent"
 )
 
 // AgentServiceClient is the client API for AgentService service.
@@ -37,6 +38,8 @@ type AgentServiceClient interface {
 	CreateAgent(ctx context.Context, in *CreateAgentRequest, opts ...grpc.CallOption) (*CreateAgentResponse, error)
 	UpdateAgent(ctx context.Context, in *UpdateAgentRequest, opts ...grpc.CallOption) (*UpdateAgentResponse, error)
 	DeleteAgent(ctx context.Context, in *DeleteAgentRequest, opts ...grpc.CallOption) (*DeleteAgentResponse, error)
+	// Compiles a candidate definition through the installed native Harness.
+	ValidateAgent(ctx context.Context, in *ValidateAgentRequest, opts ...grpc.CallOption) (*ValidateAgentResponse, error)
 }
 
 type agentServiceClient struct {
@@ -97,6 +100,16 @@ func (c *agentServiceClient) DeleteAgent(ctx context.Context, in *DeleteAgentReq
 	return out, nil
 }
 
+func (c *agentServiceClient) ValidateAgent(ctx context.Context, in *ValidateAgentRequest, opts ...grpc.CallOption) (*ValidateAgentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ValidateAgentResponse)
+	err := c.cc.Invoke(ctx, AgentService_ValidateAgent_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AgentServiceServer is the server API for AgentService service.
 // All implementations must embed UnimplementedAgentServiceServer
 // for forward compatibility.
@@ -108,6 +121,8 @@ type AgentServiceServer interface {
 	CreateAgent(context.Context, *CreateAgentRequest) (*CreateAgentResponse, error)
 	UpdateAgent(context.Context, *UpdateAgentRequest) (*UpdateAgentResponse, error)
 	DeleteAgent(context.Context, *DeleteAgentRequest) (*DeleteAgentResponse, error)
+	// Compiles a candidate definition through the installed native Harness.
+	ValidateAgent(context.Context, *ValidateAgentRequest) (*ValidateAgentResponse, error)
 	mustEmbedUnimplementedAgentServiceServer()
 }
 
@@ -132,6 +147,9 @@ func (UnimplementedAgentServiceServer) UpdateAgent(context.Context, *UpdateAgent
 }
 func (UnimplementedAgentServiceServer) DeleteAgent(context.Context, *DeleteAgentRequest) (*DeleteAgentResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteAgent not implemented")
+}
+func (UnimplementedAgentServiceServer) ValidateAgent(context.Context, *ValidateAgentRequest) (*ValidateAgentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ValidateAgent not implemented")
 }
 func (UnimplementedAgentServiceServer) mustEmbedUnimplementedAgentServiceServer() {}
 func (UnimplementedAgentServiceServer) testEmbeddedByValue()                      {}
@@ -244,6 +262,24 @@ func _AgentService_DeleteAgent_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AgentService_ValidateAgent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ValidateAgentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentServiceServer).ValidateAgent(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentService_ValidateAgent_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentServiceServer).ValidateAgent(ctx, req.(*ValidateAgentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AgentService_ServiceDesc is the grpc.ServiceDesc for AgentService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -270,6 +306,10 @@ var AgentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteAgent",
 			Handler:    _AgentService_DeleteAgent_Handler,
+		},
+		{
+			MethodName: "ValidateAgent",
+			Handler:    _AgentService_ValidateAgent_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

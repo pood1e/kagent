@@ -24,7 +24,7 @@ type modelResult struct {
 
 // buildModel translates a standalone ModelConfig without building an agent.
 func (c *Builder) buildModel(namespace, name string) (*modelResult, error) {
-	resolved := krt.FetchOne(c.ctx, c.collections.ResolvedModelConfigs, krt.FilterObjectName(types.NamespacedName{Namespace: namespace, Name: name}))
+	resolved := translator.FetchOne(c.ctx, c.collections.ResolvedModelConfigs, krt.FilterObjectName(types.NamespacedName{Namespace: namespace, Name: name}))
 	if resolved == nil {
 		return nil, fmt.Errorf("model config %q not found", name)
 	}

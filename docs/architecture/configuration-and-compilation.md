@@ -429,3 +429,16 @@ an absent catalog until their runtime protocol provides an authoritative registr
 Actor authentication binds `ToolInventoryService.Report` to the persisted
 Session and revision. Changed registries are reported immediately; repeated
 observations and failed retries are bounded in the runtime client.
+
+## Control-plane admission
+
+Agent writes and `AgentService.ValidateAgent` compile a namespace-local snapshot
+through the same Harness compilers as reconciliation. AgentTemplate, Harness and
+ModelConfig changes validate their transitive Agent dependents before persistence.
+Model credential material participates in a read-only snapshot before Secret
+writes. Unrelated Agents remain independent. Compilation applies neither a
+runtime revision nor an ActorTemplate.
+
+API clients use native diagnostics for provider, model options, tool bindings and
+resolved-reference validation. Kubernetes-authored resources retain the
+controller's `ResolvedRefs` and `Compatible` readiness conditions.

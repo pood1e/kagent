@@ -34,13 +34,13 @@ type EgressGrantResolution struct {
 // no grants, without removing grants supplied by the remaining policies.
 func CompileEgressPolicies(ctx krt.HandlerContext, collections Collections, namespace string, refs []corev1.LocalObjectReference) EgressGrantResolution {
 	return compileEgressPolicies(namespace, refs, func(name string) (*v1alpha3.EgressPolicy, error) {
-		policy := krt.FetchOne(ctx, collections.EgressPolicies, krt.FilterKey(namespace+"/"+name))
+		policy := FetchOne(ctx, collections.EgressPolicies, krt.FilterKey(namespace+"/"+name))
 		if policy == nil {
 			return nil, apierrors.NewNotFound(schema.GroupResource{Group: "api.kagent.dev", Resource: "egresspolicies"}, name)
 		}
 		return *policy, nil
 	}, func(name string) (*corev1.Secret, error) {
-		secret := krt.FetchOne(ctx, collections.Secrets, krt.FilterKey(namespace+"/"+name))
+		secret := FetchOne(ctx, collections.Secrets, krt.FilterKey(namespace+"/"+name))
 		if secret == nil {
 			return nil, apierrors.NewNotFound(corev1.Resource("secrets"), name)
 		}
