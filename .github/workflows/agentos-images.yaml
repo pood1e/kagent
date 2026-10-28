@@ -15,7 +15,7 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io/${{ github.repository }}
-  VERSION: 1.0.0-alpha17-agentos.6
+  VERSION: 1.0.0-alpha17-agentos.7
 
 jobs:
   verify:
@@ -106,13 +106,17 @@ jobs:
         include:
           - component: controller
             dockerfile: controller
+            entrypoint: /app
           - component: claude-harness
             dockerfile: claude-harness
+            entrypoint: /usr/local/bin/kagent-claude
           - component: standard-harness
             dockerfile: harness
+            entrypoint: /app
             base: ghcr.io/kagent-dev/kagent/golang-adk:1.0.0-alpha17@sha256:d20d411759d7bb549f00b7d6e8d669b91694aeb57dce847dcd2cbb68aa0d45f3
           - component: codex-harness
             dockerfile: harness
+            entrypoint: /usr/local/bin/kagent-codex
             base: ghcr.io/kagent-dev/kagent/codex-harness:1.0.0-alpha17@sha256:1c8565efce78c420b6726c68eaf010363fafd4eeec0c1afcd317d9e517434c22
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -140,6 +144,8 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.version=${{ env.VERSION }}
+      - name: Verify the published entrypoint
+        run: docker run --rm --entrypoint '${{ matrix.entrypoint }}' "${REGISTRY}/${{ matrix.component }}@${{ steps.build.outputs.digest }}" --help
       - run: echo "${REGISTRY}/${{ matrix.component }}@${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
       - name: Export image metadata
         env:
