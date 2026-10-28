@@ -54,6 +54,8 @@ func runtimeResourceAllowed(session *apiv1.Session, verb auth.Verb, resource aut
 		if resource.Name == session.Id && (verb == auth.VerbGet || verb == auth.VerbCreate || verb == auth.VerbUpdate) {
 			return true
 		}
+	case "ToolInventory":
+		return verb == auth.VerbUpdate && resource.Namespace == session.GetAgent().GetNamespace() && resource.Name == session.Id
 	case "TaskStore":
 		return resource.Name == session.Id && resource.Namespace == session.GetAgent().GetNamespace() &&
 			(verb == auth.VerbGet || verb == auth.VerbList || verb == auth.VerbCreate || verb == auth.VerbUpdate)

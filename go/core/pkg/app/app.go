@@ -56,6 +56,7 @@ import (
 	"github.com/kagent-dev/kagent/go/core/internal/mcp"
 	"github.com/kagent-dev/kagent/go/core/internal/runtimeauth"
 	"github.com/kagent-dev/kagent/go/core/internal/service/checkpoint"
+	"github.com/kagent-dev/kagent/go/core/internal/service/inventory"
 	"github.com/kagent-dev/kagent/go/core/internal/service/kubecrud"
 	memoryservice "github.com/kagent-dev/kagent/go/core/internal/service/memory"
 	modelservice "github.com/kagent-dev/kagent/go/core/internal/service/model"
@@ -452,6 +453,7 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 		PromptTemplateService: prompts,
 		SystemService:         system,
 		MemoryService:         memory,
+		InventoryService:      inventory.NewService(store, authorizer),
 		TaskStoreService:      runtimeTasks,
 		SessionService:        sessions,
 		ScheduledRunService:   schedules,

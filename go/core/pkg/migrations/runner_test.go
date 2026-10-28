@@ -329,10 +329,7 @@ func TestBuiltinMigrationsRoundTrip(t *testing.T) {
 		t.Fatalf("initial VerifyMigrated: %v", err)
 	}
 	for _, source := range sources {
-		expected := []int64{0, 1}
-		if source.Name == "vector" {
-			expected = append(expected, 2)
-		}
+		expected := []int64{0, 1, 2}
 		if versions := testVersions(t, dsn, source.TrackingTable); !slices.Equal(versions, expected) {
 			t.Fatalf("%s versions = %v, want %v", source.Name, versions, expected)
 		}

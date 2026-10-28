@@ -27,6 +27,7 @@ import (
 // ProcessConfig contains validated, compiler-owned inputs for one Claude Code
 // process. Actor-owned paths and environment are supplied by the adapter.
 type ProcessConfig struct {
+	ToolObserver         runtime.ToolObserver
 	Executable           string
 	ExpectedVersion      string
 	StrictVersion        bool
@@ -382,6 +383,7 @@ func (d *ProcessDriver) consume(ctx context.Context, session *processSession, si
 				outcome, err := emitEvent(*item.event, sink, session.terminal != nil)
 				if err == nil {
 					if item.event.Kind == EventSessionStarted {
+						d.observeTools(ctx, item.event.BuiltinTools)
 						if session.sessionID != "" && session.sessionID != item.event.SessionID {
 							return runtime.Outcome{}, fmt.Errorf("Claude changed session ID during an active process")
 						}

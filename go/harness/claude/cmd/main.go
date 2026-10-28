@@ -15,6 +15,7 @@ import (
 	"github.com/a2aproject/a2a-go/v2/a2asrv"
 
 	"github.com/kagent-dev/kagent/go/adk/pkg/app"
+	"github.com/kagent-dev/kagent/go/adk/pkg/controllerclient"
 	"github.com/kagent-dev/kagent/go/harness/claude/config"
 	"github.com/kagent-dev/kagent/go/harness/claude/executor"
 	"github.com/kagent-dev/kagent/go/pkg/logging"
@@ -88,7 +89,12 @@ func run(ctx context.Context, check bool, getenv func(string) string, environmen
 		}
 	}()
 
-	exec, closer, err := executor.New(ctx, executor.Config{ConfigJSON: configJSON, DataDir: dataDir, Environment: environment})
+	controllerClient, err := controllerclient.New(controllerclient.Config{APIURL: cfg.ControlPlaneURL, Timeout: 30 * time.Second})
+	if err != nil {
+		return err
+	}
+	defer controllerClient.Close()
+	exec, closer, err := executor.New(ctx, executor.Config{ToolObserver: controllerClient, ConfigJSON: configJSON, DataDir: dataDir, Environment: environment})
 	if err != nil {
 		return err
 	}
@@ -97,7 +103,7 @@ func run(ctx context.Context, check bool, getenv func(string) string, environmen
 		return nil
 	}
 	application, err := app.New(app.AppConfig{
-		AgentCard: card, Port: privatePort, AppName: card.Name, ControlPlaneURL: cfg.ControlPlaneURL, MaxContentLength: cfg.MaxContentLength,
+		ControllerClient: controllerClient, AgentCard: card, Port: privatePort, AppName: card.Name, ControlPlaneURL: cfg.ControlPlaneURL, MaxContentLength: cfg.MaxContentLength,
 		Logger: logging.FromContext(ctx), Telemetry: cfg.RuntimeTelemetry, Flush: providers.ForceFlush,
 		HandlerOpts: []a2asrv.RequestHandlerOption{a2asrv.WithExecutorContextInterceptor(startMetrics(providers.StartMetrics))},
 	}, exec)

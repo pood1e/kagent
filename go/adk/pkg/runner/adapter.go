@@ -82,6 +82,17 @@ func CreateRunnerConfig(
 	}
 
 	var adkPlugins []*adkplugin.Plugin
+	if controllerClient != nil {
+		remoteNames := make(map[string]bool)
+		for _, remote := range config.Agent.RemoteAgents {
+			remoteNames[remote.Name] = true
+		}
+		inventoryPlugin, err := toolInventoryPlugin(controllerClient, adkAgent.Name(), remoteNames)
+		if err != nil {
+			return runner.Config{}, err
+		}
+		adkPlugins = append(adkPlugins, inventoryPlugin)
+	}
 	if stsPlugin != nil {
 		p, err := stsPlugin.ADKPlugin()
 		if err != nil {

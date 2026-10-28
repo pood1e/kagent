@@ -17,6 +17,7 @@ import (
 	"github.com/kagent-dev/kagent/go/harness/claude/config"
 	"github.com/kagent-dev/kagent/go/harness/claude/internal/driver"
 	"github.com/kagent-dev/kagent/go/harness/internal/utils"
+	"github.com/kagent-dev/kagent/go/harness/runtime"
 	otel "github.com/kagent-dev/kagent/go/pkg/telemetry"
 	"github.com/kagent-dev/kagent/go/pkg/tracing"
 )
@@ -26,6 +27,7 @@ const approvalMCPServerName = "kagent_hitl"
 // Input contains compiler output and Actor-owned locations used to construct
 // the Claude driver.
 type Input struct {
+	ToolObserver runtime.ToolObserver
 	ConfigJSON   []byte
 	Workspace    string
 	DurableDir   string
@@ -136,7 +138,8 @@ func New(ctx context.Context, input Input) (*driver.ProcessDriver, error) {
 	}
 
 	return driver.NewProcessDriver(driver.ProcessConfig{
-		Executable: cfg.ClaudeExecutable, ExpectedVersion: cfg.ExpectedClaudeVersion,
+		ToolObserver: input.ToolObserver,
+		Executable:   cfg.ClaudeExecutable, ExpectedVersion: cfg.ExpectedClaudeVersion,
 		StrictVersion: cfg.StrictVersion, Workspace: input.Workspace, Model: cfg.Model,
 		AppendSystemPrompt: cfg.AppendSystemPrompt, AgentsJSON: agentsJSON, MCPConfigPath: mcpConfigPath,
 		SettingsPath: settingsPath, PermissionPromptTool: permissionPromptTool, ApprovalBroker: approvalBroker,

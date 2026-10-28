@@ -414,3 +414,18 @@ Agent's last successful revision.
 This replaces implicit label selection and the old template/Harness inputs as a
 breaking API change. SandboxTemplate hosting configuration is not part of this
 change.
+
+## Runtime tool observations
+
+`Agent.builtin_tools` exposes the model-facing tool registry observed for its
+latest successful revision. The catalog carries its revision and observation
+time. An absent catalog means that revision has not published an observation;
+a present catalog with an empty list is an observed registry without built-ins.
+
+Go ADK observes the root agent's resolved SDK registry before model calls,
+excluding MCP and remote-agent bindings. Claude observes the SDK's `system.init`
+tool list after applying its disabled-tool configuration. Codex revisions retain
+an absent catalog until their runtime protocol provides an authoritative registry.
+Actor authentication binds `ToolInventoryService.Report` to the persisted
+Session and revision. Changed registries are reported immediately; repeated
+observations and failed retries are bounded in the runtime client.

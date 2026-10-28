@@ -13,12 +13,14 @@ import (
 
 	"github.com/kagent-dev/kagent/go/harness/claude/config"
 	"github.com/kagent-dev/kagent/go/harness/claude/internal/adapter"
+	"github.com/kagent-dev/kagent/go/harness/runtime"
 	runtimea2a "github.com/kagent-dev/kagent/go/harness/runtime/a2a"
 	"github.com/kagent-dev/kagent/go/harness/runtime/continuation"
 )
 
 // Config is the input to New.
 type Config struct {
+	ToolObserver runtime.ToolObserver
 	// ConfigJSON is the compiler-owned KAGENT_CONFIG_JSON document.
 	ConfigJSON []byte
 	// DataDir is the absolute durable directory; it is created if missing.
@@ -31,8 +33,8 @@ type Config struct {
 // executor and the resource to close on shutdown.
 func New(ctx context.Context, cfg Config) (a2asrv.AgentExecutor, io.Closer, error) {
 	runner, err := adapter.New(ctx, adapter.Input{
-		ConfigJSON: cfg.ConfigJSON,
-		Workspace:  cfg.DataDir + "/workspace", DurableDir: cfg.DataDir,
+		ConfigJSON: cfg.ConfigJSON, ToolObserver: cfg.ToolObserver,
+		Workspace: cfg.DataDir + "/workspace", DurableDir: cfg.DataDir,
 		EphemeralDir: "/tmp/kagent-claude",
 		Environment:  cfg.Environment,
 	})
