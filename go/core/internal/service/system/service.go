@@ -66,15 +66,17 @@ func (s *Service) GetVersion() Version {
 	}
 }
 
-func (s *Service) GetCurrentUser(ctx context.Context) (map[string]any, error) {
+func (s *Service) GetCurrentUser(ctx context.Context) (auth.Principal, error) {
 	principal, err := authenticatedPrincipal(ctx)
 	if err != nil {
-		return nil, err
+		return auth.Principal{}, err
 	}
 	if principal.Claims != nil {
-		return maps.Clone(principal.Claims), nil
+		principal.Claims = maps.Clone(principal.Claims)
+	} else {
+		principal.Claims = map[string]any{"sub": principal.ID}
 	}
-	return map[string]any{"sub": principal.ID}, nil
+	return principal, nil
 }
 
 func (s *Service) ListNamespaces(ctx context.Context) ([]Namespace, error) {

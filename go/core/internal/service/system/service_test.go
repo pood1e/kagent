@@ -120,20 +120,24 @@ func TestCurrentUser(t *testing.T) {
 	service := system.NewService(nil, nil, nil, nil)
 	claims := map[string]any{"sub": "user-1", "groups": []any{"admins"}}
 	ctx := pkgAuth.AuthSessionTo(t.Context(), &authimpl.SimpleSession{P: pkgAuth.Principal{
-		ID:     "user-1",
+		ID:     "provider-qualified-user-1",
 		Claims: claims,
 	}})
 
 	result, err := service.GetCurrentUser(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, claims, result)
+	assert.Equal(t, "provider-qualified-user-1", result.ID)
+	assert.Equal(t, claims, result.Claims)
+	result.Claims["sub"] = "modified"
+	assert.Equal(t, "user-1", claims["sub"])
 
 	ctx = pkgAuth.AuthSessionTo(t.Context(), &authimpl.SimpleSession{P: pkgAuth.Principal{
 		ID: "fallback-user",
 	}})
 	result, err = service.GetCurrentUser(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, map[string]any{"sub": "fallback-user"}, result)
+	assert.Equal(t, "fallback-user", result.ID)
+	assert.Equal(t, map[string]any{"sub": "fallback-user"}, result.Claims)
 
 	_, err = service.GetCurrentUser(t.Context())
 	assert.True(t, serviceerrors.IsCode(err, serviceerrors.CodeUnauthenticated), err)

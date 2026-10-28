@@ -33,15 +33,15 @@ func (s *systemServer) GetVersion(context.Context, *apiv1.GetVersionRequest) (*a
 }
 
 func (s *systemServer) GetCurrentUser(ctx context.Context, _ *apiv1.GetCurrentUserRequest) (*apiv1.GetCurrentUserResponse, error) {
-	claims, err := s.service.GetCurrentUser(ctx)
+	principal, err := s.service.GetCurrentUser(ctx)
 	if err != nil {
 		return nil, err
 	}
-	encodedClaims, err := structpb.NewStruct(claims)
+	encodedClaims, err := structpb.NewStruct(principal.Claims)
 	if err != nil {
 		return nil, serviceerrors.NewInternal("Failed to encode current user claims", err)
 	}
-	return &apiv1.GetCurrentUserResponse{Claims: encodedClaims}, nil
+	return &apiv1.GetCurrentUserResponse{Claims: encodedClaims, PrincipalId: principal.ID}, nil
 }
 
 func (s *systemServer) ListNamespaces(ctx context.Context, _ *apiv1.ListNamespacesRequest) (*apiv1.ListNamespacesResponse, error) {
