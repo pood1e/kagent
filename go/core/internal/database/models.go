@@ -33,15 +33,16 @@ type ToolServer struct {
 }
 
 type Memory struct {
-	ID          string          `json:"id"`
-	AgentName   string          `json:"agent_name"`
-	UserID      string          `json:"user_id"`
-	Content     string          `json:"content"`
-	Embedding   pgvector.Vector `json:"embedding"`
-	Metadata    string          `json:"metadata"`
-	CreatedAt   time.Time       `json:"created_at"`
-	ExpiresAt   *time.Time      `json:"expires_at,omitempty"`
-	AccessCount int64           `json:"access_count"`
+	TeamNamespace string          `json:"team_namespace"`
+	ID            string          `json:"id"`
+	AgentName     string          `json:"agent_name"`
+	UserID        string          `json:"user_id"`
+	Content       string          `json:"content"`
+	Embedding     pgvector.Vector `json:"embedding"`
+	Metadata      string          `json:"metadata"`
+	CreatedAt     time.Time       `json:"created_at"`
+	ExpiresAt     *time.Time      `json:"expires_at,omitempty"`
+	AccessCount   int64           `json:"access_count"`
 }
 
 // AgentMemorySearchResult is the result of a vector similarity search over Memory.

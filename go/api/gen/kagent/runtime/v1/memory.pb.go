@@ -24,6 +24,88 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type MemoryScope struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Target:
+	//
+	//	*MemoryScope_AgentName
+	//	*MemoryScope_TeamNamespace
+	Target        isMemoryScope_Target `protobuf_oneof:"target"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MemoryScope) Reset() {
+	*x = MemoryScope{}
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MemoryScope) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MemoryScope) ProtoMessage() {}
+
+func (x *MemoryScope) ProtoReflect() protoreflect.Message {
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MemoryScope.ProtoReflect.Descriptor instead.
+func (*MemoryScope) Descriptor() ([]byte, []int) {
+	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *MemoryScope) GetTarget() isMemoryScope_Target {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
+func (x *MemoryScope) GetAgentName() string {
+	if x != nil {
+		if x, ok := x.Target.(*MemoryScope_AgentName); ok {
+			return x.AgentName
+		}
+	}
+	return ""
+}
+
+func (x *MemoryScope) GetTeamNamespace() string {
+	if x != nil {
+		if x, ok := x.Target.(*MemoryScope_TeamNamespace); ok {
+			return x.TeamNamespace
+		}
+	}
+	return ""
+}
+
+type isMemoryScope_Target interface {
+	isMemoryScope_Target()
+}
+
+type MemoryScope_AgentName struct {
+	AgentName string `protobuf:"bytes,1,opt,name=agent_name,json=agentName,proto3,oneof"`
+}
+
+type MemoryScope_TeamNamespace struct {
+	TeamNamespace string `protobuf:"bytes,2,opt,name=team_namespace,json=teamNamespace,proto3,oneof"`
+}
+
+func (*MemoryScope_AgentName) isMemoryScope_Target() {}
+
+func (*MemoryScope_TeamNamespace) isMemoryScope_Target() {}
+
 type SessionMemoryInput struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Content       string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
@@ -36,7 +118,7 @@ type SessionMemoryInput struct {
 
 func (x *SessionMemoryInput) Reset() {
 	*x = SessionMemoryInput{}
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[0]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -48,7 +130,7 @@ func (x *SessionMemoryInput) String() string {
 func (*SessionMemoryInput) ProtoMessage() {}
 
 func (x *SessionMemoryInput) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[0]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -61,7 +143,7 @@ func (x *SessionMemoryInput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionMemoryInput.ProtoReflect.Descriptor instead.
 func (*SessionMemoryInput) Descriptor() ([]byte, []int) {
-	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{0}
+	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *SessionMemoryInput) GetContent() string {
@@ -105,7 +187,7 @@ type MemorySearchResult struct {
 
 func (x *MemorySearchResult) Reset() {
 	*x = MemorySearchResult{}
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[1]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -117,7 +199,7 @@ func (x *MemorySearchResult) String() string {
 func (*MemorySearchResult) ProtoMessage() {}
 
 func (x *MemorySearchResult) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[1]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -130,7 +212,7 @@ func (x *MemorySearchResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MemorySearchResult.ProtoReflect.Descriptor instead.
 func (*MemorySearchResult) Descriptor() ([]byte, []int) {
-	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{1}
+	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *MemorySearchResult) GetId() string {
@@ -181,7 +263,7 @@ type MemorySummary struct {
 
 func (x *MemorySummary) Reset() {
 	*x = MemorySummary{}
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[2]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -193,7 +275,7 @@ func (x *MemorySummary) String() string {
 func (*MemorySummary) ProtoMessage() {}
 
 func (x *MemorySummary) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[2]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -206,7 +288,7 @@ func (x *MemorySummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MemorySummary.ProtoReflect.Descriptor instead.
 func (*MemorySummary) Descriptor() ([]byte, []int) {
-	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{2}
+	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *MemorySummary) GetId() string {
@@ -245,18 +327,16 @@ func (x *MemorySummary) GetExpiresAt() *timestamppb.Timestamp {
 }
 
 type MemoryServiceAddSessionRequest struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	Memory *SessionMemoryInput    `protobuf:"bytes,1,opt,name=memory,proto3" json:"memory,omitempty"`
-	// User-authenticated management calls select their own authorized agent scope.
-	// Actor calls derive scope from their persisted session.
-	ManagementAgent string `protobuf:"bytes,2,opt,name=management_agent,json=managementAgent,proto3" json:"management_agent,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Memory        *SessionMemoryInput    `protobuf:"bytes,1,opt,name=memory,proto3" json:"memory,omitempty"`
+	Scope         *MemoryScope           `protobuf:"bytes,3,opt,name=scope,proto3" json:"scope,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *MemoryServiceAddSessionRequest) Reset() {
 	*x = MemoryServiceAddSessionRequest{}
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[3]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -268,7 +348,7 @@ func (x *MemoryServiceAddSessionRequest) String() string {
 func (*MemoryServiceAddSessionRequest) ProtoMessage() {}
 
 func (x *MemoryServiceAddSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[3]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -281,7 +361,7 @@ func (x *MemoryServiceAddSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MemoryServiceAddSessionRequest.ProtoReflect.Descriptor instead.
 func (*MemoryServiceAddSessionRequest) Descriptor() ([]byte, []int) {
-	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{3}
+	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *MemoryServiceAddSessionRequest) GetMemory() *SessionMemoryInput {
@@ -291,11 +371,11 @@ func (x *MemoryServiceAddSessionRequest) GetMemory() *SessionMemoryInput {
 	return nil
 }
 
-func (x *MemoryServiceAddSessionRequest) GetManagementAgent() string {
+func (x *MemoryServiceAddSessionRequest) GetScope() *MemoryScope {
 	if x != nil {
-		return x.ManagementAgent
+		return x.Scope
 	}
-	return ""
+	return nil
 }
 
 type MemoryServiceAddSessionResponse struct {
@@ -307,7 +387,7 @@ type MemoryServiceAddSessionResponse struct {
 
 func (x *MemoryServiceAddSessionResponse) Reset() {
 	*x = MemoryServiceAddSessionResponse{}
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[4]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -319,7 +399,7 @@ func (x *MemoryServiceAddSessionResponse) String() string {
 func (*MemoryServiceAddSessionResponse) ProtoMessage() {}
 
 func (x *MemoryServiceAddSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[4]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -332,7 +412,7 @@ func (x *MemoryServiceAddSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MemoryServiceAddSessionResponse.ProtoReflect.Descriptor instead.
 func (*MemoryServiceAddSessionResponse) Descriptor() ([]byte, []int) {
-	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{4}
+	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *MemoryServiceAddSessionResponse) GetId() string {
@@ -343,16 +423,16 @@ func (x *MemoryServiceAddSessionResponse) GetId() string {
 }
 
 type MemoryServiceAddSessionBatchRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Items           []*SessionMemoryInput  `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
-	ManagementAgent string                 `protobuf:"bytes,2,opt,name=management_agent,json=managementAgent,proto3" json:"management_agent,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*SessionMemoryInput  `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	Scope         *MemoryScope           `protobuf:"bytes,3,opt,name=scope,proto3" json:"scope,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *MemoryServiceAddSessionBatchRequest) Reset() {
 	*x = MemoryServiceAddSessionBatchRequest{}
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[5]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -364,7 +444,7 @@ func (x *MemoryServiceAddSessionBatchRequest) String() string {
 func (*MemoryServiceAddSessionBatchRequest) ProtoMessage() {}
 
 func (x *MemoryServiceAddSessionBatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[5]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -377,7 +457,7 @@ func (x *MemoryServiceAddSessionBatchRequest) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use MemoryServiceAddSessionBatchRequest.ProtoReflect.Descriptor instead.
 func (*MemoryServiceAddSessionBatchRequest) Descriptor() ([]byte, []int) {
-	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{5}
+	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *MemoryServiceAddSessionBatchRequest) GetItems() []*SessionMemoryInput {
@@ -387,11 +467,11 @@ func (x *MemoryServiceAddSessionBatchRequest) GetItems() []*SessionMemoryInput {
 	return nil
 }
 
-func (x *MemoryServiceAddSessionBatchRequest) GetManagementAgent() string {
+func (x *MemoryServiceAddSessionBatchRequest) GetScope() *MemoryScope {
 	if x != nil {
-		return x.ManagementAgent
+		return x.Scope
 	}
-	return ""
+	return nil
 }
 
 type MemoryServiceAddSessionBatchResponse struct {
@@ -403,7 +483,7 @@ type MemoryServiceAddSessionBatchResponse struct {
 
 func (x *MemoryServiceAddSessionBatchResponse) Reset() {
 	*x = MemoryServiceAddSessionBatchResponse{}
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[6]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -415,7 +495,7 @@ func (x *MemoryServiceAddSessionBatchResponse) String() string {
 func (*MemoryServiceAddSessionBatchResponse) ProtoMessage() {}
 
 func (x *MemoryServiceAddSessionBatchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[6]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -428,7 +508,7 @@ func (x *MemoryServiceAddSessionBatchResponse) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use MemoryServiceAddSessionBatchResponse.ProtoReflect.Descriptor instead.
 func (*MemoryServiceAddSessionBatchResponse) Descriptor() ([]byte, []int) {
-	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{6}
+	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *MemoryServiceAddSessionBatchResponse) GetCount() int32 {
@@ -439,18 +519,20 @@ func (x *MemoryServiceAddSessionBatchResponse) GetCount() int32 {
 }
 
 type MemoryServiceSearchRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Vector          []float32              `protobuf:"fixed32,3,rep,packed,name=vector,proto3" json:"vector,omitempty"`
-	Limit           *int32                 `protobuf:"varint,4,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
-	MinScore        *float64               `protobuf:"fixed64,5,opt,name=min_score,json=minScore,proto3,oneof" json:"min_score,omitempty"`
-	ManagementAgent string                 `protobuf:"bytes,6,opt,name=management_agent,json=managementAgent,proto3" json:"management_agent,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Vector   []float32              `protobuf:"fixed32,3,rep,packed,name=vector,proto3" json:"vector,omitempty"`
+	Limit    *int32                 `protobuf:"varint,4,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
+	MinScore *float64               `protobuf:"fixed64,5,opt,name=min_score,json=minScore,proto3,oneof" json:"min_score,omitempty"`
+	Scope    *MemoryScope           `protobuf:"bytes,7,opt,name=scope,proto3" json:"scope,omitempty"`
+	// Text queries are embedded by the control plane. Supply either query or vector.
+	Query         string `protobuf:"bytes,8,opt,name=query,proto3" json:"query,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *MemoryServiceSearchRequest) Reset() {
 	*x = MemoryServiceSearchRequest{}
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[7]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -462,7 +544,7 @@ func (x *MemoryServiceSearchRequest) String() string {
 func (*MemoryServiceSearchRequest) ProtoMessage() {}
 
 func (x *MemoryServiceSearchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[7]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -475,7 +557,7 @@ func (x *MemoryServiceSearchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MemoryServiceSearchRequest.ProtoReflect.Descriptor instead.
 func (*MemoryServiceSearchRequest) Descriptor() ([]byte, []int) {
-	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{7}
+	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *MemoryServiceSearchRequest) GetVector() []float32 {
@@ -499,9 +581,16 @@ func (x *MemoryServiceSearchRequest) GetMinScore() float64 {
 	return 0
 }
 
-func (x *MemoryServiceSearchRequest) GetManagementAgent() string {
+func (x *MemoryServiceSearchRequest) GetScope() *MemoryScope {
 	if x != nil {
-		return x.ManagementAgent
+		return x.Scope
+	}
+	return nil
+}
+
+func (x *MemoryServiceSearchRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
 	}
 	return ""
 }
@@ -515,7 +604,7 @@ type MemoryServiceSearchResponse struct {
 
 func (x *MemoryServiceSearchResponse) Reset() {
 	*x = MemoryServiceSearchResponse{}
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[8]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -527,7 +616,7 @@ func (x *MemoryServiceSearchResponse) String() string {
 func (*MemoryServiceSearchResponse) ProtoMessage() {}
 
 func (x *MemoryServiceSearchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[8]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -540,7 +629,7 @@ func (x *MemoryServiceSearchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MemoryServiceSearchResponse.ProtoReflect.Descriptor instead.
 func (*MemoryServiceSearchResponse) Descriptor() ([]byte, []int) {
-	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{8}
+	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *MemoryServiceSearchResponse) GetMemories() []*MemorySearchResult {
@@ -551,18 +640,15 @@ func (x *MemoryServiceSearchResponse) GetMemories() []*MemorySearchResult {
 }
 
 type MemoryServiceListRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// User calls must supply the stored agent key. Actor-created memories use
-	// "namespace/name"; legacy keys remain valid for managing older memories.
-	// Actor calls ignore this field and use the agent from their persisted session.
-	AgentName     string `protobuf:"bytes,1,opt,name=agent_name,json=agentName,proto3" json:"agent_name,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scope         *MemoryScope           `protobuf:"bytes,3,opt,name=scope,proto3" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *MemoryServiceListRequest) Reset() {
 	*x = MemoryServiceListRequest{}
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[9]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -574,7 +660,7 @@ func (x *MemoryServiceListRequest) String() string {
 func (*MemoryServiceListRequest) ProtoMessage() {}
 
 func (x *MemoryServiceListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[9]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -587,14 +673,14 @@ func (x *MemoryServiceListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MemoryServiceListRequest.ProtoReflect.Descriptor instead.
 func (*MemoryServiceListRequest) Descriptor() ([]byte, []int) {
-	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{9}
+	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *MemoryServiceListRequest) GetAgentName() string {
+func (x *MemoryServiceListRequest) GetScope() *MemoryScope {
 	if x != nil {
-		return x.AgentName
+		return x.Scope
 	}
-	return ""
+	return nil
 }
 
 type MemoryServiceListResponse struct {
@@ -606,7 +692,7 @@ type MemoryServiceListResponse struct {
 
 func (x *MemoryServiceListResponse) Reset() {
 	*x = MemoryServiceListResponse{}
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[10]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -618,7 +704,7 @@ func (x *MemoryServiceListResponse) String() string {
 func (*MemoryServiceListResponse) ProtoMessage() {}
 
 func (x *MemoryServiceListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[10]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -631,7 +717,7 @@ func (x *MemoryServiceListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MemoryServiceListResponse.ProtoReflect.Descriptor instead.
 func (*MemoryServiceListResponse) Descriptor() ([]byte, []int) {
-	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{10}
+	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *MemoryServiceListResponse) GetMemories() []*MemorySummary {
@@ -642,18 +728,15 @@ func (x *MemoryServiceListResponse) GetMemories() []*MemorySummary {
 }
 
 type MemoryServiceDeleteRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// User calls must supply the stored agent key. Actor-created memories use
-	// "namespace/name"; legacy keys remain valid for managing older memories.
-	// Actor calls ignore this field and use the agent from their persisted session.
-	AgentName     string `protobuf:"bytes,1,opt,name=agent_name,json=agentName,proto3" json:"agent_name,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scope         *MemoryScope           `protobuf:"bytes,3,opt,name=scope,proto3" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *MemoryServiceDeleteRequest) Reset() {
 	*x = MemoryServiceDeleteRequest{}
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[11]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -665,7 +748,7 @@ func (x *MemoryServiceDeleteRequest) String() string {
 func (*MemoryServiceDeleteRequest) ProtoMessage() {}
 
 func (x *MemoryServiceDeleteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[11]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -678,14 +761,14 @@ func (x *MemoryServiceDeleteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MemoryServiceDeleteRequest.ProtoReflect.Descriptor instead.
 func (*MemoryServiceDeleteRequest) Descriptor() ([]byte, []int) {
-	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{11}
+	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *MemoryServiceDeleteRequest) GetAgentName() string {
+func (x *MemoryServiceDeleteRequest) GetScope() *MemoryScope {
 	if x != nil {
-		return x.AgentName
+		return x.Scope
 	}
-	return ""
+	return nil
 }
 
 type MemoryServiceDeleteResponse struct {
@@ -697,7 +780,7 @@ type MemoryServiceDeleteResponse struct {
 
 func (x *MemoryServiceDeleteResponse) Reset() {
 	*x = MemoryServiceDeleteResponse{}
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[12]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -709,7 +792,7 @@ func (x *MemoryServiceDeleteResponse) String() string {
 func (*MemoryServiceDeleteResponse) ProtoMessage() {}
 
 func (x *MemoryServiceDeleteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[12]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -722,7 +805,7 @@ func (x *MemoryServiceDeleteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MemoryServiceDeleteResponse.ProtoReflect.Descriptor instead.
 func (*MemoryServiceDeleteResponse) Descriptor() ([]byte, []int) {
-	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{12}
+	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *MemoryServiceDeleteResponse) GetStatus() string {
@@ -734,7 +817,7 @@ func (x *MemoryServiceDeleteResponse) GetStatus() string {
 
 type MemoryServiceDeleteEntryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	AgentName     string                 `protobuf:"bytes,1,opt,name=agent_name,json=agentName,proto3" json:"agent_name,omitempty"`
+	Scope         *MemoryScope           `protobuf:"bytes,3,opt,name=scope,proto3" json:"scope,omitempty"`
 	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -742,7 +825,7 @@ type MemoryServiceDeleteEntryRequest struct {
 
 func (x *MemoryServiceDeleteEntryRequest) Reset() {
 	*x = MemoryServiceDeleteEntryRequest{}
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[13]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -754,7 +837,7 @@ func (x *MemoryServiceDeleteEntryRequest) String() string {
 func (*MemoryServiceDeleteEntryRequest) ProtoMessage() {}
 
 func (x *MemoryServiceDeleteEntryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[13]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -767,14 +850,14 @@ func (x *MemoryServiceDeleteEntryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MemoryServiceDeleteEntryRequest.ProtoReflect.Descriptor instead.
 func (*MemoryServiceDeleteEntryRequest) Descriptor() ([]byte, []int) {
-	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{13}
+	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *MemoryServiceDeleteEntryRequest) GetAgentName() string {
+func (x *MemoryServiceDeleteEntryRequest) GetScope() *MemoryScope {
 	if x != nil {
-		return x.AgentName
+		return x.Scope
 	}
-	return ""
+	return nil
 }
 
 func (x *MemoryServiceDeleteEntryRequest) GetId() string {
@@ -792,7 +875,7 @@ type MemoryServiceDeleteEntryResponse struct {
 
 func (x *MemoryServiceDeleteEntryResponse) Reset() {
 	*x = MemoryServiceDeleteEntryResponse{}
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[14]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -804,7 +887,7 @@ func (x *MemoryServiceDeleteEntryResponse) String() string {
 func (*MemoryServiceDeleteEntryResponse) ProtoMessage() {}
 
 func (x *MemoryServiceDeleteEntryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[14]
+	mi := &file_kagent_runtime_v1_memory_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -817,19 +900,26 @@ func (x *MemoryServiceDeleteEntryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MemoryServiceDeleteEntryResponse.ProtoReflect.Descriptor instead.
 func (*MemoryServiceDeleteEntryResponse) Descriptor() ([]byte, []int) {
-	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{14}
+	return file_kagent_runtime_v1_memory_proto_rawDescGZIP(), []int{15}
 }
 
 var File_kagent_runtime_v1_memory_proto protoreflect.FileDescriptor
 
 const file_kagent_runtime_v1_memory_proto_rawDesc = "" +
 	"\n" +
-	"\x1ekagent/runtime/v1/memory.proto\x12\x11kagent.runtime.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\"\xc9\x01\n" +
-	"\x12SessionMemoryInput\x12\x18\n" +
-	"\acontent\x18\x03 \x01(\tR\acontent\x12\x16\n" +
-	"\x06vector\x18\x04 \x03(\x02R\x06vector\x123\n" +
-	"\bmetadata\x18\x05 \x01(\v2\x17.google.protobuf.StructR\bmetadata\x12\x1e\n" +
-	"\bttl_days\x18\x06 \x01(\x05H\x00R\attlDays\x88\x01\x01B\v\n" +
+	"\x1ekagent/runtime/v1/memory.proto\x12\x11kagent.runtime.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9d\x01\n" +
+	"\vMemoryScope\x12(\n" +
+	"\n" +
+	"agent_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\tagentName\x12S\n" +
+	"\x0eteam_namespace\x18\x02 \x01(\tB*\xbaH'r%\x10\x01\x18?2\x1f^[a-z0-9]([-a-z0-9]*[a-z0-9])?$H\x00R\rteamNamespaceB\x0f\n" +
+	"\x06target\x12\x05\xbaH\x02\b\x01\"\xf8\x02\n" +
+	"\x12SessionMemoryInput\x12%\n" +
+	"\acontent\x18\x03 \x01(\tB\v\xbaH\br\x06\x10\x01\x18\x80\x80\x02R\acontent\x12$\n" +
+	"\x06vector\x18\x04 \x03(\x02B\f\xbaH\t\x92\x01\x06\"\x04\n" +
+	"\x02@\x01R\x06vector\x123\n" +
+	"\bmetadata\x18\x05 \x01(\v2\x17.google.protobuf.StructR\bmetadata\x12+\n" +
+	"\bttl_days\x18\x06 \x01(\x05B\v\xbaH\b\x1a\x06\x18\x94\x9d\x02(\x01H\x00R\attlDays\x88\x01\x01:\x84\x01\xbaH\x80\x01\x1a~\n" +
+	"\x18memory.vector_dimensions\x12.vector must be empty or contain 768 dimensions\x1a2size(this.vector) == 0 || size(this.vector) == 768B\v\n" +
 	"\t_ttl_daysJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\n" +
 	"agent_nameR\auser_id\"\xc4\x01\n" +
 	"\x12MemorySearchResult\x12\x0e\n" +
@@ -846,43 +936,47 @@ const file_kagent_runtime_v1_memory_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\x8a\x01\n" +
-	"\x1eMemoryServiceAddSessionRequest\x12=\n" +
-	"\x06memory\x18\x01 \x01(\v2%.kagent.runtime.v1.SessionMemoryInputR\x06memory\x12)\n" +
-	"\x10management_agent\x18\x02 \x01(\tR\x0fmanagementAgent\"1\n" +
+	"expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\xb5\x01\n" +
+	"\x1eMemoryServiceAddSessionRequest\x12E\n" +
+	"\x06memory\x18\x01 \x01(\v2%.kagent.runtime.v1.SessionMemoryInputB\x06\xbaH\x03\xc8\x01\x01R\x06memory\x124\n" +
+	"\x05scope\x18\x03 \x01(\v2\x1e.kagent.runtime.v1.MemoryScopeR\x05scopeJ\x04\b\x02\x10\x03R\x10management_agent\"1\n" +
 	"\x1fMemoryServiceAddSessionResponse\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\x8d\x01\n" +
-	"#MemoryServiceAddSessionBatchRequest\x12;\n" +
-	"\x05items\x18\x01 \x03(\v2%.kagent.runtime.v1.SessionMemoryInputR\x05items\x12)\n" +
-	"\x10management_agent\x18\x02 \x01(\tR\x0fmanagementAgent\"<\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\xbc\x01\n" +
+	"#MemoryServiceAddSessionBatchRequest\x12G\n" +
+	"\x05items\x18\x01 \x03(\v2%.kagent.runtime.v1.SessionMemoryInputB\n" +
+	"\xbaH\a\x92\x01\x04\b\x01\x102R\x05items\x124\n" +
+	"\x05scope\x18\x03 \x01(\v2\x1e.kagent.runtime.v1.MemoryScopeR\x05scopeJ\x04\b\x02\x10\x03R\x10management_agent\"<\n" +
 	"$MemoryServiceAddSessionBatchResponse\x12\x14\n" +
-	"\x05count\x18\x01 \x01(\x05R\x05count\"\xd5\x01\n" +
-	"\x1aMemoryServiceSearchRequest\x12\x16\n" +
-	"\x06vector\x18\x03 \x03(\x02R\x06vector\x12\x19\n" +
-	"\x05limit\x18\x04 \x01(\x05H\x00R\x05limit\x88\x01\x01\x12 \n" +
-	"\tmin_score\x18\x05 \x01(\x01H\x01R\bminScore\x88\x01\x01\x12)\n" +
-	"\x10management_agent\x18\x06 \x01(\tR\x0fmanagementAgentB\b\n" +
+	"\x05count\x18\x01 \x01(\x05R\x05count\"\x84\x04\n" +
+	"\x1aMemoryServiceSearchRequest\x12$\n" +
+	"\x06vector\x18\x03 \x03(\x02B\f\xbaH\t\x92\x01\x06\"\x04\n" +
+	"\x02@\x01R\x06vector\x12$\n" +
+	"\x05limit\x18\x04 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x01H\x00R\x05limit\x88\x01\x01\x12;\n" +
+	"\tmin_score\x18\x05 \x01(\x01B\x19\xbaH\x16\x12\x14@\x01\x19\x00\x00\x00\x00\x00\x00\xf0?)\x00\x00\x00\x00\x00\x00\xf0\xbfH\x01R\bminScore\x88\x01\x01\x124\n" +
+	"\x05scope\x18\a \x01(\v2\x1e.kagent.runtime.v1.MemoryScopeR\x05scope\x12\x1f\n" +
+	"\x05query\x18\b \x01(\tB\t\xbaH\x06r\x04\x18\x80\x80\x02R\x05query:\xb4\x01\xbaH\xb0\x01\x1a\xad\x01\n" +
+	"\x13memory.search_input\x12/supply a text query or a 768-dimensional vector\x1ae(size(this.vector) == 768 && this.query == '') || (size(this.vector) == 0 && this.query.trim() != '')B\b\n" +
 	"\x06_limitB\f\n" +
 	"\n" +
-	"_min_scoreJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\n" +
-	"agent_nameR\auser_id\"`\n" +
+	"_min_scoreJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\x06\x10\aR\n" +
+	"agent_nameR\auser_idR\x10management_agent\"`\n" +
 	"\x1bMemoryServiceSearchResponse\x12A\n" +
-	"\bmemories\x18\x01 \x03(\v2%.kagent.runtime.v1.MemorySearchResultR\bmemories\"H\n" +
-	"\x18MemoryServiceListRequest\x12\x1d\n" +
-	"\n" +
-	"agent_name\x18\x01 \x01(\tR\tagentNameJ\x04\b\x02\x10\x03R\auser_id\"Y\n" +
+	"\bmemories\x18\x01 \x03(\v2%.kagent.runtime.v1.MemorySearchResultR\bmemories\"q\n" +
+	"\x18MemoryServiceListRequest\x124\n" +
+	"\x05scope\x18\x03 \x01(\v2\x1e.kagent.runtime.v1.MemoryScopeR\x05scopeJ\x04\b\x02\x10\x03J\x04\b\x01\x10\x02R\auser_idR\n" +
+	"agent_name\"Y\n" +
 	"\x19MemoryServiceListResponse\x12<\n" +
-	"\bmemories\x18\x01 \x03(\v2 .kagent.runtime.v1.MemorySummaryR\bmemories\"J\n" +
-	"\x1aMemoryServiceDeleteRequest\x12\x1d\n" +
-	"\n" +
-	"agent_name\x18\x01 \x01(\tR\tagentNameJ\x04\b\x02\x10\x03R\auser_id\"5\n" +
+	"\bmemories\x18\x01 \x03(\v2 .kagent.runtime.v1.MemorySummaryR\bmemories\"s\n" +
+	"\x1aMemoryServiceDeleteRequest\x124\n" +
+	"\x05scope\x18\x03 \x01(\v2\x1e.kagent.runtime.v1.MemoryScopeR\x05scopeJ\x04\b\x02\x10\x03J\x04\b\x01\x10\x02R\auser_idR\n" +
+	"agent_name\"5\n" +
 	"\x1bMemoryServiceDeleteResponse\x12\x16\n" +
-	"\x06status\x18\x01 \x01(\tR\x06status\"\\\n" +
-	"\x1fMemoryServiceDeleteEntryRequest\x12\x1d\n" +
-	"\n" +
-	"agent_name\x18\x01 \x01(\tR\tagentName\x12\x1a\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\"\x85\x01\n" +
+	"\x1fMemoryServiceDeleteEntryRequest\x124\n" +
+	"\x05scope\x18\x03 \x01(\v2\x1e.kagent.runtime.v1.MemoryScopeR\x05scope\x12\x1a\n" +
 	"\x02id\x18\x02 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\x80\x02R\x02id\"\"\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x02R\x02idJ\x04\b\x01\x10\x02R\n" +
+	"agent_name\"\"\n" +
 	" MemoryServiceDeleteEntryResponse2\xb6\x05\n" +
 	"\rMemoryService\x12s\n" +
 	"\n" +
@@ -905,53 +999,60 @@ func file_kagent_runtime_v1_memory_proto_rawDescGZIP() []byte {
 	return file_kagent_runtime_v1_memory_proto_rawDescData
 }
 
-var file_kagent_runtime_v1_memory_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_kagent_runtime_v1_memory_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_kagent_runtime_v1_memory_proto_goTypes = []any{
-	(*SessionMemoryInput)(nil),                   // 0: kagent.runtime.v1.SessionMemoryInput
-	(*MemorySearchResult)(nil),                   // 1: kagent.runtime.v1.MemorySearchResult
-	(*MemorySummary)(nil),                        // 2: kagent.runtime.v1.MemorySummary
-	(*MemoryServiceAddSessionRequest)(nil),       // 3: kagent.runtime.v1.MemoryServiceAddSessionRequest
-	(*MemoryServiceAddSessionResponse)(nil),      // 4: kagent.runtime.v1.MemoryServiceAddSessionResponse
-	(*MemoryServiceAddSessionBatchRequest)(nil),  // 5: kagent.runtime.v1.MemoryServiceAddSessionBatchRequest
-	(*MemoryServiceAddSessionBatchResponse)(nil), // 6: kagent.runtime.v1.MemoryServiceAddSessionBatchResponse
-	(*MemoryServiceSearchRequest)(nil),           // 7: kagent.runtime.v1.MemoryServiceSearchRequest
-	(*MemoryServiceSearchResponse)(nil),          // 8: kagent.runtime.v1.MemoryServiceSearchResponse
-	(*MemoryServiceListRequest)(nil),             // 9: kagent.runtime.v1.MemoryServiceListRequest
-	(*MemoryServiceListResponse)(nil),            // 10: kagent.runtime.v1.MemoryServiceListResponse
-	(*MemoryServiceDeleteRequest)(nil),           // 11: kagent.runtime.v1.MemoryServiceDeleteRequest
-	(*MemoryServiceDeleteResponse)(nil),          // 12: kagent.runtime.v1.MemoryServiceDeleteResponse
-	(*MemoryServiceDeleteEntryRequest)(nil),      // 13: kagent.runtime.v1.MemoryServiceDeleteEntryRequest
-	(*MemoryServiceDeleteEntryResponse)(nil),     // 14: kagent.runtime.v1.MemoryServiceDeleteEntryResponse
-	(*structpb.Struct)(nil),                      // 15: google.protobuf.Struct
-	(*timestamppb.Timestamp)(nil),                // 16: google.protobuf.Timestamp
+	(*MemoryScope)(nil),                          // 0: kagent.runtime.v1.MemoryScope
+	(*SessionMemoryInput)(nil),                   // 1: kagent.runtime.v1.SessionMemoryInput
+	(*MemorySearchResult)(nil),                   // 2: kagent.runtime.v1.MemorySearchResult
+	(*MemorySummary)(nil),                        // 3: kagent.runtime.v1.MemorySummary
+	(*MemoryServiceAddSessionRequest)(nil),       // 4: kagent.runtime.v1.MemoryServiceAddSessionRequest
+	(*MemoryServiceAddSessionResponse)(nil),      // 5: kagent.runtime.v1.MemoryServiceAddSessionResponse
+	(*MemoryServiceAddSessionBatchRequest)(nil),  // 6: kagent.runtime.v1.MemoryServiceAddSessionBatchRequest
+	(*MemoryServiceAddSessionBatchResponse)(nil), // 7: kagent.runtime.v1.MemoryServiceAddSessionBatchResponse
+	(*MemoryServiceSearchRequest)(nil),           // 8: kagent.runtime.v1.MemoryServiceSearchRequest
+	(*MemoryServiceSearchResponse)(nil),          // 9: kagent.runtime.v1.MemoryServiceSearchResponse
+	(*MemoryServiceListRequest)(nil),             // 10: kagent.runtime.v1.MemoryServiceListRequest
+	(*MemoryServiceListResponse)(nil),            // 11: kagent.runtime.v1.MemoryServiceListResponse
+	(*MemoryServiceDeleteRequest)(nil),           // 12: kagent.runtime.v1.MemoryServiceDeleteRequest
+	(*MemoryServiceDeleteResponse)(nil),          // 13: kagent.runtime.v1.MemoryServiceDeleteResponse
+	(*MemoryServiceDeleteEntryRequest)(nil),      // 14: kagent.runtime.v1.MemoryServiceDeleteEntryRequest
+	(*MemoryServiceDeleteEntryResponse)(nil),     // 15: kagent.runtime.v1.MemoryServiceDeleteEntryResponse
+	(*structpb.Struct)(nil),                      // 16: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil),                // 17: google.protobuf.Timestamp
 }
 var file_kagent_runtime_v1_memory_proto_depIdxs = []int32{
-	15, // 0: kagent.runtime.v1.SessionMemoryInput.metadata:type_name -> google.protobuf.Struct
-	15, // 1: kagent.runtime.v1.MemorySearchResult.metadata:type_name -> google.protobuf.Struct
-	16, // 2: kagent.runtime.v1.MemorySearchResult.created_at:type_name -> google.protobuf.Timestamp
-	16, // 3: kagent.runtime.v1.MemorySummary.created_at:type_name -> google.protobuf.Timestamp
-	16, // 4: kagent.runtime.v1.MemorySummary.expires_at:type_name -> google.protobuf.Timestamp
-	0,  // 5: kagent.runtime.v1.MemoryServiceAddSessionRequest.memory:type_name -> kagent.runtime.v1.SessionMemoryInput
-	0,  // 6: kagent.runtime.v1.MemoryServiceAddSessionBatchRequest.items:type_name -> kagent.runtime.v1.SessionMemoryInput
-	1,  // 7: kagent.runtime.v1.MemoryServiceSearchResponse.memories:type_name -> kagent.runtime.v1.MemorySearchResult
-	2,  // 8: kagent.runtime.v1.MemoryServiceListResponse.memories:type_name -> kagent.runtime.v1.MemorySummary
-	3,  // 9: kagent.runtime.v1.MemoryService.AddSession:input_type -> kagent.runtime.v1.MemoryServiceAddSessionRequest
-	5,  // 10: kagent.runtime.v1.MemoryService.AddSessionBatch:input_type -> kagent.runtime.v1.MemoryServiceAddSessionBatchRequest
-	7,  // 11: kagent.runtime.v1.MemoryService.Search:input_type -> kagent.runtime.v1.MemoryServiceSearchRequest
-	9,  // 12: kagent.runtime.v1.MemoryService.List:input_type -> kagent.runtime.v1.MemoryServiceListRequest
-	11, // 13: kagent.runtime.v1.MemoryService.Delete:input_type -> kagent.runtime.v1.MemoryServiceDeleteRequest
-	13, // 14: kagent.runtime.v1.MemoryService.DeleteEntry:input_type -> kagent.runtime.v1.MemoryServiceDeleteEntryRequest
-	4,  // 15: kagent.runtime.v1.MemoryService.AddSession:output_type -> kagent.runtime.v1.MemoryServiceAddSessionResponse
-	6,  // 16: kagent.runtime.v1.MemoryService.AddSessionBatch:output_type -> kagent.runtime.v1.MemoryServiceAddSessionBatchResponse
-	8,  // 17: kagent.runtime.v1.MemoryService.Search:output_type -> kagent.runtime.v1.MemoryServiceSearchResponse
-	10, // 18: kagent.runtime.v1.MemoryService.List:output_type -> kagent.runtime.v1.MemoryServiceListResponse
-	12, // 19: kagent.runtime.v1.MemoryService.Delete:output_type -> kagent.runtime.v1.MemoryServiceDeleteResponse
-	14, // 20: kagent.runtime.v1.MemoryService.DeleteEntry:output_type -> kagent.runtime.v1.MemoryServiceDeleteEntryResponse
-	15, // [15:21] is the sub-list for method output_type
-	9,  // [9:15] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	16, // 0: kagent.runtime.v1.SessionMemoryInput.metadata:type_name -> google.protobuf.Struct
+	16, // 1: kagent.runtime.v1.MemorySearchResult.metadata:type_name -> google.protobuf.Struct
+	17, // 2: kagent.runtime.v1.MemorySearchResult.created_at:type_name -> google.protobuf.Timestamp
+	17, // 3: kagent.runtime.v1.MemorySummary.created_at:type_name -> google.protobuf.Timestamp
+	17, // 4: kagent.runtime.v1.MemorySummary.expires_at:type_name -> google.protobuf.Timestamp
+	1,  // 5: kagent.runtime.v1.MemoryServiceAddSessionRequest.memory:type_name -> kagent.runtime.v1.SessionMemoryInput
+	0,  // 6: kagent.runtime.v1.MemoryServiceAddSessionRequest.scope:type_name -> kagent.runtime.v1.MemoryScope
+	1,  // 7: kagent.runtime.v1.MemoryServiceAddSessionBatchRequest.items:type_name -> kagent.runtime.v1.SessionMemoryInput
+	0,  // 8: kagent.runtime.v1.MemoryServiceAddSessionBatchRequest.scope:type_name -> kagent.runtime.v1.MemoryScope
+	0,  // 9: kagent.runtime.v1.MemoryServiceSearchRequest.scope:type_name -> kagent.runtime.v1.MemoryScope
+	2,  // 10: kagent.runtime.v1.MemoryServiceSearchResponse.memories:type_name -> kagent.runtime.v1.MemorySearchResult
+	0,  // 11: kagent.runtime.v1.MemoryServiceListRequest.scope:type_name -> kagent.runtime.v1.MemoryScope
+	3,  // 12: kagent.runtime.v1.MemoryServiceListResponse.memories:type_name -> kagent.runtime.v1.MemorySummary
+	0,  // 13: kagent.runtime.v1.MemoryServiceDeleteRequest.scope:type_name -> kagent.runtime.v1.MemoryScope
+	0,  // 14: kagent.runtime.v1.MemoryServiceDeleteEntryRequest.scope:type_name -> kagent.runtime.v1.MemoryScope
+	4,  // 15: kagent.runtime.v1.MemoryService.AddSession:input_type -> kagent.runtime.v1.MemoryServiceAddSessionRequest
+	6,  // 16: kagent.runtime.v1.MemoryService.AddSessionBatch:input_type -> kagent.runtime.v1.MemoryServiceAddSessionBatchRequest
+	8,  // 17: kagent.runtime.v1.MemoryService.Search:input_type -> kagent.runtime.v1.MemoryServiceSearchRequest
+	10, // 18: kagent.runtime.v1.MemoryService.List:input_type -> kagent.runtime.v1.MemoryServiceListRequest
+	12, // 19: kagent.runtime.v1.MemoryService.Delete:input_type -> kagent.runtime.v1.MemoryServiceDeleteRequest
+	14, // 20: kagent.runtime.v1.MemoryService.DeleteEntry:input_type -> kagent.runtime.v1.MemoryServiceDeleteEntryRequest
+	5,  // 21: kagent.runtime.v1.MemoryService.AddSession:output_type -> kagent.runtime.v1.MemoryServiceAddSessionResponse
+	7,  // 22: kagent.runtime.v1.MemoryService.AddSessionBatch:output_type -> kagent.runtime.v1.MemoryServiceAddSessionBatchResponse
+	9,  // 23: kagent.runtime.v1.MemoryService.Search:output_type -> kagent.runtime.v1.MemoryServiceSearchResponse
+	11, // 24: kagent.runtime.v1.MemoryService.List:output_type -> kagent.runtime.v1.MemoryServiceListResponse
+	13, // 25: kagent.runtime.v1.MemoryService.Delete:output_type -> kagent.runtime.v1.MemoryServiceDeleteResponse
+	15, // 26: kagent.runtime.v1.MemoryService.DeleteEntry:output_type -> kagent.runtime.v1.MemoryServiceDeleteEntryResponse
+	21, // [21:27] is the sub-list for method output_type
+	15, // [15:21] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_kagent_runtime_v1_memory_proto_init() }
@@ -959,15 +1060,19 @@ func file_kagent_runtime_v1_memory_proto_init() {
 	if File_kagent_runtime_v1_memory_proto != nil {
 		return
 	}
-	file_kagent_runtime_v1_memory_proto_msgTypes[0].OneofWrappers = []any{}
-	file_kagent_runtime_v1_memory_proto_msgTypes[7].OneofWrappers = []any{}
+	file_kagent_runtime_v1_memory_proto_msgTypes[0].OneofWrappers = []any{
+		(*MemoryScope_AgentName)(nil),
+		(*MemoryScope_TeamNamespace)(nil),
+	}
+	file_kagent_runtime_v1_memory_proto_msgTypes[1].OneofWrappers = []any{}
+	file_kagent_runtime_v1_memory_proto_msgTypes[8].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_kagent_runtime_v1_memory_proto_rawDesc), len(file_kagent_runtime_v1_memory_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

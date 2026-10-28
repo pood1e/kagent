@@ -103,8 +103,8 @@ func (p *runtimeTaskPolicy) Check(_ context.Context, principal auth.Principal, _
 	return nil
 }
 
-func (s *runtimeMemoryStore) ListAgentMemories(_ context.Context, agentName, userID string) ([]database.Memory, error) {
-	s.agentName, s.userID = agentName, userID
+func (s *runtimeMemoryStore) ListAgentMemories(_ context.Context, scope *runtimev1.MemoryScope, userID string) ([]database.Memory, error) {
+	s.agentName, s.userID = scope.GetAgentName(), userID
 	return nil, nil
 }
 
@@ -210,7 +210,7 @@ func TestRuntimeTaskStoreThroughGRPC(t *testing.T) {
 	require.NoError(t, err)
 	_, err = publicSessions.GetSession(authenticated, &apiv1.GetSessionRequest{SessionId: uuid.NewString()})
 	require.Equal(t, codes.PermissionDenied, status.Code(err))
-	_, err = controller.MemoryService().List(authenticated, &runtimev1.MemoryServiceListRequest{AgentName: "forged/agent"})
+	_, err = controller.MemoryService().List(authenticated, &runtimev1.MemoryServiceListRequest{Scope: personalMemoryScope("forged/agent")})
 	require.NoError(t, err)
 	require.Equal(t, session.Agent.Namespace+"/"+session.Agent.Name, memories.agentName)
 	require.Equal(t, session.Creator, memories.userID)

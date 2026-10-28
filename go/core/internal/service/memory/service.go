@@ -8,8 +8,9 @@ import (
 
 	"github.com/pgvector/pgvector-go"
 
+	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
+	runtimev1 "github.com/kagent-dev/kagent/go/api/gen/kagent/runtime/v1"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
-	"github.com/kagent-dev/kagent/go/core/internal/runtimeauth"
 	"github.com/kagent-dev/kagent/go/core/internal/service/serviceerrors"
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
 )
@@ -22,27 +23,28 @@ const (
 )
 
 type Store interface {
-	runtimeauth.SessionStore
+	GetSessionForRuntime(context.Context, string, string) (*apiv1.Session, error)
 	StoreAgentMemories(context.Context, ...*database.Memory) error
-	SearchAgentMemory(context.Context, string, string, pgvector.Vector, int) ([]database.AgentMemorySearchResult, error)
-	ListAgentMemories(context.Context, string, string) ([]database.Memory, error)
-	DeleteAgentMemory(context.Context, string, string) error
-	DeleteMemoryEntry(context.Context, string, string, string) error
+	SearchAgentMemory(context.Context, *runtimev1.MemoryScope, string, pgvector.Vector, int) ([]database.AgentMemorySearchResult, error)
+	ListAgentMemories(context.Context, *runtimev1.MemoryScope, string) ([]database.Memory, error)
+	DeleteAgentMemory(context.Context, *runtimev1.MemoryScope, string) error
+	DeleteMemoryEntry(context.Context, *runtimev1.MemoryScope, string, string) error
 }
 
 type Input struct {
-	AgentName string
-	Content   string
-	Vector    []float32
-	Metadata  json.RawMessage
-	TTLDays   int
+	Scope    *runtimev1.MemoryScope
+	Content  string
+	Vector   []float32
+	Metadata json.RawMessage
+	TTLDays  int
 }
 
 type SearchRequest struct {
-	AgentName string
-	Vector    []float32
-	Limit     int
-	MinScore  float64
+	Query    string
+	Scope    *runtimev1.MemoryScope
+	Vector   []float32
+	Limit    int
+	MinScore float64
 }
 
 type SearchResult struct {
@@ -65,6 +67,7 @@ type Service struct {
 	store      Store
 	authorizer auth.Authorizer
 	now        func() time.Time
+	embedder   Embedder
 }
 
 func NewService(store Store, authorizer auth.Authorizer, options ...Option) *Service {
@@ -76,17 +79,17 @@ func NewService(store Store, authorizer auth.Authorizer, options ...Option) *Ser
 }
 
 func (s *Service) Add(ctx context.Context, input Input) (string, error) {
-	agentName, userID, err := s.managementScope(ctx, auth.VerbCreate, input.AgentName)
+	scope, userID, err := s.managementScope(ctx, auth.VerbCreate, input.Scope)
 	if err != nil {
 		return "", err
 	}
-	if err := validateVector(input.Vector); err != nil {
+	if input.Vector, err = s.vector(ctx, input.Vector, input.Content); err != nil {
 		return "", err
 	}
 	if s.store == nil {
 		return "", serviceerrors.NewInternal("failed to save memory", fmt.Errorf("database client is not configured"))
 	}
-	memory, err := s.toMemory(input, agentName, userID)
+	memory, err := s.toMemory(input, scope, userID)
 	if err != nil {
 		return "", err
 	}
@@ -110,16 +113,17 @@ func (s *Service) AddBatch(ctx context.Context, inputs []Input) (int, error) {
 		return 0, serviceerrors.NewInternal("failed to save memory batch", fmt.Errorf("database client is not configured"))
 	}
 
-	agentName, userID, err := s.managementScope(ctx, auth.VerbCreate, inputs[0].AgentName)
+	scope, userID, err := s.managementScope(ctx, auth.VerbCreate, inputs[0].Scope)
+	if err != nil {
+		return 0, err
+	}
+	inputs, err = s.batchVectors(ctx, inputs)
 	if err != nil {
 		return 0, err
 	}
 	memories := make([]*database.Memory, 0, len(inputs))
 	for _, input := range inputs {
-		if err := validateVector(input.Vector); err != nil {
-			return 0, err
-		}
-		memory, err := s.toMemory(input, agentName, userID)
+		memory, err := s.toMemory(input, scope, userID)
 		if err != nil {
 			return 0, err
 		}
@@ -132,11 +136,14 @@ func (s *Service) AddBatch(ctx context.Context, inputs []Input) (int, error) {
 }
 
 func (s *Service) Search(ctx context.Context, request SearchRequest) ([]SearchResult, error) {
-	agentName, userID, err := s.managementScope(ctx, auth.VerbGet, request.AgentName)
+	scope, userID, err := s.managementScope(ctx, auth.VerbGet, request.Scope)
 	if err != nil {
 		return nil, err
 	}
-	if err := validateVector(request.Vector); err != nil {
+	if len(request.Vector) > 0 && request.Query != "" {
+		return nil, serviceerrors.NewInvalidArgument("supply query or vector", nil)
+	}
+	if request.Vector, err = s.vector(ctx, request.Vector, request.Query); err != nil {
 		return nil, err
 	}
 	if s.store == nil {
@@ -147,7 +154,7 @@ func (s *Service) Search(ctx context.Context, request SearchRequest) ([]SearchRe
 	}
 	results, err := s.store.SearchAgentMemory(
 		ctx,
-		agentName,
+		scope,
 		userID,
 		pgvector.NewVector(request.Vector),
 		request.Limit,
@@ -176,87 +183,42 @@ func (s *Service) Search(ctx context.Context, request SearchRequest) ([]SearchRe
 	return response, nil
 }
 
-func (s *Service) List(ctx context.Context, agentName string) ([]database.Memory, error) {
-	agentName, userID, err := s.managementScope(ctx, auth.VerbList, agentName)
+func (s *Service) List(ctx context.Context, requested *runtimev1.MemoryScope) ([]database.Memory, error) {
+	scope, userID, err := s.managementScope(ctx, auth.VerbList, requested)
 	if err != nil {
 		return nil, err
 	}
-	if agentName == "" || userID == "" {
-		return nil, serviceerrors.NewInvalidArgument("Missing required query parameters (agent_name, user_id)", nil)
+	if scope == nil {
+		return nil, serviceerrors.NewInvalidArgument("Memory scope is required", nil)
 	}
 	if s.store == nil {
 		return nil, serviceerrors.NewInternal("failed to list memories", fmt.Errorf("database client is not configured"))
 	}
-	memories, err := s.store.ListAgentMemories(ctx, agentName, userID)
+	memories, err := s.store.ListAgentMemories(ctx, scope, userID)
 	if err != nil {
 		return nil, serviceerrors.NewInternal("failed to list memories", err)
 	}
 	return memories, nil
 }
 
-func (s *Service) Delete(ctx context.Context, agentName string) error {
-	agentName, userID, err := s.managementScope(ctx, auth.VerbDelete, agentName)
+func (s *Service) Delete(ctx context.Context, requested *runtimev1.MemoryScope) error {
+	scope, userID, err := s.managementScope(ctx, auth.VerbDelete, requested)
 	if err != nil {
 		return err
 	}
-	if agentName == "" || userID == "" {
-		return serviceerrors.NewInvalidArgument("Missing required query parameters (agent_name, user_id)", nil)
+	if scope == nil {
+		return serviceerrors.NewInvalidArgument("Memory scope is required", nil)
 	}
 	if s.store == nil {
 		return serviceerrors.NewInternal("failed to delete memory", fmt.Errorf("database client is not configured"))
 	}
-	if err := s.store.DeleteAgentMemory(ctx, agentName, userID); err != nil {
+	if err := s.store.DeleteAgentMemory(ctx, scope, userID); err != nil {
 		return serviceerrors.NewInternal("failed to delete memory", err)
 	}
 	return nil
 }
 
-// Users can manage their own memories even when the agent or session no longer
-// exists. Actors remain bound to their current session's agent and owner.
-func (s *Service) managementScope(ctx context.Context, verb auth.Verb, agentName string) (string, string, error) {
-	if session, ok := auth.AuthSessionFrom(ctx); ok && session != nil {
-		if principal := session.Principal(); principal.RuntimeBinding == nil && principal.ID != "" {
-			if agentName == "" {
-				return "", "", serviceerrors.NewInvalidArgument("agent name is required", nil)
-			}
-			return agentName, principal.ID, s.authorize(ctx, verb, agentName)
-		}
-	}
-	return s.scope(ctx, verb)
-}
-
-// scope binds memory to the persisted session's agent and owner. Request fields
-// and forwarded headers never select another identity's memory namespace.
-func (s *Service) scope(ctx context.Context, verb auth.Verb) (string, string, error) {
-	if s.store == nil {
-		return "", "", serviceerrors.NewInternal("memory store is not configured", nil)
-	}
-	session, err := runtimeauth.Session(ctx, s.store)
-	if err != nil {
-		return "", "", err
-	}
-	if session.GetAgent().GetNamespace() == "" || session.GetAgent().GetName() == "" || session.Creator == "" {
-		return "", "", serviceerrors.NewPermissionDenied("actor has no memory scope", nil)
-	}
-	agentName := session.Agent.Namespace + "/" + session.Agent.Name
-	return agentName, session.Creator, s.authorize(ctx, verb, agentName)
-}
-
-func (s *Service) authorize(ctx context.Context, verb auth.Verb, agentName string) error {
-	if _, shared := auth.ShareContextFrom(ctx); shared {
-		return serviceerrors.NewPermissionDenied("Session shares do not grant Memory access", nil)
-	}
-	session, ok := auth.AuthSessionFrom(ctx)
-	if !ok {
-		return serviceerrors.NewUnauthenticated("Authenticated identity is required", nil)
-	}
-	if err := s.authorizer.Check(ctx, session.Principal(), verb, auth.Resource{Type: "Memory", Name: agentName}); err != nil {
-		return serviceerrors.NewPermissionDenied("Not authorized to access memory", err)
-	}
-	return nil
-}
-
-func (s *Service) toMemory(input Input, agentName, userID string) (*database.Memory, error) {
+func (s *Service) toMemory(input Input, scope *runtimev1.MemoryScope, userID string) (*database.Memory, error) {
 	metadata := input.Metadata
 	if len(metadata) == 0 {
 		metadata = json.RawMessage("{}")
@@ -269,16 +231,20 @@ func (s *Service) toMemory(input Input, agentName, userID string) (*database.Mem
 	}
 	expiresAt := s.now().Add(time.Duration(ttlDays) * 24 * time.Hour)
 	return &database.Memory{
-		AgentName: agentName,
-		UserID:    userID,
-		Content:   input.Content,
-		Embedding: pgvector.NewVector(input.Vector),
-		Metadata:  string(metadata),
-		ExpiresAt: &expiresAt,
+		AgentName:     scope.GetAgentName(),
+		TeamNamespace: scope.GetTeamNamespace(),
+		UserID:        userID,
+		Content:       input.Content,
+		Embedding:     pgvector.NewVector(input.Vector),
+		Metadata:      string(metadata),
+		ExpiresAt:     &expiresAt,
 	}, nil
 }
 
 func validateVector(vector []float32) error {
+	if !finiteVector(vector) {
+		return serviceerrors.NewInvalidArgument("vector values must be finite", nil)
+	}
 	if len(vector) != VectorDimension {
 		return serviceerrors.NewInvalidArgument(
 			fmt.Sprintf("vector must have exactly %d dimensions, got %d", VectorDimension, len(vector)),

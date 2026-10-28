@@ -27,7 +27,7 @@ func (s *memoryServer) AddSession(ctx context.Context, request *runtimev1.Memory
 	if err != nil {
 		return nil, err
 	}
-	input.AgentName = request.GetManagementAgent()
+	input.Scope = request.GetScope()
 	id, err := s.service.Add(ctx, input)
 	if err != nil {
 		return nil, err
@@ -42,7 +42,7 @@ func (s *memoryServer) AddSessionBatch(ctx context.Context, request *runtimev1.M
 		if err != nil {
 			return nil, err
 		}
-		input.AgentName = request.GetManagementAgent()
+		input.Scope = request.GetScope()
 		inputs = append(inputs, input)
 	}
 	count, err := s.service.AddBatch(ctx, inputs)
@@ -54,10 +54,11 @@ func (s *memoryServer) AddSessionBatch(ctx context.Context, request *runtimev1.M
 
 func (s *memoryServer) Search(ctx context.Context, request *runtimev1.MemoryServiceSearchRequest) (*runtimev1.MemoryServiceSearchResponse, error) {
 	results, err := s.service.Search(ctx, memoryservice.SearchRequest{
-		AgentName: request.GetManagementAgent(),
-		Vector:    request.GetVector(),
-		Limit:     int(request.GetLimit()),
-		MinScore:  request.GetMinScore(),
+		Scope:    request.GetScope(),
+		Query:    request.GetQuery(),
+		Vector:   request.GetVector(),
+		Limit:    int(request.GetLimit()),
+		MinScore: request.GetMinScore(),
 	})
 	if err != nil {
 		return nil, err
@@ -84,7 +85,7 @@ func (s *memoryServer) Search(ctx context.Context, request *runtimev1.MemoryServ
 }
 
 func (s *memoryServer) List(ctx context.Context, request *runtimev1.MemoryServiceListRequest) (*runtimev1.MemoryServiceListResponse, error) {
-	results, err := s.service.List(ctx, request.GetAgentName())
+	results, err := s.service.List(ctx, request.GetScope())
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +98,7 @@ func (s *memoryServer) List(ctx context.Context, request *runtimev1.MemoryServic
 }
 
 func (s *memoryServer) Delete(ctx context.Context, request *runtimev1.MemoryServiceDeleteRequest) (*runtimev1.MemoryServiceDeleteResponse, error) {
-	if err := s.service.Delete(ctx, request.GetAgentName()); err != nil {
+	if err := s.service.Delete(ctx, request.GetScope()); err != nil {
 		return nil, err
 	}
 	return &runtimev1.MemoryServiceDeleteResponse{Status: "deleted"}, nil

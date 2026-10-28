@@ -4,6 +4,7 @@ package kagent.config.v1;
 
 import "buf/validate/validate.proto";
 import "google/protobuf/duration.proto";
+import "kagent/api/v1/common.proto";
 
 option go_package = "github.com/kagent-dev/kagent/go/api/gen/kagent/config/v1;configv1";
 
@@ -112,6 +113,15 @@ message ControllerConfig {
   RuntimeDefaultsConfig runtime_defaults = 13;
   HarnessImagesConfig harness_images = 14;
   PushConfig push = 15;
+  MemoryConfig memory = 16;
+}
+
+// MemoryConfig selects the control-plane embedding integration.
+message MemoryConfig {
+  // OpenAI-compatible embedding model. Credentials come from its Secret reference.
+  kagent.api.v1.ResourceReference model_config = 1;
+  // Projected service credential for ModelConfigs using tokenPassthrough.
+  string bearer_token_file = 2;
 }
 
 // HarnessImagesConfig supplies release defaults for built-in Harnesses. Empty

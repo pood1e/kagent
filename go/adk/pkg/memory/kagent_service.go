@@ -26,12 +26,14 @@ import (
 type KagentMemoryService struct {
 	controllerClient *controllerclient.Client
 	ttlDays          int64
+	scope            *runtimev1.MemoryScope
 	embeddingClient  *embedding.Client
 	model            adkmodel.LLM // Optional: for session summarization
 }
 
 // Config for creating a new KagentMemoryService.
 type Config struct {
+	TeamNamespace string
 	// ControllerClient is the shared authenticated native gRPC client.
 	ControllerClient *controllerclient.Client
 	// TTLDays is the TTL for memory entries in days (0 uses server default of 15)
@@ -58,7 +60,12 @@ func New(cfg Config) (*KagentMemoryService, error) {
 		return nil, fmt.Errorf("failed to create embedding client: %w", err)
 	}
 
+	var scope *runtimev1.MemoryScope
+	if cfg.TeamNamespace != "" {
+		scope = &runtimev1.MemoryScope{Target: &runtimev1.MemoryScope_TeamNamespace{TeamNamespace: cfg.TeamNamespace}}
+	}
 	return &KagentMemoryService{
+		scope:            scope,
 		controllerClient: cfg.ControllerClient,
 		ttlDays:          cfg.TTLDays,
 		embeddingClient:  embClient,
@@ -133,7 +140,7 @@ func (s *KagentMemoryService) storeMemory(ctx context.Context, content string, v
 
 	callContext, cancel := s.controllerClient.CallContext(ctx, userID)
 	defer cancel()
-	_, err = s.controllerClient.MemoryService().AddSession(callContext, &runtimev1.MemoryServiceAddSessionRequest{Memory: memoryInput})
+	_, err = s.controllerClient.MemoryService().AddSession(callContext, &runtimev1.MemoryServiceAddSessionRequest{Memory: memoryInput, Scope: s.scope})
 	if err != nil {
 		return fmt.Errorf("add session memory: %w", err)
 	}
@@ -172,6 +179,7 @@ func (s *KagentMemoryService) SearchMemory(ctx context.Context, req *memory.Sear
 
 	// Prepare API request
 	searchRequest := &runtimev1.MemoryServiceSearchRequest{
+		Scope:    s.scope,
 		Vector:   vector,
 		Limit:    new(int32(5)),
 		MinScore: new(0.3),

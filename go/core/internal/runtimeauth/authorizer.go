@@ -57,6 +57,8 @@ func runtimeResourceAllowed(session *apiv1.Session, verb auth.Verb, resource aut
 	case "TaskStore":
 		return resource.Name == session.Id && resource.Namespace == session.GetAgent().GetNamespace() &&
 			(verb == auth.VerbGet || verb == auth.VerbList || verb == auth.VerbCreate || verb == auth.VerbUpdate)
+	case "TeamMemory":
+		return resource.Namespace == session.GetAgent().GetNamespace() && resource.Name == "" && (verb == auth.VerbGet || verb == auth.VerbList || verb == auth.VerbCreate || verb == auth.VerbDelete)
 	case "Memory":
 		if resource.Name == session.GetAgent().GetNamespace()+"/"+session.GetAgent().GetName() &&
 			(verb == auth.VerbGet || verb == auth.VerbList || verb == auth.VerbCreate || verb == auth.VerbDelete) {

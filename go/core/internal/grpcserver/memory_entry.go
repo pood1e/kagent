@@ -7,7 +7,7 @@ import (
 )
 
 func (s *memoryServer) DeleteEntry(ctx context.Context, request *runtimev1.MemoryServiceDeleteEntryRequest) (*runtimev1.MemoryServiceDeleteEntryResponse, error) {
-	if err := s.service.DeleteEntry(ctx, request.GetAgentName(), request.GetId()); err != nil {
+	if err := s.service.DeleteEntry(ctx, request.GetScope(), request.GetId()); err != nil {
 		return nil, err
 	}
 	return &runtimev1.MemoryServiceDeleteEntryResponse{}, nil

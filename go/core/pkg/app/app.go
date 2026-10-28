@@ -341,7 +341,10 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 	tools := toolservice.NewService(manager.GetClient(), store, authorizer, resourceNamespace, mcpClient)
 	prompts := prompttemplateservice.NewService(manager.GetClient(), authorizer)
 	system := systemservice.NewService(manager.GetClient(), watchNamespaces, authorizer, actors)
-	memory := memoryservice.NewService(store, authorizer)
+	memory := memoryservice.NewService(store, authorizer, memoryservice.WithEmbedder(&memoryservice.ModelEmbedder{
+		Kube: manager.GetAPIReader(), Model: cfg.GetMemory().GetModelConfig(),
+		BearerTokenFile: cfg.GetMemory().GetBearerTokenFile(),
+	}))
 	quiescenceWake := make(chan struct{}, 1)
 	pushWake := make(chan struct{}, 1)
 	sessionWorkflow := sessionsvc.NewActorWorkflow(store, actors, quiescenceWake, quiescenceInterval)

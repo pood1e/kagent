@@ -22,12 +22,12 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
+from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 from google.protobuf import struct_pb2 as google_dot_protobuf_dot_struct__pb2
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
-from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1ekagent/runtime/v1/memory.proto\x12\x11kagent.runtime.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1b\x62uf/validate/validate.proto\"\xc9\x01\n\x12SessionMemoryInput\x12\x18\n\x07\x63ontent\x18\x03 \x01(\tR\x07\x63ontent\x12\x16\n\x06vector\x18\x04 \x03(\x02R\x06vector\x12\x33\n\x08metadata\x18\x05 \x01(\x0b\x32\x17.google.protobuf.StructR\x08metadata\x12\x1e\n\x08ttl_days\x18\x06 \x01(\x05H\x00R\x07ttlDays\x88\x01\x01\x42\x0b\n\t_ttl_daysJ\x04\x08\x01\x10\x02J\x04\x08\x02\x10\x03R\nagent_nameR\x07user_id\"\xc4\x01\n\x12MemorySearchResult\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n\x07\x63ontent\x18\x02 \x01(\tR\x07\x63ontent\x12\x14\n\x05score\x18\x03 \x01(\x01R\x05score\x12\x33\n\x08metadata\x18\x04 \x01(\x0b\x32\x17.google.protobuf.StructR\x08metadata\x12\x39\n\ncreated_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\"\xd2\x01\n\rMemorySummary\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n\x07\x63ontent\x18\x02 \x01(\tR\x07\x63ontent\x12!\n\x0c\x61\x63\x63\x65ss_count\x18\x03 \x01(\x03R\x0b\x61\x63\x63\x65ssCount\x12\x39\n\ncreated_at\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x39\n\nexpires_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\texpiresAt\"\x8a\x01\n\x1eMemoryServiceAddSessionRequest\x12=\n\x06memory\x18\x01 \x01(\x0b\x32%.kagent.runtime.v1.SessionMemoryInputR\x06memory\x12)\n\x10management_agent\x18\x02 \x01(\tR\x0fmanagementAgent\"1\n\x1fMemoryServiceAddSessionResponse\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"\x8d\x01\n#MemoryServiceAddSessionBatchRequest\x12;\n\x05items\x18\x01 \x03(\x0b\x32%.kagent.runtime.v1.SessionMemoryInputR\x05items\x12)\n\x10management_agent\x18\x02 \x01(\tR\x0fmanagementAgent\"<\n$MemoryServiceAddSessionBatchResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x05R\x05\x63ount\"\xd5\x01\n\x1aMemoryServiceSearchRequest\x12\x16\n\x06vector\x18\x03 \x03(\x02R\x06vector\x12\x19\n\x05limit\x18\x04 \x01(\x05H\x00R\x05limit\x88\x01\x01\x12 \n\tmin_score\x18\x05 \x01(\x01H\x01R\x08minScore\x88\x01\x01\x12)\n\x10management_agent\x18\x06 \x01(\tR\x0fmanagementAgentB\x08\n\x06_limitB\x0c\n\n_min_scoreJ\x04\x08\x01\x10\x02J\x04\x08\x02\x10\x03R\nagent_nameR\x07user_id\"`\n\x1bMemoryServiceSearchResponse\x12\x41\n\x08memories\x18\x01 \x03(\x0b\x32%.kagent.runtime.v1.MemorySearchResultR\x08memories\"H\n\x18MemoryServiceListRequest\x12\x1d\n\nagent_name\x18\x01 \x01(\tR\tagentNameJ\x04\x08\x02\x10\x03R\x07user_id\"Y\n\x19MemoryServiceListResponse\x12<\n\x08memories\x18\x01 \x03(\x0b\x32 .kagent.runtime.v1.MemorySummaryR\x08memories\"J\n\x1aMemoryServiceDeleteRequest\x12\x1d\n\nagent_name\x18\x01 \x01(\tR\tagentNameJ\x04\x08\x02\x10\x03R\x07user_id\"5\n\x1bMemoryServiceDeleteResponse\x12\x16\n\x06status\x18\x01 \x01(\tR\x06status\"\\\n\x1fMemoryServiceDeleteEntryRequest\x12\x1d\n\nagent_name\x18\x01 \x01(\tR\tagentName\x12\x1a\n\x02id\x18\x02 \x01(\tB\n\xbaH\x07r\x05\x10\x01\x18\x80\x02R\x02id\"\"\n MemoryServiceDeleteEntryResponse2\xb6\x05\n\rMemoryService\x12s\n\nAddSession\x12\x31.kagent.runtime.v1.MemoryServiceAddSessionRequest\x1a\x32.kagent.runtime.v1.MemoryServiceAddSessionResponse\x12\x82\x01\n\x0f\x41\x64\x64SessionBatch\x12\x36.kagent.runtime.v1.MemoryServiceAddSessionBatchRequest\x1a\x37.kagent.runtime.v1.MemoryServiceAddSessionBatchResponse\x12g\n\x06Search\x12-.kagent.runtime.v1.MemoryServiceSearchRequest\x1a..kagent.runtime.v1.MemoryServiceSearchResponse\x12\x61\n\x04List\x12+.kagent.runtime.v1.MemoryServiceListRequest\x1a,.kagent.runtime.v1.MemoryServiceListResponse\x12g\n\x06\x44\x65lete\x12-.kagent.runtime.v1.MemoryServiceDeleteRequest\x1a..kagent.runtime.v1.MemoryServiceDeleteResponse\x12v\n\x0b\x44\x65leteEntry\x12\x32.kagent.runtime.v1.MemoryServiceDeleteEntryRequest\x1a\x33.kagent.runtime.v1.MemoryServiceDeleteEntryResponseBEZCgithub.com/kagent-dev/kagent/go/api/gen/kagent/runtime/v1;runtimev1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1ekagent/runtime/v1/memory.proto\x12\x11kagent.runtime.v1\x1a\x1b\x62uf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9d\x01\n\x0bMemoryScope\x12(\n\nagent_name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01H\x00R\tagentName\x12S\n\x0eteam_namespace\x18\x02 \x01(\tB*\xbaH\'r%\x10\x01\x18?2\x1f^[a-z0-9]([-a-z0-9]*[a-z0-9])?$H\x00R\rteamNamespaceB\x0f\n\x06target\x12\x05\xbaH\x02\x08\x01\"\xf8\x02\n\x12SessionMemoryInput\x12%\n\x07\x63ontent\x18\x03 \x01(\tB\x0b\xbaH\x08r\x06\x10\x01\x18\x80\x80\x02R\x07\x63ontent\x12$\n\x06vector\x18\x04 \x03(\x02\x42\x0c\xbaH\t\x92\x01\x06\"\x04\n\x02@\x01R\x06vector\x12\x33\n\x08metadata\x18\x05 \x01(\x0b\x32\x17.google.protobuf.StructR\x08metadata\x12+\n\x08ttl_days\x18\x06 \x01(\x05\x42\x0b\xbaH\x08\x1a\x06\x18\x94\x9d\x02(\x01H\x00R\x07ttlDays\x88\x01\x01:\x84\x01\xbaH\x80\x01\x1a~\n\x18memory.vector_dimensions\x12.vector must be empty or contain 768 dimensions\x1a\x32size(this.vector) == 0 || size(this.vector) == 768B\x0b\n\t_ttl_daysJ\x04\x08\x01\x10\x02J\x04\x08\x02\x10\x03R\nagent_nameR\x07user_id\"\xc4\x01\n\x12MemorySearchResult\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n\x07\x63ontent\x18\x02 \x01(\tR\x07\x63ontent\x12\x14\n\x05score\x18\x03 \x01(\x01R\x05score\x12\x33\n\x08metadata\x18\x04 \x01(\x0b\x32\x17.google.protobuf.StructR\x08metadata\x12\x39\n\ncreated_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\"\xd2\x01\n\rMemorySummary\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n\x07\x63ontent\x18\x02 \x01(\tR\x07\x63ontent\x12!\n\x0c\x61\x63\x63\x65ss_count\x18\x03 \x01(\x03R\x0b\x61\x63\x63\x65ssCount\x12\x39\n\ncreated_at\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x39\n\nexpires_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\texpiresAt\"\xb5\x01\n\x1eMemoryServiceAddSessionRequest\x12\x45\n\x06memory\x18\x01 \x01(\x0b\x32%.kagent.runtime.v1.SessionMemoryInputB\x06\xbaH\x03\xc8\x01\x01R\x06memory\x12\x34\n\x05scope\x18\x03 \x01(\x0b\x32\x1e.kagent.runtime.v1.MemoryScopeR\x05scopeJ\x04\x08\x02\x10\x03R\x10management_agent\"1\n\x1fMemoryServiceAddSessionResponse\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"\xbc\x01\n#MemoryServiceAddSessionBatchRequest\x12G\n\x05items\x18\x01 \x03(\x0b\x32%.kagent.runtime.v1.SessionMemoryInputB\n\xbaH\x07\x92\x01\x04\x08\x01\x10\x32R\x05items\x12\x34\n\x05scope\x18\x03 \x01(\x0b\x32\x1e.kagent.runtime.v1.MemoryScopeR\x05scopeJ\x04\x08\x02\x10\x03R\x10management_agent\"<\n$MemoryServiceAddSessionBatchResponse\x12\x14\n\x05\x63ount\x18\x01 \x01(\x05R\x05\x63ount\"\x84\x04\n\x1aMemoryServiceSearchRequest\x12$\n\x06vector\x18\x03 \x03(\x02\x42\x0c\xbaH\t\x92\x01\x06\"\x04\n\x02@\x01R\x06vector\x12$\n\x05limit\x18\x04 \x01(\x05\x42\t\xbaH\x06\x1a\x04\x18\x64(\x01H\x00R\x05limit\x88\x01\x01\x12;\n\tmin_score\x18\x05 \x01(\x01\x42\x19\xbaH\x16\x12\x14@\x01\x19\x00\x00\x00\x00\x00\x00\xf0?)\x00\x00\x00\x00\x00\x00\xf0\xbfH\x01R\x08minScore\x88\x01\x01\x12\x34\n\x05scope\x18\x07 \x01(\x0b\x32\x1e.kagent.runtime.v1.MemoryScopeR\x05scope\x12\x1f\n\x05query\x18\x08 \x01(\tB\t\xbaH\x06r\x04\x18\x80\x80\x02R\x05query:\xb4\x01\xbaH\xb0\x01\x1a\xad\x01\n\x13memory.search_input\x12/supply a text query or a 768-dimensional vector\x1a\x65(size(this.vector) == 768 && this.query == \'\') || (size(this.vector) == 0 && this.query.trim() != \'\')B\x08\n\x06_limitB\x0c\n\n_min_scoreJ\x04\x08\x01\x10\x02J\x04\x08\x02\x10\x03J\x04\x08\x06\x10\x07R\nagent_nameR\x07user_idR\x10management_agent\"`\n\x1bMemoryServiceSearchResponse\x12\x41\n\x08memories\x18\x01 \x03(\x0b\x32%.kagent.runtime.v1.MemorySearchResultR\x08memories\"q\n\x18MemoryServiceListRequest\x12\x34\n\x05scope\x18\x03 \x01(\x0b\x32\x1e.kagent.runtime.v1.MemoryScopeR\x05scopeJ\x04\x08\x02\x10\x03J\x04\x08\x01\x10\x02R\x07user_idR\nagent_name\"Y\n\x19MemoryServiceListResponse\x12<\n\x08memories\x18\x01 \x03(\x0b\x32 .kagent.runtime.v1.MemorySummaryR\x08memories\"s\n\x1aMemoryServiceDeleteRequest\x12\x34\n\x05scope\x18\x03 \x01(\x0b\x32\x1e.kagent.runtime.v1.MemoryScopeR\x05scopeJ\x04\x08\x02\x10\x03J\x04\x08\x01\x10\x02R\x07user_idR\nagent_name\"5\n\x1bMemoryServiceDeleteResponse\x12\x16\n\x06status\x18\x01 \x01(\tR\x06status\"\x85\x01\n\x1fMemoryServiceDeleteEntryRequest\x12\x34\n\x05scope\x18\x03 \x01(\x0b\x32\x1e.kagent.runtime.v1.MemoryScopeR\x05scope\x12\x1a\n\x02id\x18\x02 \x01(\tB\n\xbaH\x07r\x05\x10\x01\x18\x80\x02R\x02idJ\x04\x08\x01\x10\x02R\nagent_name\"\"\n MemoryServiceDeleteEntryResponse2\xb6\x05\n\rMemoryService\x12s\n\nAddSession\x12\x31.kagent.runtime.v1.MemoryServiceAddSessionRequest\x1a\x32.kagent.runtime.v1.MemoryServiceAddSessionResponse\x12\x82\x01\n\x0f\x41\x64\x64SessionBatch\x12\x36.kagent.runtime.v1.MemoryServiceAddSessionBatchRequest\x1a\x37.kagent.runtime.v1.MemoryServiceAddSessionBatchResponse\x12g\n\x06Search\x12-.kagent.runtime.v1.MemoryServiceSearchRequest\x1a..kagent.runtime.v1.MemoryServiceSearchResponse\x12\x61\n\x04List\x12+.kagent.runtime.v1.MemoryServiceListRequest\x1a,.kagent.runtime.v1.MemoryServiceListResponse\x12g\n\x06\x44\x65lete\x12-.kagent.runtime.v1.MemoryServiceDeleteRequest\x1a..kagent.runtime.v1.MemoryServiceDeleteResponse\x12v\n\x0b\x44\x65leteEntry\x12\x32.kagent.runtime.v1.MemoryServiceDeleteEntryRequest\x1a\x33.kagent.runtime.v1.MemoryServiceDeleteEntryResponseBEZCgithub.com/kagent-dev/kagent/go/api/gen/kagent/runtime/v1;runtimev1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,38 +35,68 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'kagent.runtime.v1.memory_pb
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZCgithub.com/kagent-dev/kagent/go/api/gen/kagent/runtime/v1;runtimev1'
+  _globals['_MEMORYSCOPE'].oneofs_by_name['target']._loaded_options = None
+  _globals['_MEMORYSCOPE'].oneofs_by_name['target']._serialized_options = b'\272H\002\010\001'
+  _globals['_MEMORYSCOPE'].fields_by_name['agent_name']._loaded_options = None
+  _globals['_MEMORYSCOPE'].fields_by_name['agent_name']._serialized_options = b'\272H\004r\002\020\001'
+  _globals['_MEMORYSCOPE'].fields_by_name['team_namespace']._loaded_options = None
+  _globals['_MEMORYSCOPE'].fields_by_name['team_namespace']._serialized_options = b'\272H\'r%\020\001\030?2\037^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
+  _globals['_SESSIONMEMORYINPUT'].fields_by_name['content']._loaded_options = None
+  _globals['_SESSIONMEMORYINPUT'].fields_by_name['content']._serialized_options = b'\272H\010r\006\020\001\030\200\200\002'
+  _globals['_SESSIONMEMORYINPUT'].fields_by_name['vector']._loaded_options = None
+  _globals['_SESSIONMEMORYINPUT'].fields_by_name['vector']._serialized_options = b'\272H\t\222\001\006\"\004\n\002@\001'
+  _globals['_SESSIONMEMORYINPUT'].fields_by_name['ttl_days']._loaded_options = None
+  _globals['_SESSIONMEMORYINPUT'].fields_by_name['ttl_days']._serialized_options = b'\272H\010\032\006\030\224\235\002(\001'
+  _globals['_SESSIONMEMORYINPUT']._loaded_options = None
+  _globals['_SESSIONMEMORYINPUT']._serialized_options = b'\272H\200\001\032~\n\030memory.vector_dimensions\022.vector must be empty or contain 768 dimensions\0322size(this.vector) == 0 || size(this.vector) == 768'
+  _globals['_MEMORYSERVICEADDSESSIONREQUEST'].fields_by_name['memory']._loaded_options = None
+  _globals['_MEMORYSERVICEADDSESSIONREQUEST'].fields_by_name['memory']._serialized_options = b'\272H\003\310\001\001'
+  _globals['_MEMORYSERVICEADDSESSIONBATCHREQUEST'].fields_by_name['items']._loaded_options = None
+  _globals['_MEMORYSERVICEADDSESSIONBATCHREQUEST'].fields_by_name['items']._serialized_options = b'\272H\007\222\001\004\010\001\0202'
+  _globals['_MEMORYSERVICESEARCHREQUEST'].fields_by_name['vector']._loaded_options = None
+  _globals['_MEMORYSERVICESEARCHREQUEST'].fields_by_name['vector']._serialized_options = b'\272H\t\222\001\006\"\004\n\002@\001'
+  _globals['_MEMORYSERVICESEARCHREQUEST'].fields_by_name['limit']._loaded_options = None
+  _globals['_MEMORYSERVICESEARCHREQUEST'].fields_by_name['limit']._serialized_options = b'\272H\006\032\004\030d(\001'
+  _globals['_MEMORYSERVICESEARCHREQUEST'].fields_by_name['min_score']._loaded_options = None
+  _globals['_MEMORYSERVICESEARCHREQUEST'].fields_by_name['min_score']._serialized_options = b'\272H\026\022\024@\001\031\000\000\000\000\000\000\360?)\000\000\000\000\000\000\360\277'
+  _globals['_MEMORYSERVICESEARCHREQUEST'].fields_by_name['query']._loaded_options = None
+  _globals['_MEMORYSERVICESEARCHREQUEST'].fields_by_name['query']._serialized_options = b'\272H\006r\004\030\200\200\002'
+  _globals['_MEMORYSERVICESEARCHREQUEST']._loaded_options = None
+  _globals['_MEMORYSERVICESEARCHREQUEST']._serialized_options = b'\272H\260\001\032\255\001\n\023memory.search_input\022/supply a text query or a 768-dimensional vector\032e(size(this.vector) == 768 && this.query == \'\') || (size(this.vector) == 0 && this.query.trim() != \'\')'
   _globals['_MEMORYSERVICEDELETEENTRYREQUEST'].fields_by_name['id']._loaded_options = None
   _globals['_MEMORYSERVICEDELETEENTRYREQUEST'].fields_by_name['id']._serialized_options = b'\272H\007r\005\020\001\030\200\002'
-  _globals['_SESSIONMEMORYINPUT']._serialized_start=146
-  _globals['_SESSIONMEMORYINPUT']._serialized_end=347
-  _globals['_MEMORYSEARCHRESULT']._serialized_start=350
-  _globals['_MEMORYSEARCHRESULT']._serialized_end=546
-  _globals['_MEMORYSUMMARY']._serialized_start=549
-  _globals['_MEMORYSUMMARY']._serialized_end=759
-  _globals['_MEMORYSERVICEADDSESSIONREQUEST']._serialized_start=762
-  _globals['_MEMORYSERVICEADDSESSIONREQUEST']._serialized_end=900
-  _globals['_MEMORYSERVICEADDSESSIONRESPONSE']._serialized_start=902
-  _globals['_MEMORYSERVICEADDSESSIONRESPONSE']._serialized_end=951
-  _globals['_MEMORYSERVICEADDSESSIONBATCHREQUEST']._serialized_start=954
-  _globals['_MEMORYSERVICEADDSESSIONBATCHREQUEST']._serialized_end=1095
-  _globals['_MEMORYSERVICEADDSESSIONBATCHRESPONSE']._serialized_start=1097
-  _globals['_MEMORYSERVICEADDSESSIONBATCHRESPONSE']._serialized_end=1157
-  _globals['_MEMORYSERVICESEARCHREQUEST']._serialized_start=1160
-  _globals['_MEMORYSERVICESEARCHREQUEST']._serialized_end=1373
-  _globals['_MEMORYSERVICESEARCHRESPONSE']._serialized_start=1375
-  _globals['_MEMORYSERVICESEARCHRESPONSE']._serialized_end=1471
-  _globals['_MEMORYSERVICELISTREQUEST']._serialized_start=1473
-  _globals['_MEMORYSERVICELISTREQUEST']._serialized_end=1545
-  _globals['_MEMORYSERVICELISTRESPONSE']._serialized_start=1547
-  _globals['_MEMORYSERVICELISTRESPONSE']._serialized_end=1636
-  _globals['_MEMORYSERVICEDELETEREQUEST']._serialized_start=1638
-  _globals['_MEMORYSERVICEDELETEREQUEST']._serialized_end=1712
-  _globals['_MEMORYSERVICEDELETERESPONSE']._serialized_start=1714
-  _globals['_MEMORYSERVICEDELETERESPONSE']._serialized_end=1767
-  _globals['_MEMORYSERVICEDELETEENTRYREQUEST']._serialized_start=1769
-  _globals['_MEMORYSERVICEDELETEENTRYREQUEST']._serialized_end=1861
-  _globals['_MEMORYSERVICEDELETEENTRYRESPONSE']._serialized_start=1863
-  _globals['_MEMORYSERVICEDELETEENTRYRESPONSE']._serialized_end=1897
-  _globals['_MEMORYSERVICE']._serialized_start=1900
-  _globals['_MEMORYSERVICE']._serialized_end=2594
+  _globals['_MEMORYSCOPE']._serialized_start=146
+  _globals['_MEMORYSCOPE']._serialized_end=303
+  _globals['_SESSIONMEMORYINPUT']._serialized_start=306
+  _globals['_SESSIONMEMORYINPUT']._serialized_end=682
+  _globals['_MEMORYSEARCHRESULT']._serialized_start=685
+  _globals['_MEMORYSEARCHRESULT']._serialized_end=881
+  _globals['_MEMORYSUMMARY']._serialized_start=884
+  _globals['_MEMORYSUMMARY']._serialized_end=1094
+  _globals['_MEMORYSERVICEADDSESSIONREQUEST']._serialized_start=1097
+  _globals['_MEMORYSERVICEADDSESSIONREQUEST']._serialized_end=1278
+  _globals['_MEMORYSERVICEADDSESSIONRESPONSE']._serialized_start=1280
+  _globals['_MEMORYSERVICEADDSESSIONRESPONSE']._serialized_end=1329
+  _globals['_MEMORYSERVICEADDSESSIONBATCHREQUEST']._serialized_start=1332
+  _globals['_MEMORYSERVICEADDSESSIONBATCHREQUEST']._serialized_end=1520
+  _globals['_MEMORYSERVICEADDSESSIONBATCHRESPONSE']._serialized_start=1522
+  _globals['_MEMORYSERVICEADDSESSIONBATCHRESPONSE']._serialized_end=1582
+  _globals['_MEMORYSERVICESEARCHREQUEST']._serialized_start=1585
+  _globals['_MEMORYSERVICESEARCHREQUEST']._serialized_end=2101
+  _globals['_MEMORYSERVICESEARCHRESPONSE']._serialized_start=2103
+  _globals['_MEMORYSERVICESEARCHRESPONSE']._serialized_end=2199
+  _globals['_MEMORYSERVICELISTREQUEST']._serialized_start=2201
+  _globals['_MEMORYSERVICELISTREQUEST']._serialized_end=2314
+  _globals['_MEMORYSERVICELISTRESPONSE']._serialized_start=2316
+  _globals['_MEMORYSERVICELISTRESPONSE']._serialized_end=2405
+  _globals['_MEMORYSERVICEDELETEREQUEST']._serialized_start=2407
+  _globals['_MEMORYSERVICEDELETEREQUEST']._serialized_end=2522
+  _globals['_MEMORYSERVICEDELETERESPONSE']._serialized_start=2524
+  _globals['_MEMORYSERVICEDELETERESPONSE']._serialized_end=2577
+  _globals['_MEMORYSERVICEDELETEENTRYREQUEST']._serialized_start=2580
+  _globals['_MEMORYSERVICEDELETEENTRYREQUEST']._serialized_end=2713
+  _globals['_MEMORYSERVICEDELETEENTRYRESPONSE']._serialized_start=2715
+  _globals['_MEMORYSERVICEDELETEENTRYRESPONSE']._serialized_end=2749
+  _globals['_MEMORYSERVICE']._serialized_start=2752
+  _globals['_MEMORYSERVICE']._serialized_end=3446
 # @@protoc_insertion_point(module_scope)

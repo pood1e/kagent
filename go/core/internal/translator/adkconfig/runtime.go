@@ -129,7 +129,7 @@ func (c *Builder) applyMemory(result *Result, harness *translator.HarnessConfigu
 	if err != nil {
 		return fmt.Errorf("resolve memory ModelConfig %q: %w", name, err)
 	}
-	result.Config.Memory = &configv1.ADKMemoryConfig{TtlDays: int64(memory.TTLDays), Embedding: runtimeconfig.ModelToEmbeddingConfig(model.Model)}
+	result.Config.Memory = &configv1.ADKMemoryConfig{TeamNamespace: memory.TeamNamespace, TtlDays: int64(memory.TTLDays), Embedding: runtimeconfig.ModelToEmbeddingConfig(model.Model)}
 	result.Models = append(result.Models, model.Resolved)
 	result.Environment = append(result.Environment, model.Environment...)
 	result.Egress = append(result.Egress, model.Egress...)

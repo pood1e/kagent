@@ -426,12 +426,14 @@ class ADKEmbeddingConfig(_message.Message):
     def __init__(self, provider: _Optional[str] = ..., model: _Optional[str] = ..., base_url: _Optional[str] = ..., api_key_passthrough: _Optional[bool] = ..., tls_insecure_skip_verify: _Optional[bool] = ..., tls_ca_cert_path: _Optional[str] = ..., tls_disable_system_cas: _Optional[bool] = ..., endpoint: _Optional[str] = ..., deployment: _Optional[str] = ..., api_version: _Optional[str] = ...) -> None: ...
 
 class ADKMemoryConfig(_message.Message):
-    __slots__ = ("ttl_days", "embedding")
+    __slots__ = ("ttl_days", "embedding", "team_namespace")
     TTL_DAYS_FIELD_NUMBER: _ClassVar[int]
     EMBEDDING_FIELD_NUMBER: _ClassVar[int]
+    TEAM_NAMESPACE_FIELD_NUMBER: _ClassVar[int]
     ttl_days: int
     embedding: ADKEmbeddingConfig
-    def __init__(self, ttl_days: _Optional[int] = ..., embedding: _Optional[_Union[ADKEmbeddingConfig, _Mapping]] = ...) -> None: ...
+    team_namespace: str
+    def __init__(self, ttl_days: _Optional[int] = ..., embedding: _Optional[_Union[ADKEmbeddingConfig, _Mapping]] = ..., team_namespace: _Optional[str] = ...) -> None: ...
 
 class ADKNetworkConfig(_message.Message):
     __slots__ = ("allowed_domains",)

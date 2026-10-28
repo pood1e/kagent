@@ -34,7 +34,7 @@ type memoryRPCPolicy struct {
 
 func (p *memoryRPCPolicy) Check(_ context.Context, principal auth.Principal, verb auth.Verb, resource auth.Resource) error {
 	if principal.RuntimeBinding != nil && p.actorsDenied.Load() || principal.RuntimeBinding == nil && p.denied.Load() ||
-		principal.ID == auth.PrincipalID("trusted-proxy:", "blocked") || resource.Type != "Memory" || resource.Namespace != "" {
+		principal.ID == auth.PrincipalID("trusted-proxy:", "blocked") || (resource.Type != "Memory" || resource.Namespace != "") && (resource.Type != "TeamMemory" || resource.Namespace != "team-a") {
 		return errors.New("denied")
 	}
 	if principal.ID == auth.PrincipalID("trusted-proxy:", "viewer") && verb != auth.VerbGet && verb != auth.VerbList {
@@ -59,31 +59,37 @@ func (s *memoryRPCStore) StoreAgentMemories(_ context.Context, memories ...*data
 	for _, memory := range memories {
 		memory.ID = fmt.Sprintf("memory-%d", s.calls)
 		key := memory.AgentName + "/" + memory.UserID
+		if memory.TeamNamespace != "" {
+			key = "team:" + memory.TeamNamespace
+		}
 		s.rows[key] = append(s.rows[key], *memory)
 	}
 	return nil
 }
-func (s *memoryRPCStore) ListAgentMemories(_ context.Context, agent, user string) ([]database.Memory, error) {
+func (s *memoryRPCStore) ListAgentMemories(_ context.Context, scope *runtimev1.MemoryScope, user string) ([]database.Memory, error) {
+	key := memoryPartition(scope, user)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.calls++
-	return append([]database.Memory(nil), s.rows[agent+"/"+user]...), nil
+	return append([]database.Memory(nil), s.rows[key]...), nil
 }
-func (s *memoryRPCStore) SearchAgentMemory(_ context.Context, agent, user string, _ pgvector.Vector, _ int) ([]database.AgentMemorySearchResult, error) {
+func (s *memoryRPCStore) SearchAgentMemory(_ context.Context, scope *runtimev1.MemoryScope, user string, _ pgvector.Vector, _ int) ([]database.AgentMemorySearchResult, error) {
+	key := memoryPartition(scope, user)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.calls++
 	var rows []database.AgentMemorySearchResult
-	for _, memory := range s.rows[agent+"/"+user] {
+	for _, memory := range s.rows[key] {
 		rows = append(rows, database.AgentMemorySearchResult{Memory: memory, Score: 1})
 	}
 	return rows, nil
 }
-func (s *memoryRPCStore) DeleteAgentMemory(_ context.Context, agent, user string) error {
+func (s *memoryRPCStore) DeleteAgentMemory(_ context.Context, scope *runtimev1.MemoryScope, user string) error {
+	key := memoryPartition(scope, user)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.calls++
-	delete(s.rows, agent+"/"+user)
+	delete(s.rows, key)
 	return nil
 }
 func (s *memoryRPCStore) GetSessionForRuntime(_ context.Context, id, uid string) (*apiv1.Session, error) {
@@ -100,15 +106,15 @@ func memoryVector() []float32            { v := make([]float32, memorysvc.Vector
 func memoryUserContext(t *testing.T, user string) context.Context {
 	t.Helper()
 	// The trusted proxy authenticates these claims before forwarding to Kagent.
-	token := "Bearer e30." + base64.RawURLEncoding.EncodeToString([]byte(fmt.Sprintf(`{"sub":%q}`, user))) + ".signature"
+	token := "Bearer eyJhbGciOiJSUzI1NiJ9." + base64.RawURLEncoding.EncodeToString([]byte(fmt.Sprintf(`{"sub":%q}`, user))) + ".c2lnbmF0dXJl"
 	return metadata.NewOutgoingContext(t.Context(), metadata.Pairs("authorization", token, "x-user-id", "forged-header"))
 }
 
 func TestHumanMemoryPermissionsAndPartitionsThroughGeneratedClient(t *testing.T) {
 	store := &memoryRPCStore{rows: map[string][]database.Memory{
-		"agent/alice": {{ID: "alice-memory", Content: "private"}},
-		"agent/bob":   {{ID: "bob-memory", Content: "bob private"}},
-		"other/alice": {{ID: "other-agent", Content: "other Agent"}},
+		"agent/" + auth.PrincipalID("trusted-proxy:", "alice"): {{ID: "alice-memory", Content: "private"}},
+		"agent/" + auth.PrincipalID("trusted-proxy:", "bob"):   {{ID: "bob-memory", Content: "bob private"}},
+		"other/" + auth.PrincipalID("trusted-proxy:", "alice"): {{ID: "other-agent", Content: "other Agent"}},
 	}}
 	policy := &memoryRPCPolicy{}
 	issuer := jwttest.New(t)
@@ -124,29 +130,29 @@ func TestHumanMemoryPermissionsAndPartitionsThroughGeneratedClient(t *testing.T)
 		return memoryUserContext(t, user)
 	}
 	// Authenticated users select only their own partition, including with no live Session.
-	rows, err := client.List(caller("alice"), &runtimev1.MemoryServiceListRequest{AgentName: "agent"})
+	rows, err := client.List(caller("alice"), &runtimev1.MemoryServiceListRequest{Scope: personalMemoryScope("agent")})
 	require.NoError(t, err)
 	require.Len(t, rows.Memories, 1)
 	require.Equal(t, "alice-memory", rows.Memories[0].Id)
-	created, err := client.AddSession(caller("alice"), &runtimev1.MemoryServiceAddSessionRequest{ManagementAgent: "team/knowledge", Memory: &runtimev1.SessionMemoryInput{Content: "managed", Vector: memoryVector()}})
+	created, err := client.AddSession(caller("alice"), &runtimev1.MemoryServiceAddSessionRequest{Scope: personalMemoryScope("team/knowledge"), Memory: &runtimev1.SessionMemoryInput{Content: "managed", Vector: memoryVector()}})
 	require.NoError(t, err)
-	_, err = client.AddSessionBatch(caller("alice"), &runtimev1.MemoryServiceAddSessionBatchRequest{ManagementAgent: "team/knowledge", Items: []*runtimev1.SessionMemoryInput{{Content: "keep", Vector: memoryVector()}}})
+	_, err = client.AddSessionBatch(caller("alice"), &runtimev1.MemoryServiceAddSessionBatchRequest{Scope: personalMemoryScope("team/knowledge"), Items: []*runtimev1.SessionMemoryInput{{Content: "keep", Vector: memoryVector()}}})
 	require.NoError(t, err)
-	found, err := client.Search(caller("alice"), &runtimev1.MemoryServiceSearchRequest{ManagementAgent: "team/knowledge", Vector: memoryVector()})
+	found, err := client.Search(caller("alice"), &runtimev1.MemoryServiceSearchRequest{Scope: personalMemoryScope("team/knowledge"), Vector: memoryVector()})
 	require.NoError(t, err)
 	require.Len(t, found.Memories, 2)
 	for _, denied := range []struct{ user, agent string }{{"bob", "team/knowledge"}, {"alice", "foreign/agent"}} {
-		_, err = client.DeleteEntry(caller(denied.user), &runtimev1.MemoryServiceDeleteEntryRequest{AgentName: denied.agent, Id: created.Id})
+		_, err = client.DeleteEntry(caller(denied.user), &runtimev1.MemoryServiceDeleteEntryRequest{Scope: personalMemoryScope(denied.agent), Id: created.Id})
 		assertGRPCCode(t, err, codes.NotFound)
 	}
-	_, err = client.DeleteEntry(caller("alice"), &runtimev1.MemoryServiceDeleteEntryRequest{AgentName: "team/knowledge", Id: created.Id})
+	_, err = client.DeleteEntry(caller("alice"), &runtimev1.MemoryServiceDeleteEntryRequest{Scope: personalMemoryScope("team/knowledge"), Id: created.Id})
 	require.NoError(t, err)
-	found, err = client.Search(caller("alice"), &runtimev1.MemoryServiceSearchRequest{ManagementAgent: "team/knowledge", Vector: memoryVector()})
+	found, err = client.Search(caller("alice"), &runtimev1.MemoryServiceSearchRequest{Scope: personalMemoryScope("team/knowledge"), Vector: memoryVector()})
 	require.NoError(t, err)
 	require.Len(t, found.Memories, 1)
 	require.Equal(t, "keep", found.Memories[0].Content)
 	beforeValidation := store.callCount()
-	_, err = client.DeleteEntry(caller("alice"), &runtimev1.MemoryServiceDeleteEntryRequest{AgentName: "team/knowledge"})
+	_, err = client.DeleteEntry(caller("alice"), &runtimev1.MemoryServiceDeleteEntryRequest{Scope: personalMemoryScope("team/knowledge")})
 	assertGRPCCode(t, err, codes.InvalidArgument)
 	require.Equal(t, beforeValidation, store.callCount())
 	operations := []struct {
@@ -154,23 +160,23 @@ func TestHumanMemoryPermissionsAndPartitionsThroughGeneratedClient(t *testing.T)
 		call func(context.Context) error
 	}{
 		{"add", func(ctx context.Context) error {
-			_, err := client.AddSession(ctx, &runtimev1.MemoryServiceAddSessionRequest{ManagementAgent: "agent", Memory: &runtimev1.SessionMemoryInput{Content: "managed", Vector: memoryVector()}})
+			_, err := client.AddSession(ctx, &runtimev1.MemoryServiceAddSessionRequest{Scope: personalMemoryScope("agent"), Memory: &runtimev1.SessionMemoryInput{Content: "managed", Vector: memoryVector()}})
 			return err
 		}},
 		{"search", func(ctx context.Context) error {
-			_, err := client.Search(ctx, &runtimev1.MemoryServiceSearchRequest{ManagementAgent: "agent", Vector: memoryVector()})
+			_, err := client.Search(ctx, &runtimev1.MemoryServiceSearchRequest{Scope: personalMemoryScope("agent"), Vector: memoryVector()})
 			return err
 		}},
 		{"delete entry", func(ctx context.Context) error {
-			_, err := client.DeleteEntry(ctx, &runtimev1.MemoryServiceDeleteEntryRequest{AgentName: "agent", Id: "alice-memory"})
+			_, err := client.DeleteEntry(ctx, &runtimev1.MemoryServiceDeleteEntryRequest{Scope: personalMemoryScope("agent"), Id: "alice-memory"})
 			return err
 		}},
 		{"list", func(ctx context.Context) error {
-			_, err := client.List(ctx, &runtimev1.MemoryServiceListRequest{AgentName: "agent"})
+			_, err := client.List(ctx, &runtimev1.MemoryServiceListRequest{Scope: personalMemoryScope("agent")})
 			return err
 		}},
 		{"delete", func(ctx context.Context) error {
-			_, err := client.Delete(ctx, &runtimev1.MemoryServiceDeleteRequest{AgentName: "agent"})
+			_, err := client.Delete(ctx, &runtimev1.MemoryServiceDeleteRequest{Scope: personalMemoryScope("agent")})
 			return err
 		}},
 	}
@@ -182,7 +188,7 @@ func TestHumanMemoryPermissionsAndPartitionsThroughGeneratedClient(t *testing.T)
 			require.Equal(t, before, store.callCount())
 		})
 	}
-	_, err = client.List(caller("viewer"), &runtimev1.MemoryServiceListRequest{AgentName: "agent"})
+	_, err = client.List(caller("viewer"), &runtimev1.MemoryServiceListRequest{Scope: personalMemoryScope("agent")})
 	require.NoError(t, err)
 	assertGRPCCode(t, operations[len(operations)-1].call(caller("viewer")), codes.PermissionDenied)
 	before := store.callCount()
@@ -194,14 +200,14 @@ func TestHumanMemoryPermissionsAndPartitionsThroughGeneratedClient(t *testing.T)
 	assertGRPCCode(t, err, codes.InvalidArgument)
 	require.Equal(t, before, store.callCount())
 	require.NoError(t, operations[len(operations)-1].call(caller("alice")))
-	rows, err = client.List(caller("bob"), &runtimev1.MemoryServiceListRequest{AgentName: "agent"})
+	rows, err = client.List(caller("bob"), &runtimev1.MemoryServiceListRequest{Scope: personalMemoryScope("agent")})
 	require.NoError(t, err)
 	require.Len(t, rows.Memories, 1)
 	require.Equal(t, "bob-memory", rows.Memories[0].Id)
-	rows, err = client.List(caller("alice"), &runtimev1.MemoryServiceListRequest{AgentName: "agent"})
+	rows, err = client.List(caller("alice"), &runtimev1.MemoryServiceListRequest{Scope: personalMemoryScope("agent")})
 	require.NoError(t, err)
 	require.Empty(t, rows.Memories)
-	rows, err = client.List(caller("alice"), &runtimev1.MemoryServiceListRequest{AgentName: "other"})
+	rows, err = client.List(caller("alice"), &runtimev1.MemoryServiceListRequest{Scope: personalMemoryScope("other")})
 	require.NoError(t, err)
 	require.Len(t, rows.Memories, 1, "deleting one partition must preserve other Agents")
 	require.Equal(t, "other-agent", rows.Memories[0].Id)
@@ -225,9 +231,9 @@ func TestRuntimeMemoryUsesAcceptedActorBindingInsteadOfHumanClaims(t *testing.T)
 	client := runtimev1.NewMemoryServiceClient(connection)
 	for _, credential := range []string{"", "Bearer e30." + base64.RawURLEncoding.EncodeToString([]byte(fmt.Sprintf(`{"iss":%q,"sub":"owner"}`, issuer.URL))) + ".signature"} {
 		ctx := metadata.NewOutgoingContext(t.Context(), metadata.Pairs("authorization", credential))
-		_, err = client.List(ctx, &runtimev1.MemoryServiceListRequest{AgentName: "team/assistant"})
+		_, err = client.List(ctx, &runtimev1.MemoryServiceListRequest{Scope: personalMemoryScope("team/assistant")})
 		assertGRPCCode(t, err, codes.Unauthenticated)
-		_, err = client.Delete(ctx, &runtimev1.MemoryServiceDeleteRequest{AgentName: "team/assistant"})
+		_, err = client.Delete(ctx, &runtimev1.MemoryServiceDeleteRequest{Scope: personalMemoryScope("team/assistant")})
 		assertGRPCCode(t, err, codes.Unauthenticated)
 	}
 	require.Zero(t, store.callCount())
@@ -249,11 +255,11 @@ func TestRuntimeMemoryUsesAcceptedActorBindingInsteadOfHumanClaims(t *testing.T)
 	require.Len(t, found.Memories, 2)
 	require.Equal(t, "accepted", found.Memories[0].Content)
 
-	listed, err := client.List(ctx, &runtimev1.MemoryServiceListRequest{AgentName: "forged/agent"})
+	listed, err := client.List(ctx, &runtimev1.MemoryServiceListRequest{Scope: personalMemoryScope("forged/agent")})
 	require.NoError(t, err)
 	require.Len(t, listed.Memories, 2)
 	require.Contains(t, store.rows, "team/assistant/owner")
-	_, err = client.Delete(ctx, &runtimev1.MemoryServiceDeleteRequest{AgentName: "forged/agent"})
+	_, err = client.Delete(ctx, &runtimev1.MemoryServiceDeleteRequest{Scope: personalMemoryScope("forged/agent")})
 	require.NoError(t, err)
 	listed, err = client.List(ctx, &runtimev1.MemoryServiceListRequest{})
 	require.NoError(t, err)
@@ -278,14 +284,14 @@ func TestRuntimeMemoryUsesAcceptedActorBindingInsteadOfHumanClaims(t *testing.T)
 	for _, identity := range []string{"other/session-" + id + "/actor-uid", "team/session-" + id + "/stale-uid", "team/session-22222222-2222-4222-8222-222222222222/actor-uid"} {
 		_, err = client.Search(actor(identity), &runtimev1.MemoryServiceSearchRequest{Vector: memoryVector()})
 		assertGRPCCode(t, err, codes.Unauthenticated)
-		_, err = client.List(actor(identity), &runtimev1.MemoryServiceListRequest{AgentName: "team/assistant"})
+		_, err = client.List(actor(identity), &runtimev1.MemoryServiceListRequest{Scope: personalMemoryScope("team/assistant")})
 		assertGRPCCode(t, err, codes.Unauthenticated)
-		_, err = client.Delete(actor(identity), &runtimev1.MemoryServiceDeleteRequest{AgentName: "team/assistant"})
+		_, err = client.Delete(actor(identity), &runtimev1.MemoryServiceDeleteRequest{Scope: personalMemoryScope("team/assistant")})
 		assertGRPCCode(t, err, codes.Unauthenticated)
 	}
 	_, err = client.Search(metadata.AppendToOutgoingContext(ctx, "x-share-token", "share"), &runtimev1.MemoryServiceSearchRequest{Vector: memoryVector()})
 	assertGRPCCode(t, err, codes.Unauthenticated)
-	_, err = client.List(metadata.AppendToOutgoingContext(ctx, "x-share-token", "share"), &runtimev1.MemoryServiceListRequest{AgentName: "team/assistant"})
+	_, err = client.List(metadata.AppendToOutgoingContext(ctx, "x-share-token", "share"), &runtimev1.MemoryServiceListRequest{Scope: personalMemoryScope("team/assistant")})
 	assertGRPCCode(t, err, codes.Unauthenticated)
 	_, err = client.Search(memoryUserContext(t, "owner"), &runtimev1.MemoryServiceSearchRequest{Vector: memoryVector()})
 	assertGRPCCode(t, err, codes.InvalidArgument)
@@ -300,4 +306,11 @@ func TestRuntimeMemoryUsesAcceptedActorBindingInsteadOfHumanClaims(t *testing.T)
 
 func (*memoryRPCPolicy) Scope(context.Context, auth.Principal, auth.Verb, string) (authorization.AuthorizationScope, error) {
 	return authorization.AuthorizationScope{Kind: authorization.ScopeNone}, nil
+}
+
+func memoryPartition(scope *runtimev1.MemoryScope, user string) string {
+	if scope.GetTeamNamespace() != "" {
+		return "team:" + scope.GetTeamNamespace()
+	}
+	return scope.GetAgentName() + "/" + user
 }

@@ -1,8 +1,8 @@
 import datetime
 
+from buf.validate import validate_pb2 as _validate_pb2
 from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
-from buf.validate import validate_pb2 as _validate_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -10,6 +10,14 @@ from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class MemoryScope(_message.Message):
+    __slots__ = ("agent_name", "team_namespace")
+    AGENT_NAME_FIELD_NUMBER: _ClassVar[int]
+    TEAM_NAMESPACE_FIELD_NUMBER: _ClassVar[int]
+    agent_name: str
+    team_namespace: str
+    def __init__(self, agent_name: _Optional[str] = ..., team_namespace: _Optional[str] = ...) -> None: ...
 
 class SessionMemoryInput(_message.Message):
     __slots__ = ("content", "vector", "metadata", "ttl_days")
@@ -52,12 +60,12 @@ class MemorySummary(_message.Message):
     def __init__(self, id: _Optional[str] = ..., content: _Optional[str] = ..., access_count: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class MemoryServiceAddSessionRequest(_message.Message):
-    __slots__ = ("memory", "management_agent")
+    __slots__ = ("memory", "scope")
     MEMORY_FIELD_NUMBER: _ClassVar[int]
-    MANAGEMENT_AGENT_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
     memory: SessionMemoryInput
-    management_agent: str
-    def __init__(self, memory: _Optional[_Union[SessionMemoryInput, _Mapping]] = ..., management_agent: _Optional[str] = ...) -> None: ...
+    scope: MemoryScope
+    def __init__(self, memory: _Optional[_Union[SessionMemoryInput, _Mapping]] = ..., scope: _Optional[_Union[MemoryScope, _Mapping]] = ...) -> None: ...
 
 class MemoryServiceAddSessionResponse(_message.Message):
     __slots__ = ("id",)
@@ -66,12 +74,12 @@ class MemoryServiceAddSessionResponse(_message.Message):
     def __init__(self, id: _Optional[str] = ...) -> None: ...
 
 class MemoryServiceAddSessionBatchRequest(_message.Message):
-    __slots__ = ("items", "management_agent")
+    __slots__ = ("items", "scope")
     ITEMS_FIELD_NUMBER: _ClassVar[int]
-    MANAGEMENT_AGENT_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
     items: _containers.RepeatedCompositeFieldContainer[SessionMemoryInput]
-    management_agent: str
-    def __init__(self, items: _Optional[_Iterable[_Union[SessionMemoryInput, _Mapping]]] = ..., management_agent: _Optional[str] = ...) -> None: ...
+    scope: MemoryScope
+    def __init__(self, items: _Optional[_Iterable[_Union[SessionMemoryInput, _Mapping]]] = ..., scope: _Optional[_Union[MemoryScope, _Mapping]] = ...) -> None: ...
 
 class MemoryServiceAddSessionBatchResponse(_message.Message):
     __slots__ = ("count",)
@@ -80,16 +88,18 @@ class MemoryServiceAddSessionBatchResponse(_message.Message):
     def __init__(self, count: _Optional[int] = ...) -> None: ...
 
 class MemoryServiceSearchRequest(_message.Message):
-    __slots__ = ("vector", "limit", "min_score", "management_agent")
+    __slots__ = ("vector", "limit", "min_score", "scope", "query")
     VECTOR_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     MIN_SCORE_FIELD_NUMBER: _ClassVar[int]
-    MANAGEMENT_AGENT_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    QUERY_FIELD_NUMBER: _ClassVar[int]
     vector: _containers.RepeatedScalarFieldContainer[float]
     limit: int
     min_score: float
-    management_agent: str
-    def __init__(self, vector: _Optional[_Iterable[float]] = ..., limit: _Optional[int] = ..., min_score: _Optional[float] = ..., management_agent: _Optional[str] = ...) -> None: ...
+    scope: MemoryScope
+    query: str
+    def __init__(self, vector: _Optional[_Iterable[float]] = ..., limit: _Optional[int] = ..., min_score: _Optional[float] = ..., scope: _Optional[_Union[MemoryScope, _Mapping]] = ..., query: _Optional[str] = ...) -> None: ...
 
 class MemoryServiceSearchResponse(_message.Message):
     __slots__ = ("memories",)
@@ -98,10 +108,10 @@ class MemoryServiceSearchResponse(_message.Message):
     def __init__(self, memories: _Optional[_Iterable[_Union[MemorySearchResult, _Mapping]]] = ...) -> None: ...
 
 class MemoryServiceListRequest(_message.Message):
-    __slots__ = ("agent_name",)
-    AGENT_NAME_FIELD_NUMBER: _ClassVar[int]
-    agent_name: str
-    def __init__(self, agent_name: _Optional[str] = ...) -> None: ...
+    __slots__ = ("scope",)
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    scope: MemoryScope
+    def __init__(self, scope: _Optional[_Union[MemoryScope, _Mapping]] = ...) -> None: ...
 
 class MemoryServiceListResponse(_message.Message):
     __slots__ = ("memories",)
@@ -110,10 +120,10 @@ class MemoryServiceListResponse(_message.Message):
     def __init__(self, memories: _Optional[_Iterable[_Union[MemorySummary, _Mapping]]] = ...) -> None: ...
 
 class MemoryServiceDeleteRequest(_message.Message):
-    __slots__ = ("agent_name",)
-    AGENT_NAME_FIELD_NUMBER: _ClassVar[int]
-    agent_name: str
-    def __init__(self, agent_name: _Optional[str] = ...) -> None: ...
+    __slots__ = ("scope",)
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    scope: MemoryScope
+    def __init__(self, scope: _Optional[_Union[MemoryScope, _Mapping]] = ...) -> None: ...
 
 class MemoryServiceDeleteResponse(_message.Message):
     __slots__ = ("status",)
@@ -122,12 +132,12 @@ class MemoryServiceDeleteResponse(_message.Message):
     def __init__(self, status: _Optional[str] = ...) -> None: ...
 
 class MemoryServiceDeleteEntryRequest(_message.Message):
-    __slots__ = ("agent_name", "id")
-    AGENT_NAME_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("scope", "id")
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
-    agent_name: str
+    scope: MemoryScope
     id: str
-    def __init__(self, agent_name: _Optional[str] = ..., id: _Optional[str] = ...) -> None: ...
+    def __init__(self, scope: _Optional[_Union[MemoryScope, _Mapping]] = ..., id: _Optional[str] = ...) -> None: ...
 
 class MemoryServiceDeleteEntryResponse(_message.Message):
     __slots__ = ()

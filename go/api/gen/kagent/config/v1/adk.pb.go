@@ -2128,8 +2128,10 @@ func (x *ADKEmbeddingConfig) GetApiVersion() string {
 type ADKMemoryConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Zero uses the server default. Bound days to Go's time.Duration range.
-	TtlDays       int64               `protobuf:"varint,1,opt,name=ttl_days,json=ttlDays,proto3" json:"ttl_days,omitempty"`
-	Embedding     *ADKEmbeddingConfig `protobuf:"bytes,2,opt,name=embedding,proto3" json:"embedding,omitempty"`
+	TtlDays   int64               `protobuf:"varint,1,opt,name=ttl_days,json=ttlDays,proto3" json:"ttl_days,omitempty"`
+	Embedding *ADKEmbeddingConfig `protobuf:"bytes,2,opt,name=embedding,proto3" json:"embedding,omitempty"`
+	// Team collection in the Agent's namespace; empty selects personal memory.
+	TeamNamespace string `protobuf:"bytes,3,opt,name=team_namespace,json=teamNamespace,proto3" json:"team_namespace,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2176,6 +2178,13 @@ func (x *ADKMemoryConfig) GetEmbedding() *ADKEmbeddingConfig {
 		return x.Embedding
 	}
 	return nil
+}
+
+func (x *ADKMemoryConfig) GetTeamNamespace() string {
+	if x != nil {
+		return x.TeamNamespace
+	}
+	return ""
 }
 
 type ADKNetworkConfig struct {
@@ -3187,10 +3196,11 @@ const file_kagent_config_v1_adk_proto_rawDesc = "" +
 	"apiVersionB\x1b\n" +
 	"\x19_tls_insecure_skip_verifyB\x13\n" +
 	"\x11_tls_ca_cert_pathB\x19\n" +
-	"\x17_tls_disable_system_cas\"}\n" +
+	"\x17_tls_disable_system_cas\"\xa4\x01\n" +
 	"\x0fADKMemoryConfig\x12&\n" +
 	"\bttl_days\x18\x01 \x01(\x03B\v\xbaH\b\"\x06\x18\xff\xc1\x06(\x00R\attlDays\x12B\n" +
-	"\tembedding\x18\x02 \x01(\v2$.kagent.config.v1.ADKEmbeddingConfigR\tembedding\";\n" +
+	"\tembedding\x18\x02 \x01(\v2$.kagent.config.v1.ADKEmbeddingConfigR\tembedding\x12%\n" +
+	"\x0eteam_namespace\x18\x03 \x01(\tR\rteamNamespace\";\n" +
 	"\x10ADKNetworkConfig\x12'\n" +
 	"\x0fallowed_domains\x18\x01 \x03(\tR\x0eallowedDomains\"Z\n" +
 	"\x10ADKContextConfig\x12F\n" +

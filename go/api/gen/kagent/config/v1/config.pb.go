@@ -8,6 +8,7 @@ package configv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	v1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
@@ -444,6 +445,7 @@ type ControllerConfig struct {
 	RuntimeDefaults  *RuntimeDefaultsConfig  `protobuf:"bytes,13,opt,name=runtime_defaults,json=runtimeDefaults,proto3" json:"runtime_defaults,omitempty"`
 	HarnessImages    *HarnessImagesConfig    `protobuf:"bytes,14,opt,name=harness_images,json=harnessImages,proto3" json:"harness_images,omitempty"`
 	Push             *PushConfig             `protobuf:"bytes,15,opt,name=push,proto3" json:"push,omitempty"`
+	Memory           *MemoryConfig           `protobuf:"bytes,16,opt,name=memory,proto3" json:"memory,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -583,6 +585,68 @@ func (x *ControllerConfig) GetPush() *PushConfig {
 	return nil
 }
 
+func (x *ControllerConfig) GetMemory() *MemoryConfig {
+	if x != nil {
+		return x.Memory
+	}
+	return nil
+}
+
+// MemoryConfig selects the control-plane embedding integration.
+type MemoryConfig struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// OpenAI-compatible embedding model. Credentials come from its Secret reference.
+	ModelConfig *v1.ResourceReference `protobuf:"bytes,1,opt,name=model_config,json=modelConfig,proto3" json:"model_config,omitempty"`
+	// Projected service credential for ModelConfigs using tokenPassthrough.
+	BearerTokenFile string `protobuf:"bytes,2,opt,name=bearer_token_file,json=bearerTokenFile,proto3" json:"bearer_token_file,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *MemoryConfig) Reset() {
+	*x = MemoryConfig{}
+	mi := &file_kagent_config_v1_config_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MemoryConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MemoryConfig) ProtoMessage() {}
+
+func (x *MemoryConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_kagent_config_v1_config_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MemoryConfig.ProtoReflect.Descriptor instead.
+func (*MemoryConfig) Descriptor() ([]byte, []int) {
+	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *MemoryConfig) GetModelConfig() *v1.ResourceReference {
+	if x != nil {
+		return x.ModelConfig
+	}
+	return nil
+}
+
+func (x *MemoryConfig) GetBearerTokenFile() string {
+	if x != nil {
+		return x.BearerTokenFile
+	}
+	return ""
+}
+
 // HarnessImagesConfig supplies release defaults for built-in Harnesses. Empty
 // images disable that default; explicit workload.image values take precedence.
 type HarnessImagesConfig struct {
@@ -598,7 +662,7 @@ type HarnessImagesConfig struct {
 
 func (x *HarnessImagesConfig) Reset() {
 	*x = HarnessImagesConfig{}
-	mi := &file_kagent_config_v1_config_proto_msgTypes[7]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -610,7 +674,7 @@ func (x *HarnessImagesConfig) String() string {
 func (*HarnessImagesConfig) ProtoMessage() {}
 
 func (x *HarnessImagesConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_config_v1_config_proto_msgTypes[7]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -623,7 +687,7 @@ func (x *HarnessImagesConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HarnessImagesConfig.ProtoReflect.Descriptor instead.
 func (*HarnessImagesConfig) Descriptor() ([]byte, []int) {
-	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{7}
+	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *HarnessImagesConfig) GetRelease() string {
@@ -665,7 +729,7 @@ type KubernetesConfig struct {
 
 func (x *KubernetesConfig) Reset() {
 	*x = KubernetesConfig{}
-	mi := &file_kagent_config_v1_config_proto_msgTypes[8]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -677,7 +741,7 @@ func (x *KubernetesConfig) String() string {
 func (*KubernetesConfig) ProtoMessage() {}
 
 func (x *KubernetesConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_config_v1_config_proto_msgTypes[8]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -690,7 +754,7 @@ func (x *KubernetesConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KubernetesConfig.ProtoReflect.Descriptor instead.
 func (*KubernetesConfig) Descriptor() ([]byte, []int) {
-	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{8}
+	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *KubernetesConfig) GetNamespace() string {
@@ -725,7 +789,7 @@ type ControllerServerConfig struct {
 
 func (x *ControllerServerConfig) Reset() {
 	*x = ControllerServerConfig{}
-	mi := &file_kagent_config_v1_config_proto_msgTypes[9]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -737,7 +801,7 @@ func (x *ControllerServerConfig) String() string {
 func (*ControllerServerConfig) ProtoMessage() {}
 
 func (x *ControllerServerConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_config_v1_config_proto_msgTypes[9]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -750,7 +814,7 @@ func (x *ControllerServerConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ControllerServerConfig.ProtoReflect.Descriptor instead.
 func (*ControllerServerConfig) Descriptor() ([]byte, []int) {
-	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{9}
+	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ControllerServerConfig) GetBindAddress() string {
@@ -785,7 +849,7 @@ type AuthenticationConfig struct {
 
 func (x *AuthenticationConfig) Reset() {
 	*x = AuthenticationConfig{}
-	mi := &file_kagent_config_v1_config_proto_msgTypes[10]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -797,7 +861,7 @@ func (x *AuthenticationConfig) String() string {
 func (*AuthenticationConfig) ProtoMessage() {}
 
 func (x *AuthenticationConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_config_v1_config_proto_msgTypes[10]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -810,7 +874,7 @@ func (x *AuthenticationConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthenticationConfig.ProtoReflect.Descriptor instead.
 func (*AuthenticationConfig) Descriptor() ([]byte, []int) {
-	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{10}
+	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *AuthenticationConfig) GetMode() string {
@@ -845,7 +909,7 @@ type ServiceAccountAuthentication struct {
 
 func (x *ServiceAccountAuthentication) Reset() {
 	*x = ServiceAccountAuthentication{}
-	mi := &file_kagent_config_v1_config_proto_msgTypes[11]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -857,7 +921,7 @@ func (x *ServiceAccountAuthentication) String() string {
 func (*ServiceAccountAuthentication) ProtoMessage() {}
 
 func (x *ServiceAccountAuthentication) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_config_v1_config_proto_msgTypes[11]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -870,7 +934,7 @@ func (x *ServiceAccountAuthentication) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServiceAccountAuthentication.ProtoReflect.Descriptor instead.
 func (*ServiceAccountAuthentication) Descriptor() ([]byte, []int) {
-	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{11}
+	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ServiceAccountAuthentication) GetAuthority() string {
@@ -901,7 +965,7 @@ type DatabaseConfig struct {
 
 func (x *DatabaseConfig) Reset() {
 	*x = DatabaseConfig{}
-	mi := &file_kagent_config_v1_config_proto_msgTypes[12]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -913,7 +977,7 @@ func (x *DatabaseConfig) String() string {
 func (*DatabaseConfig) ProtoMessage() {}
 
 func (x *DatabaseConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_config_v1_config_proto_msgTypes[12]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -926,7 +990,7 @@ func (x *DatabaseConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DatabaseConfig.ProtoReflect.Descriptor instead.
 func (*DatabaseConfig) Descriptor() ([]byte, []int) {
-	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{12}
+	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *DatabaseConfig) GetOwner() *DatabaseLoginConfig {
@@ -990,7 +1054,7 @@ type DatabaseLoginConfig struct {
 
 func (x *DatabaseLoginConfig) Reset() {
 	*x = DatabaseLoginConfig{}
-	mi := &file_kagent_config_v1_config_proto_msgTypes[13]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1002,7 +1066,7 @@ func (x *DatabaseLoginConfig) String() string {
 func (*DatabaseLoginConfig) ProtoMessage() {}
 
 func (x *DatabaseLoginConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_config_v1_config_proto_msgTypes[13]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1015,7 +1079,7 @@ func (x *DatabaseLoginConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DatabaseLoginConfig.ProtoReflect.Descriptor instead.
 func (*DatabaseLoginConfig) Descriptor() ([]byte, []int) {
-	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{13}
+	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *DatabaseLoginConfig) GetUrlFile() string {
@@ -1044,7 +1108,7 @@ type PostgresPoolConfig struct {
 
 func (x *PostgresPoolConfig) Reset() {
 	*x = PostgresPoolConfig{}
-	mi := &file_kagent_config_v1_config_proto_msgTypes[14]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1056,7 +1120,7 @@ func (x *PostgresPoolConfig) String() string {
 func (*PostgresPoolConfig) ProtoMessage() {}
 
 func (x *PostgresPoolConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_config_v1_config_proto_msgTypes[14]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1069,7 +1133,7 @@ func (x *PostgresPoolConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PostgresPoolConfig.ProtoReflect.Descriptor instead.
 func (*PostgresPoolConfig) Descriptor() ([]byte, []int) {
-	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{14}
+	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *PostgresPoolConfig) GetMinConns() int32 {
@@ -1114,7 +1178,7 @@ type SubstrateConfig struct {
 
 func (x *SubstrateConfig) Reset() {
 	*x = SubstrateConfig{}
-	mi := &file_kagent_config_v1_config_proto_msgTypes[15]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1126,7 +1190,7 @@ func (x *SubstrateConfig) String() string {
 func (*SubstrateConfig) ProtoMessage() {}
 
 func (x *SubstrateConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_config_v1_config_proto_msgTypes[15]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1139,7 +1203,7 @@ func (x *SubstrateConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubstrateConfig.ProtoReflect.Descriptor instead.
 func (*SubstrateConfig) Descriptor() ([]byte, []int) {
-	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{15}
+	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *SubstrateConfig) GetApiEndpoint() string {
@@ -1191,7 +1255,7 @@ type SessionsConfig struct {
 
 func (x *SessionsConfig) Reset() {
 	*x = SessionsConfig{}
-	mi := &file_kagent_config_v1_config_proto_msgTypes[16]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1203,7 +1267,7 @@ func (x *SessionsConfig) String() string {
 func (*SessionsConfig) ProtoMessage() {}
 
 func (x *SessionsConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_config_v1_config_proto_msgTypes[16]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1216,7 +1280,7 @@ func (x *SessionsConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionsConfig.ProtoReflect.Descriptor instead.
 func (*SessionsConfig) Descriptor() ([]byte, []int) {
-	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{16}
+	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *SessionsConfig) GetIdleTtl() *durationpb.Duration {
@@ -1256,7 +1320,7 @@ type GatewayConfig struct {
 
 func (x *GatewayConfig) Reset() {
 	*x = GatewayConfig{}
-	mi := &file_kagent_config_v1_config_proto_msgTypes[17]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1268,7 +1332,7 @@ func (x *GatewayConfig) String() string {
 func (*GatewayConfig) ProtoMessage() {}
 
 func (x *GatewayConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_config_v1_config_proto_msgTypes[17]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1281,7 +1345,7 @@ func (x *GatewayConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GatewayConfig.ProtoReflect.Descriptor instead.
 func (*GatewayConfig) Descriptor() ([]byte, []int) {
-	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{17}
+	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GatewayConfig) GetPublicUrl() string {
@@ -1307,7 +1371,7 @@ type PushConfig struct {
 
 func (x *PushConfig) Reset() {
 	*x = PushConfig{}
-	mi := &file_kagent_config_v1_config_proto_msgTypes[18]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1319,7 +1383,7 @@ func (x *PushConfig) String() string {
 func (*PushConfig) ProtoMessage() {}
 
 func (x *PushConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_config_v1_config_proto_msgTypes[18]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1332,7 +1396,7 @@ func (x *PushConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PushConfig.ProtoReflect.Descriptor instead.
 func (*PushConfig) Descriptor() ([]byte, []int) {
-	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{18}
+	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *PushConfig) GetSigningPrivateKeyFile() string {
@@ -1384,7 +1448,7 @@ type SandboxConfig struct {
 
 func (x *SandboxConfig) Reset() {
 	*x = SandboxConfig{}
-	mi := &file_kagent_config_v1_config_proto_msgTypes[19]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1396,7 +1460,7 @@ func (x *SandboxConfig) String() string {
 func (*SandboxConfig) ProtoMessage() {}
 
 func (x *SandboxConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_config_v1_config_proto_msgTypes[19]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1409,7 +1473,7 @@ func (x *SandboxConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SandboxConfig.ProtoReflect.Descriptor instead.
 func (*SandboxConfig) Descriptor() ([]byte, []int) {
-	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{19}
+	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *SandboxConfig) GetGuestImage() string {
@@ -1464,7 +1528,7 @@ type ScheduledRunsConfig struct {
 
 func (x *ScheduledRunsConfig) Reset() {
 	*x = ScheduledRunsConfig{}
-	mi := &file_kagent_config_v1_config_proto_msgTypes[20]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1476,7 +1540,7 @@ func (x *ScheduledRunsConfig) String() string {
 func (*ScheduledRunsConfig) ProtoMessage() {}
 
 func (x *ScheduledRunsConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_config_v1_config_proto_msgTypes[20]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1489,7 +1553,7 @@ func (x *ScheduledRunsConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScheduledRunsConfig.ProtoReflect.Descriptor instead.
 func (*ScheduledRunsConfig) Descriptor() ([]byte, []int) {
-	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{20}
+	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ScheduledRunsConfig) GetPollInterval() *durationpb.Duration {
@@ -1515,7 +1579,7 @@ type RuntimeRevisionsConfig struct {
 
 func (x *RuntimeRevisionsConfig) Reset() {
 	*x = RuntimeRevisionsConfig{}
-	mi := &file_kagent_config_v1_config_proto_msgTypes[21]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1527,7 +1591,7 @@ func (x *RuntimeRevisionsConfig) String() string {
 func (*RuntimeRevisionsConfig) ProtoMessage() {}
 
 func (x *RuntimeRevisionsConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_config_v1_config_proto_msgTypes[21]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1540,7 +1604,7 @@ func (x *RuntimeRevisionsConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuntimeRevisionsConfig.ProtoReflect.Descriptor instead.
 func (*RuntimeRevisionsConfig) Descriptor() ([]byte, []int) {
-	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{21}
+	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *RuntimeRevisionsConfig) GetGcInterval() *durationpb.Duration {
@@ -1561,7 +1625,7 @@ type MetricsConfig struct {
 
 func (x *MetricsConfig) Reset() {
 	*x = MetricsConfig{}
-	mi := &file_kagent_config_v1_config_proto_msgTypes[22]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1573,7 +1637,7 @@ func (x *MetricsConfig) String() string {
 func (*MetricsConfig) ProtoMessage() {}
 
 func (x *MetricsConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_config_v1_config_proto_msgTypes[22]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1586,7 +1650,7 @@ func (x *MetricsConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MetricsConfig.ProtoReflect.Descriptor instead.
 func (*MetricsConfig) Descriptor() ([]byte, []int) {
-	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{22}
+	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *MetricsConfig) GetBindAddress() string {
@@ -1622,7 +1686,7 @@ type TelemetryConfig struct {
 
 func (x *TelemetryConfig) Reset() {
 	*x = TelemetryConfig{}
-	mi := &file_kagent_config_v1_config_proto_msgTypes[23]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1634,7 +1698,7 @@ func (x *TelemetryConfig) String() string {
 func (*TelemetryConfig) ProtoMessage() {}
 
 func (x *TelemetryConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_config_v1_config_proto_msgTypes[23]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1647,7 +1711,7 @@ func (x *TelemetryConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TelemetryConfig.ProtoReflect.Descriptor instead.
 func (*TelemetryConfig) Descriptor() ([]byte, []int) {
-	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{23}
+	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *TelemetryConfig) GetTraces() *OTLPConfig {
@@ -1717,7 +1781,7 @@ type OTLPConfig struct {
 
 func (x *OTLPConfig) Reset() {
 	*x = OTLPConfig{}
-	mi := &file_kagent_config_v1_config_proto_msgTypes[24]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1729,7 +1793,7 @@ func (x *OTLPConfig) String() string {
 func (*OTLPConfig) ProtoMessage() {}
 
 func (x *OTLPConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_config_v1_config_proto_msgTypes[24]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1742,7 +1806,7 @@ func (x *OTLPConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OTLPConfig.ProtoReflect.Descriptor instead.
 func (*OTLPConfig) Descriptor() ([]byte, []int) {
-	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{24}
+	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *OTLPConfig) GetEndpoint() string {
@@ -1784,7 +1848,7 @@ type RuntimeDefaultsConfig struct {
 
 func (x *RuntimeDefaultsConfig) Reset() {
 	*x = RuntimeDefaultsConfig{}
-	mi := &file_kagent_config_v1_config_proto_msgTypes[25]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1796,7 +1860,7 @@ func (x *RuntimeDefaultsConfig) String() string {
 func (*RuntimeDefaultsConfig) ProtoMessage() {}
 
 func (x *RuntimeDefaultsConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_config_v1_config_proto_msgTypes[25]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1809,7 +1873,7 @@ func (x *RuntimeDefaultsConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuntimeDefaultsConfig.ProtoReflect.Descriptor instead.
 func (*RuntimeDefaultsConfig) Descriptor() ([]byte, []int) {
-	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{25}
+	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *RuntimeDefaultsConfig) GetControlPlaneUrl() string {
@@ -1887,7 +1951,7 @@ type BuiltinToolsConfig struct {
 
 func (x *BuiltinToolsConfig) Reset() {
 	*x = BuiltinToolsConfig{}
-	mi := &file_kagent_config_v1_config_proto_msgTypes[26]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1899,7 +1963,7 @@ func (x *BuiltinToolsConfig) String() string {
 func (*BuiltinToolsConfig) ProtoMessage() {}
 
 func (x *BuiltinToolsConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_config_v1_config_proto_msgTypes[26]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1912,7 +1976,7 @@ func (x *BuiltinToolsConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BuiltinToolsConfig.ProtoReflect.Descriptor instead.
 func (*BuiltinToolsConfig) Descriptor() ([]byte, []int) {
-	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{26}
+	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *BuiltinToolsConfig) GetDisableFileSearch() bool {
@@ -1948,7 +2012,7 @@ type TokenPropagationConfig struct {
 
 func (x *TokenPropagationConfig) Reset() {
 	*x = TokenPropagationConfig{}
-	mi := &file_kagent_config_v1_config_proto_msgTypes[27]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1960,7 +2024,7 @@ func (x *TokenPropagationConfig) String() string {
 func (*TokenPropagationConfig) ProtoMessage() {}
 
 func (x *TokenPropagationConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_config_v1_config_proto_msgTypes[27]
+	mi := &file_kagent_config_v1_config_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1973,7 +2037,7 @@ func (x *TokenPropagationConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TokenPropagationConfig.ProtoReflect.Descriptor instead.
 func (*TokenPropagationConfig) Descriptor() ([]byte, []int) {
-	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{27}
+	return file_kagent_config_v1_config_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *TokenPropagationConfig) GetEnabled() bool {
@@ -2008,7 +2072,7 @@ var File_kagent_config_v1_config_proto protoreflect.FileDescriptor
 
 const file_kagent_config_v1_config_proto_rawDesc = "" +
 	"\n" +
-	"\x1dkagent/config/v1/config.proto\x12\x10kagent.config.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\"\xbb\x02\n" +
+	"\x1dkagent/config/v1/config.proto\x12\x10kagent.config.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1akagent/api/v1/common.proto\"\xbb\x02\n" +
 	"\tCLIConfig\x12B\n" +
 	"\n" +
 	"connection\x18\x01 \x01(\v2\".kagent.config.v1.ConnectionConfigR\n" +
@@ -2058,7 +2122,7 @@ const file_kagent_config_v1_config_proto_rawDesc = "" +
 	"\fvalues_files\x18\x03 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02\x10\x01R\vvaluesFilesB\r\n" +
 	"\v_repositoryB\n" +
 	"\n" +
-	"\b_version\"\xe3\v\n" +
+	"\b_version\"\x9b\f\n" +
 	"\x10ControllerConfig\x12B\n" +
 	"\n" +
 	"kubernetes\x18\x01 \x01(\v2\".kagent.config.v1.KubernetesConfigR\n" +
@@ -2077,9 +2141,13 @@ const file_kagent_config_v1_config_proto_rawDesc = "" +
 	"\ttelemetry\x18\f \x01(\v2!.kagent.config.v1.TelemetryConfigR\ttelemetry\x12R\n" +
 	"\x10runtime_defaults\x18\r \x01(\v2'.kagent.config.v1.RuntimeDefaultsConfigR\x0fruntimeDefaults\x12L\n" +
 	"\x0eharness_images\x18\x0e \x01(\v2%.kagent.config.v1.HarnessImagesConfigR\rharnessImages\x120\n" +
-	"\x04push\x18\x0f \x01(\v2\x1c.kagent.config.v1.PushConfigR\x04push:\xd9\x03\xbaH\xd5\x03\x1a\xce\x01\n" +
+	"\x04push\x18\x0f \x01(\v2\x1c.kagent.config.v1.PushConfigR\x04push\x126\n" +
+	"\x06memory\x18\x10 \x01(\v2\x1e.kagent.config.v1.MemoryConfigR\x06memory:\xd9\x03\xbaH\xd5\x03\x1a\xce\x01\n" +
 	"\x1econtroller.database_read_write\x12Fdatabase.read_write.url_file and database.read_write.role are required\x1adhas(this.database) && this.database.read_write.url_file != '' && this.database.read_write.role != ''\x1a\x81\x02\n" +
-	"\x19controller.database_owner\x12ddatabase.owner.url_file and database.owner.role are required unless database.skip_migrations is true\x1a~!has(this.database) || this.database.skip_migrations || (this.database.owner.url_file != '' && this.database.owner.role != '')\"\xf0\x01\n" +
+	"\x19controller.database_owner\x12ddatabase.owner.url_file and database.owner.role are required unless database.skip_migrations is true\x1a~!has(this.database) || this.database.skip_migrations || (this.database.owner.url_file != '' && this.database.owner.role != '')\"\x7f\n" +
+	"\fMemoryConfig\x12C\n" +
+	"\fmodel_config\x18\x01 \x01(\v2 .kagent.api.v1.ResourceReferenceR\vmodelConfig\x12*\n" +
+	"\x11bearer_token_file\x18\x02 \x01(\tR\x0fbearerTokenFile\"\xf0\x01\n" +
 	"\x13HarnessImagesConfig\x12\x18\n" +
 	"\arelease\x18\x01 \x01(\tR\arelease\x12?\n" +
 	"\x06kagent\x18\x02 \x01(\tB'\xbaH$r\"2 ^$|^[^\\s@]+@sha256:[a-f0-9]{64}$R\x06kagent\x12?\n" +
@@ -2247,7 +2315,7 @@ func file_kagent_config_v1_config_proto_rawDescGZIP() []byte {
 	return file_kagent_config_v1_config_proto_rawDescData
 }
 
-var file_kagent_config_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
+var file_kagent_config_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
 var file_kagent_config_v1_config_proto_goTypes = []any{
 	(*CLIConfig)(nil),                    // 0: kagent.config.v1.CLIConfig
 	(*ConnectionConfig)(nil),             // 1: kagent.config.v1.ConnectionConfig
@@ -2256,87 +2324,91 @@ var file_kagent_config_v1_config_proto_goTypes = []any{
 	(*InstallConfig)(nil),                // 4: kagent.config.v1.InstallConfig
 	(*ChartConfig)(nil),                  // 5: kagent.config.v1.ChartConfig
 	(*ControllerConfig)(nil),             // 6: kagent.config.v1.ControllerConfig
-	(*HarnessImagesConfig)(nil),          // 7: kagent.config.v1.HarnessImagesConfig
-	(*KubernetesConfig)(nil),             // 8: kagent.config.v1.KubernetesConfig
-	(*ControllerServerConfig)(nil),       // 9: kagent.config.v1.ControllerServerConfig
-	(*AuthenticationConfig)(nil),         // 10: kagent.config.v1.AuthenticationConfig
-	(*ServiceAccountAuthentication)(nil), // 11: kagent.config.v1.ServiceAccountAuthentication
-	(*DatabaseConfig)(nil),               // 12: kagent.config.v1.DatabaseConfig
-	(*DatabaseLoginConfig)(nil),          // 13: kagent.config.v1.DatabaseLoginConfig
-	(*PostgresPoolConfig)(nil),           // 14: kagent.config.v1.PostgresPoolConfig
-	(*SubstrateConfig)(nil),              // 15: kagent.config.v1.SubstrateConfig
-	(*SessionsConfig)(nil),               // 16: kagent.config.v1.SessionsConfig
-	(*GatewayConfig)(nil),                // 17: kagent.config.v1.GatewayConfig
-	(*PushConfig)(nil),                   // 18: kagent.config.v1.PushConfig
-	(*SandboxConfig)(nil),                // 19: kagent.config.v1.SandboxConfig
-	(*ScheduledRunsConfig)(nil),          // 20: kagent.config.v1.ScheduledRunsConfig
-	(*RuntimeRevisionsConfig)(nil),       // 21: kagent.config.v1.RuntimeRevisionsConfig
-	(*MetricsConfig)(nil),                // 22: kagent.config.v1.MetricsConfig
-	(*TelemetryConfig)(nil),              // 23: kagent.config.v1.TelemetryConfig
-	(*OTLPConfig)(nil),                   // 24: kagent.config.v1.OTLPConfig
-	(*RuntimeDefaultsConfig)(nil),        // 25: kagent.config.v1.RuntimeDefaultsConfig
-	(*BuiltinToolsConfig)(nil),           // 26: kagent.config.v1.BuiltinToolsConfig
-	(*TokenPropagationConfig)(nil),       // 27: kagent.config.v1.TokenPropagationConfig
-	nil,                                  // 28: kagent.config.v1.TelemetryConfig.ResourceAttributesEntry
-	(*durationpb.Duration)(nil),          // 29: google.protobuf.Duration
+	(*MemoryConfig)(nil),                 // 7: kagent.config.v1.MemoryConfig
+	(*HarnessImagesConfig)(nil),          // 8: kagent.config.v1.HarnessImagesConfig
+	(*KubernetesConfig)(nil),             // 9: kagent.config.v1.KubernetesConfig
+	(*ControllerServerConfig)(nil),       // 10: kagent.config.v1.ControllerServerConfig
+	(*AuthenticationConfig)(nil),         // 11: kagent.config.v1.AuthenticationConfig
+	(*ServiceAccountAuthentication)(nil), // 12: kagent.config.v1.ServiceAccountAuthentication
+	(*DatabaseConfig)(nil),               // 13: kagent.config.v1.DatabaseConfig
+	(*DatabaseLoginConfig)(nil),          // 14: kagent.config.v1.DatabaseLoginConfig
+	(*PostgresPoolConfig)(nil),           // 15: kagent.config.v1.PostgresPoolConfig
+	(*SubstrateConfig)(nil),              // 16: kagent.config.v1.SubstrateConfig
+	(*SessionsConfig)(nil),               // 17: kagent.config.v1.SessionsConfig
+	(*GatewayConfig)(nil),                // 18: kagent.config.v1.GatewayConfig
+	(*PushConfig)(nil),                   // 19: kagent.config.v1.PushConfig
+	(*SandboxConfig)(nil),                // 20: kagent.config.v1.SandboxConfig
+	(*ScheduledRunsConfig)(nil),          // 21: kagent.config.v1.ScheduledRunsConfig
+	(*RuntimeRevisionsConfig)(nil),       // 22: kagent.config.v1.RuntimeRevisionsConfig
+	(*MetricsConfig)(nil),                // 23: kagent.config.v1.MetricsConfig
+	(*TelemetryConfig)(nil),              // 24: kagent.config.v1.TelemetryConfig
+	(*OTLPConfig)(nil),                   // 25: kagent.config.v1.OTLPConfig
+	(*RuntimeDefaultsConfig)(nil),        // 26: kagent.config.v1.RuntimeDefaultsConfig
+	(*BuiltinToolsConfig)(nil),           // 27: kagent.config.v1.BuiltinToolsConfig
+	(*TokenPropagationConfig)(nil),       // 28: kagent.config.v1.TokenPropagationConfig
+	nil,                                  // 29: kagent.config.v1.TelemetryConfig.ResourceAttributesEntry
+	(*durationpb.Duration)(nil),          // 30: google.protobuf.Duration
+	(*v1.ResourceReference)(nil),         // 31: kagent.api.v1.ResourceReference
 }
 var file_kagent_config_v1_config_proto_depIdxs = []int32{
 	1,  // 0: kagent.config.v1.CLIConfig.connection:type_name -> kagent.config.v1.ConnectionConfig
 	2,  // 1: kagent.config.v1.CLIConfig.output:type_name -> kagent.config.v1.OutputConfig
 	3,  // 2: kagent.config.v1.CLIConfig.logging:type_name -> kagent.config.v1.LoggingConfig
 	4,  // 3: kagent.config.v1.CLIConfig.install:type_name -> kagent.config.v1.InstallConfig
-	12, // 4: kagent.config.v1.CLIConfig.database:type_name -> kagent.config.v1.DatabaseConfig
-	29, // 5: kagent.config.v1.ConnectionConfig.timeout:type_name -> google.protobuf.Duration
+	13, // 4: kagent.config.v1.CLIConfig.database:type_name -> kagent.config.v1.DatabaseConfig
+	30, // 5: kagent.config.v1.ConnectionConfig.timeout:type_name -> google.protobuf.Duration
 	5,  // 6: kagent.config.v1.InstallConfig.kagent:type_name -> kagent.config.v1.ChartConfig
 	5,  // 7: kagent.config.v1.InstallConfig.substrate:type_name -> kagent.config.v1.ChartConfig
 	5,  // 8: kagent.config.v1.InstallConfig.pod_certificate:type_name -> kagent.config.v1.ChartConfig
-	8,  // 9: kagent.config.v1.ControllerConfig.kubernetes:type_name -> kagent.config.v1.KubernetesConfig
-	9,  // 10: kagent.config.v1.ControllerConfig.server:type_name -> kagent.config.v1.ControllerServerConfig
-	12, // 11: kagent.config.v1.ControllerConfig.database:type_name -> kagent.config.v1.DatabaseConfig
-	15, // 12: kagent.config.v1.ControllerConfig.substrate:type_name -> kagent.config.v1.SubstrateConfig
-	16, // 13: kagent.config.v1.ControllerConfig.sessions:type_name -> kagent.config.v1.SessionsConfig
-	17, // 14: kagent.config.v1.ControllerConfig.gateway:type_name -> kagent.config.v1.GatewayConfig
-	19, // 15: kagent.config.v1.ControllerConfig.sandboxes:type_name -> kagent.config.v1.SandboxConfig
-	20, // 16: kagent.config.v1.ControllerConfig.scheduled_runs:type_name -> kagent.config.v1.ScheduledRunsConfig
-	21, // 17: kagent.config.v1.ControllerConfig.runtime_revisions:type_name -> kagent.config.v1.RuntimeRevisionsConfig
-	22, // 18: kagent.config.v1.ControllerConfig.metrics:type_name -> kagent.config.v1.MetricsConfig
+	9,  // 9: kagent.config.v1.ControllerConfig.kubernetes:type_name -> kagent.config.v1.KubernetesConfig
+	10, // 10: kagent.config.v1.ControllerConfig.server:type_name -> kagent.config.v1.ControllerServerConfig
+	13, // 11: kagent.config.v1.ControllerConfig.database:type_name -> kagent.config.v1.DatabaseConfig
+	16, // 12: kagent.config.v1.ControllerConfig.substrate:type_name -> kagent.config.v1.SubstrateConfig
+	17, // 13: kagent.config.v1.ControllerConfig.sessions:type_name -> kagent.config.v1.SessionsConfig
+	18, // 14: kagent.config.v1.ControllerConfig.gateway:type_name -> kagent.config.v1.GatewayConfig
+	20, // 15: kagent.config.v1.ControllerConfig.sandboxes:type_name -> kagent.config.v1.SandboxConfig
+	21, // 16: kagent.config.v1.ControllerConfig.scheduled_runs:type_name -> kagent.config.v1.ScheduledRunsConfig
+	22, // 17: kagent.config.v1.ControllerConfig.runtime_revisions:type_name -> kagent.config.v1.RuntimeRevisionsConfig
+	23, // 18: kagent.config.v1.ControllerConfig.metrics:type_name -> kagent.config.v1.MetricsConfig
 	3,  // 19: kagent.config.v1.ControllerConfig.logging:type_name -> kagent.config.v1.LoggingConfig
-	23, // 20: kagent.config.v1.ControllerConfig.telemetry:type_name -> kagent.config.v1.TelemetryConfig
-	25, // 21: kagent.config.v1.ControllerConfig.runtime_defaults:type_name -> kagent.config.v1.RuntimeDefaultsConfig
-	7,  // 22: kagent.config.v1.ControllerConfig.harness_images:type_name -> kagent.config.v1.HarnessImagesConfig
-	18, // 23: kagent.config.v1.ControllerConfig.push:type_name -> kagent.config.v1.PushConfig
-	10, // 24: kagent.config.v1.ControllerServerConfig.auth:type_name -> kagent.config.v1.AuthenticationConfig
-	11, // 25: kagent.config.v1.AuthenticationConfig.service_account:type_name -> kagent.config.v1.ServiceAccountAuthentication
-	13, // 26: kagent.config.v1.DatabaseConfig.owner:type_name -> kagent.config.v1.DatabaseLoginConfig
-	13, // 27: kagent.config.v1.DatabaseConfig.read_write:type_name -> kagent.config.v1.DatabaseLoginConfig
-	14, // 28: kagent.config.v1.DatabaseConfig.pool:type_name -> kagent.config.v1.PostgresPoolConfig
-	29, // 29: kagent.config.v1.PostgresPoolConfig.max_conn_idle_time:type_name -> google.protobuf.Duration
-	29, // 30: kagent.config.v1.PostgresPoolConfig.max_conn_lifetime:type_name -> google.protobuf.Duration
-	29, // 31: kagent.config.v1.SessionsConfig.idle_ttl:type_name -> google.protobuf.Duration
-	29, // 32: kagent.config.v1.SessionsConfig.share_max_ttl:type_name -> google.protobuf.Duration
-	29, // 33: kagent.config.v1.SessionsConfig.expiration_interval:type_name -> google.protobuf.Duration
-	29, // 34: kagent.config.v1.SessionsConfig.quiescence_recovery_interval:type_name -> google.protobuf.Duration
-	29, // 35: kagent.config.v1.PushConfig.recovery_interval:type_name -> google.protobuf.Duration
-	29, // 36: kagent.config.v1.SandboxConfig.default_ttl:type_name -> google.protobuf.Duration
-	29, // 37: kagent.config.v1.SandboxConfig.max_ttl:type_name -> google.protobuf.Duration
-	29, // 38: kagent.config.v1.SandboxConfig.expiration_interval:type_name -> google.protobuf.Duration
-	29, // 39: kagent.config.v1.ScheduledRunsConfig.poll_interval:type_name -> google.protobuf.Duration
-	29, // 40: kagent.config.v1.ScheduledRunsConfig.execution_interval:type_name -> google.protobuf.Duration
-	29, // 41: kagent.config.v1.RuntimeRevisionsConfig.gc_interval:type_name -> google.protobuf.Duration
-	24, // 42: kagent.config.v1.TelemetryConfig.traces:type_name -> kagent.config.v1.OTLPConfig
-	24, // 43: kagent.config.v1.TelemetryConfig.metrics:type_name -> kagent.config.v1.OTLPConfig
-	24, // 44: kagent.config.v1.TelemetryConfig.logs:type_name -> kagent.config.v1.OTLPConfig
-	28, // 45: kagent.config.v1.TelemetryConfig.resource_attributes:type_name -> kagent.config.v1.TelemetryConfig.ResourceAttributesEntry
-	29, // 46: kagent.config.v1.OTLPConfig.timeout:type_name -> google.protobuf.Duration
-	3,  // 47: kagent.config.v1.RuntimeDefaultsConfig.logging:type_name -> kagent.config.v1.LoggingConfig
-	23, // 48: kagent.config.v1.RuntimeDefaultsConfig.telemetry:type_name -> kagent.config.v1.TelemetryConfig
-	27, // 49: kagent.config.v1.RuntimeDefaultsConfig.token_propagation:type_name -> kagent.config.v1.TokenPropagationConfig
-	26, // 50: kagent.config.v1.RuntimeDefaultsConfig.builtin_tools:type_name -> kagent.config.v1.BuiltinToolsConfig
-	51, // [51:51] is the sub-list for method output_type
-	51, // [51:51] is the sub-list for method input_type
-	51, // [51:51] is the sub-list for extension type_name
-	51, // [51:51] is the sub-list for extension extendee
-	0,  // [0:51] is the sub-list for field type_name
+	24, // 20: kagent.config.v1.ControllerConfig.telemetry:type_name -> kagent.config.v1.TelemetryConfig
+	26, // 21: kagent.config.v1.ControllerConfig.runtime_defaults:type_name -> kagent.config.v1.RuntimeDefaultsConfig
+	8,  // 22: kagent.config.v1.ControllerConfig.harness_images:type_name -> kagent.config.v1.HarnessImagesConfig
+	19, // 23: kagent.config.v1.ControllerConfig.push:type_name -> kagent.config.v1.PushConfig
+	7,  // 24: kagent.config.v1.ControllerConfig.memory:type_name -> kagent.config.v1.MemoryConfig
+	31, // 25: kagent.config.v1.MemoryConfig.model_config:type_name -> kagent.api.v1.ResourceReference
+	11, // 26: kagent.config.v1.ControllerServerConfig.auth:type_name -> kagent.config.v1.AuthenticationConfig
+	12, // 27: kagent.config.v1.AuthenticationConfig.service_account:type_name -> kagent.config.v1.ServiceAccountAuthentication
+	14, // 28: kagent.config.v1.DatabaseConfig.owner:type_name -> kagent.config.v1.DatabaseLoginConfig
+	14, // 29: kagent.config.v1.DatabaseConfig.read_write:type_name -> kagent.config.v1.DatabaseLoginConfig
+	15, // 30: kagent.config.v1.DatabaseConfig.pool:type_name -> kagent.config.v1.PostgresPoolConfig
+	30, // 31: kagent.config.v1.PostgresPoolConfig.max_conn_idle_time:type_name -> google.protobuf.Duration
+	30, // 32: kagent.config.v1.PostgresPoolConfig.max_conn_lifetime:type_name -> google.protobuf.Duration
+	30, // 33: kagent.config.v1.SessionsConfig.idle_ttl:type_name -> google.protobuf.Duration
+	30, // 34: kagent.config.v1.SessionsConfig.share_max_ttl:type_name -> google.protobuf.Duration
+	30, // 35: kagent.config.v1.SessionsConfig.expiration_interval:type_name -> google.protobuf.Duration
+	30, // 36: kagent.config.v1.SessionsConfig.quiescence_recovery_interval:type_name -> google.protobuf.Duration
+	30, // 37: kagent.config.v1.PushConfig.recovery_interval:type_name -> google.protobuf.Duration
+	30, // 38: kagent.config.v1.SandboxConfig.default_ttl:type_name -> google.protobuf.Duration
+	30, // 39: kagent.config.v1.SandboxConfig.max_ttl:type_name -> google.protobuf.Duration
+	30, // 40: kagent.config.v1.SandboxConfig.expiration_interval:type_name -> google.protobuf.Duration
+	30, // 41: kagent.config.v1.ScheduledRunsConfig.poll_interval:type_name -> google.protobuf.Duration
+	30, // 42: kagent.config.v1.ScheduledRunsConfig.execution_interval:type_name -> google.protobuf.Duration
+	30, // 43: kagent.config.v1.RuntimeRevisionsConfig.gc_interval:type_name -> google.protobuf.Duration
+	25, // 44: kagent.config.v1.TelemetryConfig.traces:type_name -> kagent.config.v1.OTLPConfig
+	25, // 45: kagent.config.v1.TelemetryConfig.metrics:type_name -> kagent.config.v1.OTLPConfig
+	25, // 46: kagent.config.v1.TelemetryConfig.logs:type_name -> kagent.config.v1.OTLPConfig
+	29, // 47: kagent.config.v1.TelemetryConfig.resource_attributes:type_name -> kagent.config.v1.TelemetryConfig.ResourceAttributesEntry
+	30, // 48: kagent.config.v1.OTLPConfig.timeout:type_name -> google.protobuf.Duration
+	3,  // 49: kagent.config.v1.RuntimeDefaultsConfig.logging:type_name -> kagent.config.v1.LoggingConfig
+	24, // 50: kagent.config.v1.RuntimeDefaultsConfig.telemetry:type_name -> kagent.config.v1.TelemetryConfig
+	28, // 51: kagent.config.v1.RuntimeDefaultsConfig.token_propagation:type_name -> kagent.config.v1.TokenPropagationConfig
+	27, // 52: kagent.config.v1.RuntimeDefaultsConfig.builtin_tools:type_name -> kagent.config.v1.BuiltinToolsConfig
+	53, // [53:53] is the sub-list for method output_type
+	53, // [53:53] is the sub-list for method input_type
+	53, // [53:53] is the sub-list for extension type_name
+	53, // [53:53] is the sub-list for extension extendee
+	0,  // [0:53] is the sub-list for field type_name
 }
 
 func init() { file_kagent_config_v1_config_proto_init() }
@@ -2349,27 +2421,27 @@ func file_kagent_config_v1_config_proto_init() {
 	file_kagent_config_v1_config_proto_msgTypes[3].OneofWrappers = []any{}
 	file_kagent_config_v1_config_proto_msgTypes[4].OneofWrappers = []any{}
 	file_kagent_config_v1_config_proto_msgTypes[5].OneofWrappers = []any{}
-	file_kagent_config_v1_config_proto_msgTypes[8].OneofWrappers = []any{}
 	file_kagent_config_v1_config_proto_msgTypes[9].OneofWrappers = []any{}
 	file_kagent_config_v1_config_proto_msgTypes[10].OneofWrappers = []any{}
-	file_kagent_config_v1_config_proto_msgTypes[12].OneofWrappers = []any{}
-	file_kagent_config_v1_config_proto_msgTypes[14].OneofWrappers = []any{}
+	file_kagent_config_v1_config_proto_msgTypes[11].OneofWrappers = []any{}
+	file_kagent_config_v1_config_proto_msgTypes[13].OneofWrappers = []any{}
 	file_kagent_config_v1_config_proto_msgTypes[15].OneofWrappers = []any{}
-	file_kagent_config_v1_config_proto_msgTypes[17].OneofWrappers = []any{}
+	file_kagent_config_v1_config_proto_msgTypes[16].OneofWrappers = []any{}
 	file_kagent_config_v1_config_proto_msgTypes[18].OneofWrappers = []any{}
 	file_kagent_config_v1_config_proto_msgTypes[19].OneofWrappers = []any{}
-	file_kagent_config_v1_config_proto_msgTypes[22].OneofWrappers = []any{}
+	file_kagent_config_v1_config_proto_msgTypes[20].OneofWrappers = []any{}
 	file_kagent_config_v1_config_proto_msgTypes[23].OneofWrappers = []any{}
 	file_kagent_config_v1_config_proto_msgTypes[24].OneofWrappers = []any{}
 	file_kagent_config_v1_config_proto_msgTypes[25].OneofWrappers = []any{}
-	file_kagent_config_v1_config_proto_msgTypes[27].OneofWrappers = []any{}
+	file_kagent_config_v1_config_proto_msgTypes[26].OneofWrappers = []any{}
+	file_kagent_config_v1_config_proto_msgTypes[28].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_kagent_config_v1_config_proto_rawDesc), len(file_kagent_config_v1_config_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   29,
+			NumMessages:   30,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
