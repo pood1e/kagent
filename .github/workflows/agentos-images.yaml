@@ -140,3 +140,79 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
       - run: echo "${REGISTRY}/${{ matrix.component }}@${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
+      - name: Export image metadata
+        env:
+          COMPONENT: ${{ matrix.component }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p metadata
+          name="$COMPONENT"
+          if [ "$name" = standard-harness ]; then name=golang-adk; fi
+          jq -n --arg digest "$DIGEST" '{"containerimage.digest": $digest}' > "metadata/$name.json"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: metadata-${{ matrix.component }}
+          path: metadata/
+          if-no-files-found: error
+          retention-days: 1
+
+  charts:
+    if: startsWith(github.ref, 'refs/heads/agentos/')
+    needs: images
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: metadata-*
+          merge-multiple: true
+          path: metadata/
+      - name: Install Helm
+        run: |
+          curl --fail --location --retry 3 --proto '=https' --tlsv1.2 \
+            -o /tmp/helm.tgz https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz
+          echo '0403a88ae20913d11b10a2467b50087721fea7581736da6b9d3992f5357fe54b  /tmp/helm.tgz' | sha256sum --check
+          tar -xzf /tmp/helm.tgz -C /tmp linux-amd64/helm
+          sudo install /tmp/linux-amd64/helm /usr/local/bin/helm
+          python3 -m venv /tmp/chart-venv
+          /tmp/chart-venv/bin/pip install PyYAML==6.0.3
+      - name: Package fork charts
+        run: |
+          cp -R helm /tmp/release-helm
+          mkdir -p /tmp/release-helm/kagent/files
+          bash scripts/harness-image-catalog.sh "$VERSION" metadata \
+            "$REGISTRY/standard-harness" "$REGISTRY/claude-harness" "$REGISTRY/codex-harness" \
+            > /tmp/release-helm/kagent/files/builtin-harness-images.json
+          /tmp/chart-venv/bin/python - <<'PY'
+          import json, os
+          from pathlib import Path
+          import yaml
+          root = Path('/tmp/release-helm')
+          values = root / 'kagent/values.yaml'
+          config = yaml.safe_load(values.read_text())
+          digest = json.loads(Path('metadata/controller.json').read_text())['containerimage.digest']
+          config['controller']['image'].update(registry='ghcr.io', repository=os.environ['GITHUB_REPOSITORY'] + '/controller', tag=os.environ['GITHUB_SHA'] + '@' + digest)
+          config['ui']['replicas'] = 0
+          config['ui']['image']['tag'] = '1.0.0-alpha17@sha256:68dc2ec374a5250a545b85850b6d284c318e3472c73de6e419e534cdcf5b79a1'
+          for name in ('kagent-tools', 'grafana-mcp'):
+              config[name]['enabled'] = False
+          values.write_text(yaml.safe_dump(config, sort_keys=False))
+          for name in ('kagent', 'kagent-crds'):
+              template = root / name / 'Chart-template.yaml'
+              template.write_text(template.read_text().replace('https://github.com/kagent-dev/kagent', 'https://github.com/' + os.environ['GITHUB_REPOSITORY']))
+          PY
+          make helm-version VERSION="$VERSION" HELM_SOURCE_DIR=/tmp/release-helm HELM_DIST_FOLDER=/tmp/release-charts
+          helm lint /tmp/release-charts/kagent-"$VERSION".tgz /tmp/release-charts/kagent-crds-"$VERSION".tgz
+      - name: Publish charts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd /tmp/release-charts
+          sha256sum kagent-"$VERSION".tgz kagent-crds-"$VERSION".tgz > SHA256SUMS
+          gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "$VERSION" --prerelease \
+            --notes "Digest-pinned fork runtime charts for revision $GITHUB_SHA." \
+            kagent-"$VERSION".tgz kagent-crds-"$VERSION".tgz SHA256SUMS
+          cat SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
