@@ -34,7 +34,7 @@ func (p *Provider) withOrigin(ctx context.Context, headers http.Header, caller a
 	if len(values) == 0 {
 		return caller, nil
 	}
-	if len(values) != 1 || caller == nil {
+	if len(values) != 1 || caller == nil || caller.Principal().Execution != nil {
 		return nil, fmt.Errorf("one originating actor proof is required")
 	}
 	proof := strings.TrimPrefix(values[0], "Bearer ")

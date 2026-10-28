@@ -61,3 +61,27 @@ func (s *Service) RevokeCredential(ctx context.Context) error {
 	}
 	return nil
 }
+
+func (s *Service) CredentialStatus(ctx context.Context) (*apiv1.GetDelegationCredentialStatusResponse, error) {
+	if s.authority == nil {
+		return nil, serviceerrors.NewFailedPrecondition("Execution authority is not configured", nil)
+	}
+	renewable, err := s.authority.CredentialStatus(ctx)
+	if err != nil {
+		return nil, serviceerrors.NewPermissionDenied("Cannot read delegation credential", err)
+	}
+	return &apiv1.GetDelegationCredentialStatusResponse{Renewable: renewable}, nil
+}
+func (s *Service) IssueSessionCredential(ctx context.Context, request *apiv1.IssueSessionCredentialRequest) (*apiv1.IssueSessionCredentialResponse, error) {
+	if _, err := s.sessions.Get(ctx, request.SessionId); err != nil {
+		return nil, err
+	}
+	if s.authority == nil {
+		return nil, serviceerrors.NewFailedPrecondition("Execution authority is not configured", nil)
+	}
+	result, err := s.authority.IssueSessionCredential(ctx, request)
+	if err != nil {
+		return nil, serviceerrors.NewPermissionDenied("Cannot issue Session credential", err)
+	}
+	return result, nil
+}
