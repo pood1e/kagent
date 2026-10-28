@@ -20,6 +20,8 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	HarnessService_ListHarnesses_FullMethodName = "/kagent.api.v1.HarnessService/ListHarnesses"
+	HarnessService_GetHarness_FullMethodName    = "/kagent.api.v1.HarnessService/GetHarness"
+	HarnessService_UpdateHarness_FullMethodName = "/kagent.api.v1.HarnessService/UpdateHarness"
 	HarnessService_CreateHarness_FullMethodName = "/kagent.api.v1.HarnessService/CreateHarness"
 	HarnessService_DeleteHarness_FullMethodName = "/kagent.api.v1.HarnessService/DeleteHarness"
 )
@@ -33,6 +35,8 @@ const (
 // and pins its latest successful revision.
 type HarnessServiceClient interface {
 	ListHarnesses(ctx context.Context, in *ListHarnessesRequest, opts ...grpc.CallOption) (*ListHarnessesResponse, error)
+	GetHarness(ctx context.Context, in *GetHarnessRequest, opts ...grpc.CallOption) (*GetHarnessResponse, error)
+	UpdateHarness(ctx context.Context, in *UpdateHarnessRequest, opts ...grpc.CallOption) (*UpdateHarnessResponse, error)
 	CreateHarness(ctx context.Context, in *CreateHarnessRequest, opts ...grpc.CallOption) (*CreateHarnessResponse, error)
 	DeleteHarness(ctx context.Context, in *DeleteHarnessRequest, opts ...grpc.CallOption) (*DeleteHarnessResponse, error)
 }
@@ -49,6 +53,26 @@ func (c *harnessServiceClient) ListHarnesses(ctx context.Context, in *ListHarnes
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListHarnessesResponse)
 	err := c.cc.Invoke(ctx, HarnessService_ListHarnesses_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *harnessServiceClient) GetHarness(ctx context.Context, in *GetHarnessRequest, opts ...grpc.CallOption) (*GetHarnessResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetHarnessResponse)
+	err := c.cc.Invoke(ctx, HarnessService_GetHarness_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *harnessServiceClient) UpdateHarness(ctx context.Context, in *UpdateHarnessRequest, opts ...grpc.CallOption) (*UpdateHarnessResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateHarnessResponse)
+	err := c.cc.Invoke(ctx, HarnessService_UpdateHarness_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -84,6 +108,8 @@ func (c *harnessServiceClient) DeleteHarness(ctx context.Context, in *DeleteHarn
 // and pins its latest successful revision.
 type HarnessServiceServer interface {
 	ListHarnesses(context.Context, *ListHarnessesRequest) (*ListHarnessesResponse, error)
+	GetHarness(context.Context, *GetHarnessRequest) (*GetHarnessResponse, error)
+	UpdateHarness(context.Context, *UpdateHarnessRequest) (*UpdateHarnessResponse, error)
 	CreateHarness(context.Context, *CreateHarnessRequest) (*CreateHarnessResponse, error)
 	DeleteHarness(context.Context, *DeleteHarnessRequest) (*DeleteHarnessResponse, error)
 	mustEmbedUnimplementedHarnessServiceServer()
@@ -98,6 +124,12 @@ type UnimplementedHarnessServiceServer struct{}
 
 func (UnimplementedHarnessServiceServer) ListHarnesses(context.Context, *ListHarnessesRequest) (*ListHarnessesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListHarnesses not implemented")
+}
+func (UnimplementedHarnessServiceServer) GetHarness(context.Context, *GetHarnessRequest) (*GetHarnessResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetHarness not implemented")
+}
+func (UnimplementedHarnessServiceServer) UpdateHarness(context.Context, *UpdateHarnessRequest) (*UpdateHarnessResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateHarness not implemented")
 }
 func (UnimplementedHarnessServiceServer) CreateHarness(context.Context, *CreateHarnessRequest) (*CreateHarnessResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateHarness not implemented")
@@ -140,6 +172,42 @@ func _HarnessService_ListHarnesses_Handler(srv interface{}, ctx context.Context,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(HarnessServiceServer).ListHarnesses(ctx, req.(*ListHarnessesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HarnessService_GetHarness_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetHarnessRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HarnessServiceServer).GetHarness(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HarnessService_GetHarness_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HarnessServiceServer).GetHarness(ctx, req.(*GetHarnessRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HarnessService_UpdateHarness_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateHarnessRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HarnessServiceServer).UpdateHarness(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HarnessService_UpdateHarness_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HarnessServiceServer).UpdateHarness(ctx, req.(*UpdateHarnessRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -190,6 +258,14 @@ var HarnessService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListHarnesses",
 			Handler:    _HarnessService_ListHarnesses_Handler,
+		},
+		{
+			MethodName: "GetHarness",
+			Handler:    _HarnessService_GetHarness_Handler,
+		},
+		{
+			MethodName: "UpdateHarness",
+			Handler:    _HarnessService_UpdateHarness_Handler,
 		},
 		{
 			MethodName: "CreateHarness",

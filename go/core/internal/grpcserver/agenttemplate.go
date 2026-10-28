@@ -2,7 +2,6 @@ package grpcserver
 
 import (
 	"context"
-	"maps"
 
 	"k8s.io/apimachinery/pkg/types"
 
@@ -91,7 +90,7 @@ func (s *agentTemplateServer) UpdateAgentTemplate(ctx context.Context, request *
 		return nil, err
 	}
 	existing.Spec = *incoming.Spec.DeepCopy()
-	existing.Labels = maps.Clone(incoming.Labels)
+	applyResourceMetadata(existing, incoming)
 	result, err := s.service.Update(ctx, existing)
 	if err != nil {
 		return nil, err
@@ -108,7 +107,7 @@ func (s *agentTemplateServer) DeleteAgentTemplate(ctx context.Context, request *
 	if err != nil {
 		return nil, err
 	}
-	if err := s.service.Delete(ctx, ref); err != nil {
+	if err := s.service.Delete(ctx, ref, request.GetResourceVersion()); err != nil {
 		return nil, err
 	}
 	return &apiv1.DeleteAgentTemplateResponse{}, nil

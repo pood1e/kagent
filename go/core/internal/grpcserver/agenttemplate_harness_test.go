@@ -157,6 +157,12 @@ func TestAgentTemplateServiceGeneratedClient(t *testing.T) {
 
 	updatedTemplate := testAgentTemplate("team", "a-created", "claude")
 	updatedTemplate.Labels = map[string]string{"runtime": "codex"}
+	initial := &v1alpha3.AgentTemplate{}
+	if err := structuredobject.ToGo(created.AgentTemplate.Resource, agentTemplateKind, initial, DefaultMaxMessageSize); err != nil {
+		t.Fatal(err)
+	}
+	updatedTemplate.ResourceVersion = initial.ResourceVersion
+	updatedTemplate.Annotations = map[string]string{"display-name": "Reviewer"}
 	updated, err := client.UpdateAgentTemplate(ctx, &apiv1.UpdateAgentTemplateRequest{
 		Ref:      ref,
 		Resource: structured(t, updatedTemplate, agentTemplateKind),
@@ -175,6 +181,13 @@ func TestAgentTemplateServiceGeneratedClient(t *testing.T) {
 		t.Fatalf("UpdateAgentTemplate() label runtime = %q, want codex", got)
 	}
 
+	if updatedResource.Annotations["display-name"] != "Reviewer" {
+		t.Fatal("annotations were not saved")
+	}
+	_, err = client.UpdateAgentTemplate(ctx, &apiv1.UpdateAgentTemplateRequest{Ref: ref, Resource: structured(t, updatedTemplate, agentTemplateKind)})
+	assertCode(t, err, codes.Aborted)
+	_, err = client.DeleteAgentTemplate(ctx, &apiv1.DeleteAgentTemplateRequest{Ref: ref, ResourceVersion: initial.ResourceVersion})
+	assertCode(t, err, codes.Aborted)
 	listed, err := client.ListAgentTemplates(ctx, &apiv1.ListAgentTemplatesRequest{Namespace: "team"})
 	if err != nil {
 		t.Fatalf("ListAgentTemplates() error = %v", err)

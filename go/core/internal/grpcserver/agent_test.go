@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,6 +28,9 @@ func TestAgentServiceGeneratedClient(t *testing.T) {
 	listed, err := client.ListAgents(ctx, &apiv1.ListAgentsRequest{Namespace: "team"})
 	require.NoError(t, err)
 	require.Len(t, listed.Agents, 1)
+	require.NoError(t, structuredobject.ToGo(created.Agent.Resource, "Agent", agent, DefaultMaxMessageSize))
+	oldVersion := agent.ResourceVersion
+	agent.Annotations = map[string]string{"display-name": "Reviewer"}
 	agent.Spec.Template = v1alpha3.AgentTemplateSource{Ref: &corev1.LocalObjectReference{Name: "shared-behavior"}}
 	updated, err := client.UpdateAgent(ctx, &apiv1.UpdateAgentRequest{Ref: ref, Resource: structured(t, agent, "Agent")})
 	require.NoError(t, err)
@@ -35,6 +39,11 @@ func TestAgentServiceGeneratedClient(t *testing.T) {
 	require.Nil(t, decoded.Spec.Template.Inline)
 	require.Equal(t, "shared-behavior", decoded.Spec.Template.Ref.Name)
 	require.Equal(t, "runtime", decoded.Spec.HarnessRef.Name)
+	require.Equal(t, "Reviewer", decoded.Annotations["display-name"])
+	_, err = client.UpdateAgent(ctx, &apiv1.UpdateAgentRequest{Ref: ref, Resource: structured(t, agent, "Agent")})
+	assertCode(t, err, codes.Aborted)
+	_, err = client.DeleteAgent(ctx, &apiv1.DeleteAgentRequest{Ref: ref, ResourceVersion: oldVersion})
+	assertCode(t, err, codes.Aborted)
 	_, err = client.DeleteAgent(ctx, &apiv1.DeleteAgentRequest{Ref: ref})
 	require.NoError(t, err)
 	listed, err = client.ListAgents(ctx, &apiv1.ListAgentsRequest{Namespace: "team"})

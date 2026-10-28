@@ -482,10 +482,12 @@ func (x *UpdateAgentTemplateResponse) GetAgentTemplate() *AgentTemplate {
 }
 
 type DeleteAgentTemplateRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Ref           *ResourceReference     `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional Kubernetes optimistic concurrency precondition.
+	ResourceVersion string             `protobuf:"bytes,2,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	Ref             *ResourceReference `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *DeleteAgentTemplateRequest) Reset() {
@@ -516,6 +518,13 @@ func (x *DeleteAgentTemplateRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DeleteAgentTemplateRequest.ProtoReflect.Descriptor instead.
 func (*DeleteAgentTemplateRequest) Descriptor() ([]byte, []int) {
 	return file_kagent_api_v1_agent_templates_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *DeleteAgentTemplateRequest) GetResourceVersion() string {
+	if x != nil {
+		return x.ResourceVersion
+	}
+	return ""
 }
 
 func (x *DeleteAgentTemplateRequest) GetRef() *ResourceReference {
@@ -590,8 +599,9 @@ const file_kagent_api_v1_agent_templates_proto_rawDesc = "" +
 	"\x03ref\x18\x01 \x01(\v2 .kagent.api.v1.ResourceReferenceR\x03ref\x12;\n" +
 	"\bresource\x18\x02 \x01(\v2\x1f.kagent.api.v1.StructuredObjectR\bresource\"b\n" +
 	"\x1bUpdateAgentTemplateResponse\x12C\n" +
-	"\x0eagent_template\x18\x01 \x01(\v2\x1c.kagent.api.v1.AgentTemplateR\ragentTemplate\"P\n" +
-	"\x1aDeleteAgentTemplateRequest\x122\n" +
+	"\x0eagent_template\x18\x01 \x01(\v2\x1c.kagent.api.v1.AgentTemplateR\ragentTemplate\"\x85\x01\n" +
+	"\x1aDeleteAgentTemplateRequest\x123\n" +
+	"\x10resource_version\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x0fresourceVersion\x122\n" +
 	"\x03ref\x18\x01 \x01(\v2 .kagent.api.v1.ResourceReferenceR\x03ref\"\x1d\n" +
 	"\x1bDeleteAgentTemplateResponse2\xb0\x04\n" +
 	"\x14AgentTemplateService\x12i\n" +

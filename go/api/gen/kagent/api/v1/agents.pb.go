@@ -471,10 +471,12 @@ func (x *UpdateAgentResponse) GetAgent() *Agent {
 }
 
 type DeleteAgentRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Ref           *ResourceReference     `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional Kubernetes optimistic concurrency precondition.
+	ResourceVersion string             `protobuf:"bytes,2,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
+	Ref             *ResourceReference `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *DeleteAgentRequest) Reset() {
@@ -505,6 +507,13 @@ func (x *DeleteAgentRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DeleteAgentRequest.ProtoReflect.Descriptor instead.
 func (*DeleteAgentRequest) Descriptor() ([]byte, []int) {
 	return file_kagent_api_v1_agents_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *DeleteAgentRequest) GetResourceVersion() string {
+	if x != nil {
+		return x.ResourceVersion
+	}
+	return ""
 }
 
 func (x *DeleteAgentRequest) GetRef() *ResourceReference {
@@ -727,8 +736,9 @@ const file_kagent_api_v1_agents_proto_rawDesc = "" +
 	"\x03ref\x18\x01 \x01(\v2 .kagent.api.v1.ResourceReferenceB\x06\xbaH\x03\xc8\x01\x01R\x03ref\x12C\n" +
 	"\bresource\x18\x02 \x01(\v2\x1f.kagent.api.v1.StructuredObjectB\x06\xbaH\x03\xc8\x01\x01R\bresource\"A\n" +
 	"\x13UpdateAgentResponse\x12*\n" +
-	"\x05agent\x18\x01 \x01(\v2\x14.kagent.api.v1.AgentR\x05agent\"P\n" +
-	"\x12DeleteAgentRequest\x12:\n" +
+	"\x05agent\x18\x01 \x01(\v2\x14.kagent.api.v1.AgentR\x05agent\"\x85\x01\n" +
+	"\x12DeleteAgentRequest\x123\n" +
+	"\x10resource_version\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x0fresourceVersion\x12:\n" +
 	"\x03ref\x18\x01 \x01(\v2 .kagent.api.v1.ResourceReferenceB\x06\xbaH\x03\xc8\x01\x01R\x03ref\"\x15\n" +
 	"\x13DeleteAgentResponse\"\x97\x01\n" +
 	"\x14ValidateAgentRequest\x12:\n" +

@@ -8,6 +8,7 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilvalidation "k8s.io/apimachinery/pkg/util/validation"
@@ -128,7 +129,12 @@ func (s *Service[T, L]) Update(ctx context.Context, object T) (T, error) {
 		return zero, err
 	}
 	if err := s.client.Update(ctx, object); err != nil {
-		if apierrors.IsInvalid(err) {
+		switch {
+		case apierrors.IsConflict(err):
+			return zero, serviceerrors.NewAborted(s.resource+" resource version changed", err)
+		case apierrors.IsNotFound(err):
+			return zero, serviceerrors.NewNotFound(s.resource+" not found", err)
+		case apierrors.IsInvalid(err):
 			return zero, serviceerrors.NewInvalidArgument(err.Error(), err)
 		}
 		return zero, serviceerrors.NewInternal("Failed to update "+s.resource, err)
@@ -154,7 +160,7 @@ func (s *Service[T, L]) validate(ctx context.Context, object T) error {
 	return nil
 }
 
-func (s *Service[T, L]) Delete(ctx context.Context, ref types.NamespacedName) error {
+func (s *Service[T, L]) Delete(ctx context.Context, ref types.NamespacedName, version string) error {
 	if err := s.Authorize(ctx, auth.VerbDelete, ref); err != nil {
 		return err
 	}
@@ -162,7 +168,17 @@ func (s *Service[T, L]) Delete(ctx context.Context, ref types.NamespacedName) er
 	if err != nil {
 		return err
 	}
-	if err := s.client.Delete(ctx, object); err != nil {
+	if version == "" {
+		version = object.GetResourceVersion()
+	}
+	uid := object.GetUID()
+	if err := s.client.Delete(ctx, object, client.Preconditions(metav1.Preconditions{UID: &uid, ResourceVersion: &version})); err != nil {
+		if apierrors.IsConflict(err) {
+			return serviceerrors.NewAborted(s.resource+" resource version changed", err)
+		}
+		if apierrors.IsNotFound(err) {
+			return serviceerrors.NewNotFound(s.resource+" not found", err)
+		}
 		return serviceerrors.NewInternal("Failed to delete "+s.resource, err)
 	}
 	return nil
