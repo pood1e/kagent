@@ -36,14 +36,28 @@ type actorClaims struct {
 
 // ActorJWTVerifier trusts one configured issuer and refreshes its signing keys.
 type ActorJWTVerifier struct {
-	issuer  string
-	jwksURL string
-	keys    *jwk.AutoRefresh
+	issuer   string
+	audience string
+	jwksURL  string
+	keys     *jwk.AutoRefresh
 }
 
 // NewActorJWTVerifier loads discovery over verified TLS. The context owns key
 // refreshes; callers must cancel it when the verifier is no longer used.
 func NewActorJWTVerifier(ctx context.Context, issuer, caFile string) (*ActorJWTVerifier, error) {
+	return newActorJWTVerifier(ctx, issuer, caFile, runtimeJWTAudience)
+}
+
+// NewGatewayActorJWTVerifier verifies gateway credentials only for ext-authz.
+// This verifier remains separate from the control-plane runtime audience.
+func NewGatewayActorJWTVerifier(ctx context.Context, issuer, caFile, audience string) (*ActorJWTVerifier, error) {
+	if err := validateIssuerURL(audience); err != nil {
+		return nil, fmt.Errorf("invalid gateway Actor JWT audience: %w", err)
+	}
+	return newActorJWTVerifier(ctx, issuer, caFile, audience)
+}
+
+func newActorJWTVerifier(ctx context.Context, issuer, caFile, audience string) (*ActorJWTVerifier, error) {
 	if err := validateIssuerURL(issuer); err != nil {
 		return nil, err
 	}
@@ -103,7 +117,7 @@ func NewActorJWTVerifier(ctx context.Context, issuer, caFile string) (*ActorJWTV
 			}
 		}
 	}()
-	return &ActorJWTVerifier{issuer: issuer, jwksURL: discovery.JWKSURI, keys: keys}, nil
+	return &ActorJWTVerifier{issuer: issuer, audience: audience, jwksURL: discovery.JWKSURI, keys: keys}, nil
 }
 
 func validateIssuerURL(raw string) error {
@@ -137,7 +151,7 @@ func (v *ActorJWTVerifier) Verify(ctx context.Context, raw string) (ActorIdentit
 		}
 		return publicKey, nil
 	}, jwt.WithValidMethods([]string{"ES256", "RS256", "RS384", "RS512"}),
-		jwt.WithIssuer(v.issuer), jwt.WithAudience(runtimeJWTAudience), jwt.WithExpirationRequired(), jwt.WithIssuedAt(),
+		jwt.WithIssuer(v.issuer), jwt.WithAudience(v.audience), jwt.WithExpirationRequired(), jwt.WithIssuedAt(),
 		jwt.WithLeeway(runtimeJWTClockSkew))
 	if err != nil {
 		return ActorIdentity{}, fmt.Errorf("verify Actor JWT: %w", err)

@@ -23,6 +23,13 @@ type TaskContinuation struct {
 // may delegate, and an ancestor cannot be invoked as its own descendant.
 func (c *Client) RegisterTaskContinuation(ctx context.Context, parentID, childID, messageID string) error {
 	return c.withTx(ctx, func(tx pgx.Tx) error {
+		if err := lockSessionAuthority(ctx, tx, parentID); err != nil {
+			return err
+		}
+		if err := requireRelatedAuthority(ctx, tx, parentID, childID); err != nil {
+			return err
+		}
+
 		type execution struct{ TaskID, RootTaskID string }
 		current, err := queryOne(ctx, tx, `
  SELECT e.task_id, e.root_task_id FROM task_execution e JOIN session_task t ON t.id = e.task_id

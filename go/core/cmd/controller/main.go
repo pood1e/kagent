@@ -26,9 +26,7 @@ import (
 	"syscall"
 
 	configv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/config/v1"
-	authimpl "github.com/kagent-dev/kagent/go/core/internal/httpserver/auth"
 	"github.com/kagent-dev/kagent/go/core/pkg/app"
-	"github.com/kagent-dev/kagent/go/core/pkg/auth"
 	"github.com/kagent-dev/kagent/go/core/pkg/config"
 )
 
@@ -79,28 +77,13 @@ func run(path string, check bool, level string) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
-	authenticator, err := controllerAuthenticator(cfg.GetServer().GetAuth().GetMode(), cfg.GetServer().GetAuth().GetUserIdClaim())
-	if err != nil {
-		return err
-	}
 	// These downward-API inputs describe this pod, not runtime defaults.
 	podTelemetryDefaults(cfg, os.Getenv) //nolint:forbidigo // Private pod identity supplied by Helm.
-	if err := app.Run(ctx, cfg, app.Options{Authenticator: authenticator}); err != nil {
+	if err := app.Run(ctx, cfg, app.Options{}); err != nil {
 		slog.Default().ErrorContext(ctx, "controller stopped", "error", err)
 		return err
 	}
 	return nil
-}
-
-func controllerAuthenticator(mode, userIDClaim string) (auth.AuthProvider, error) {
-	switch mode {
-	case "insecure":
-		return &authimpl.InsecureAuthenticator{}, nil
-	case "trusted-proxy":
-		return authimpl.NewProxyAuthenticator(userIDClaim), nil
-	default:
-		return nil, fmt.Errorf("unsupported server.auth.mode %q", mode)
-	}
 }
 
 func podTelemetryDefaults(cfg *configv1.ControllerConfig, getenv func(string) string) {

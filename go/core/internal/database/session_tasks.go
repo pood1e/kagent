@@ -32,6 +32,12 @@ var ErrMessageAccepted = errors.New("message already accepted")
 // first save must fail before native execution. This is not a native work lease.
 func (c *Client) ReserveSessionDispatch(ctx context.Context, sessionID string, dispatchID uuid.UUID, initialMessageID string, origin *DispatchOrigin) error {
 	return c.withTx(ctx, func(tx pgx.Tx) error {
+		if err := lockSessionAuthority(ctx, tx, sessionID); err != nil {
+			return err
+		}
+		if err := requireActiveAuthority(ctx, tx, sessionID); err != nil {
+			return err
+		}
 		if origin != nil && initialMessageID != "" {
 			accepted, err := queryOne(ctx, tx, `
  SELECT EXISTS (SELECT 1 FROM session_task_event e JOIN session s ON s.history_id = e.history_id WHERE s.id = $1 AND e.message_id = $2)
@@ -41,6 +47,11 @@ func (c *Client) ReserveSessionDispatch(ctx context.Context, sessionID string, d
 			}
 			if accepted {
 				return ErrMessageAccepted
+			}
+		}
+		if origin != nil && origin.SessionID != "" {
+			if err := requireRelatedAuthority(ctx, tx, origin.SessionID, sessionID); err != nil {
+				return err
 			}
 		}
 		parent, err := dispatchParent(ctx, tx, origin, sessionID, initialMessageID)
@@ -179,6 +190,14 @@ func (c *Client) writeRuntimeTask(ctx context.Context, sessionID string, expecte
 	}
 	var version int64
 	err := c.withTx(ctx, func(tx pgx.Tx) error {
+		if err := lockSessionAuthority(ctx, tx, sessionID); err != nil {
+			return err
+		}
+		if expectedVersion == 0 || !task.Status.State.Terminal() {
+			if err := requireActiveAuthority(ctx, tx, sessionID); err != nil {
+				return err
+			}
+		}
 		if err := runtimeExecutionLock(ctx, tx, string(task.ID), dispatchID); err != nil {
 			return err
 		}

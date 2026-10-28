@@ -94,6 +94,10 @@ func (c *Continuations) tick(ctx context.Context) error {
 
 // resume uses native admission; a retry of an accepted message returns its task.
 func (c *Continuations) resume(ctx context.Context, value database.TaskContinuation) (string, error) {
+	ctx, err := c.sessions.ExecutionContext(ctx, value.ParentSessionID)
+	if err != nil {
+		return "", err
+	}
 	parent, err := c.sessions.Get(ctx, value.ParentSessionID)
 	if err != nil {
 		return "", err

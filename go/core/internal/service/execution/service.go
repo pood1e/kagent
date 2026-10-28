@@ -10,6 +10,7 @@ import (
 
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
+	"github.com/kagent-dev/kagent/go/core/internal/executionauth"
 	"github.com/kagent-dev/kagent/go/core/internal/service/serviceerrors"
 )
 
@@ -20,15 +21,17 @@ type Store interface {
 
 type Sessions interface {
 	Get(context.Context, string) (*apiv1.Session, error)
+	RevokeExecutionAuthority(context.Context, string) error
 }
 
 type Service struct {
-	store    Store
-	sessions Sessions
+	store     Store
+	sessions  Sessions
+	authority *executionauth.Service
 }
 
-func NewService(store Store, sessions Sessions) *Service {
-	return &Service{store: store, sessions: sessions}
+func NewService(store Store, sessions Sessions, authority *executionauth.Service) *Service {
+	return &Service{store: store, sessions: sessions, authority: authority}
 }
 
 func (s *Service) Get(ctx context.Context, taskID string) (*apiv1.TaskExecution, error) {

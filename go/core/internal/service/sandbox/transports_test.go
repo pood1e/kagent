@@ -178,7 +178,7 @@ func TestSandboxTransports(t *testing.T) {
 		require.Equal(t, codes.InvalidArgument, status.Code(err))
 	})
 
-	handler, err := toolserver.New(&session.Service{}, &checkpoint.Service{}, &a2asrv.InterceptedHandler{}, service, nil)
+	handler, err := toolserver.New(&session.Service{}, &checkpoint.Service{}, &a2asrv.InterceptedHandler{}, service, nil, nil)
 	require.NoError(t, err)
 	mcpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		handler.ServeHTTP(w, r.WithContext(auth.AuthSessionTo(r.Context(), testSession("alice"))))

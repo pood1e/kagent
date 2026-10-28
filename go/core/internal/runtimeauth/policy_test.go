@@ -46,12 +46,12 @@ func TestConfiguredActorPolicyNarrowsNativePermissions(t *testing.T) {
 	verifier, err := substrate.NewActorJWTVerifier(t.Context(), issuer.URL, issuer.CAFile)
 	require.NoError(t, err)
 	store := newBinding()
-	provider := runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL)
+	provider := runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL, nil)
 	identity, err := provider.Authenticate(t.Context(), http.Header{"Authorization": {"Bearer " + issuer.Token(t, issuer.Claims("team-a", substrate.ActorName(store.session.Id), store.actorUID))}}, nil)
 	require.NoError(t, err)
 	ctx := auth.AuthSessionTo(t.Context(), identity)
 	configured := &actorPolicy{}
-	policy := runtimeauth.NewAuthorizer(configured, store)
+	policy := runtimeauth.NewAuthorizer(configured, store, nil)
 	resource := auth.Resource{Type: "TaskStore", Namespace: "team-a", Name: store.session.Id}
 	require.NoError(t, policy.Check(ctx, identity.Principal(), auth.VerbCreate, resource))
 	require.Equal(t, identity.Principal(), configured.principal)
@@ -75,7 +75,7 @@ func TestConfiguredActorScopeIntersectsOwnAgent(t *testing.T) {
 	verifier, err := substrate.NewActorJWTVerifier(t.Context(), issuer.URL, issuer.CAFile)
 	require.NoError(t, err)
 	store := newBinding()
-	provider := runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL)
+	provider := runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL, nil)
 	identity, err := provider.Authenticate(t.Context(), http.Header{"Authorization": {"Bearer " + issuer.Token(t, issuer.Claims("team-a", substrate.ActorName(store.session.Id), store.actorUID))}}, nil)
 	require.NoError(t, err)
 	ctx := auth.AuthSessionTo(t.Context(), identity)
@@ -94,7 +94,7 @@ func TestConfiguredActorScopeIntersectsOwnAgent(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			configured := &actorPolicy{scope: test.scope, scopeErr: test.err}
-			policy := runtimeauth.NewAuthorizer(configured, store)
+			policy := runtimeauth.NewAuthorizer(configured, store, nil)
 			scope, err := policy.Scope(ctx, identity.Principal(), auth.VerbList, "Agent")
 			if test.wantErr {
 				require.Error(t, err)

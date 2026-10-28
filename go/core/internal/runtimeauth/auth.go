@@ -85,6 +85,9 @@ type SessionStore interface {
 // It never accepts caller-supplied user, agent, or share headers as authority.
 func Session(ctx context.Context, store SessionStore) (*apiv1.Session, error) {
 	authSession, _ := auth.AuthSessionFrom(ctx)
+	if origin, ok := authSession.(originSession); ok {
+		authSession = origin.origin
+	}
 	identity, ok := authSession.(runtimeSession)
 	if !ok {
 		return nil, status.Error(codes.PermissionDenied, "runtime actor identity is required")

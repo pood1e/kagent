@@ -46,12 +46,12 @@ func TestDelegatedMCPOriginRequiresAnActorOfTheAuthenticatedOwner(t *testing.T) 
 	verifier, err := substrate.NewActorJWTVerifier(t.Context(), issuer.URL, issuer.CAFile)
 	require.NoError(t, err)
 	store := newBinding()
-	provider := runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL)
+	provider := runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL, nil)
 	token := "Bearer " + issuer.Token(t, issuer.Claims("team-a", substrate.ActorName(store.session.Id), store.actorUID))
 	headers := http.Header{"X-User-Id": {"owner"}, "X-Substrate-Actor-Token": {token}}
 	caller, err := provider.Authenticate(t.Context(), headers, nil)
 	require.NoError(t, err)
-	require.Nil(t, caller.Principal().RuntimeBinding, "the origin does not replace the caller's authorization")
+	require.Equal(t, store.session.Id, caller.Principal().RuntimeBinding.SessionID, "verified origin narrows the caller within its native execution")
 	require.Equal(t, "owner", caller.Principal().ID)
 	require.Equal(t, store.session.Id, runtimeauth.Origin(auth.AuthSessionTo(t.Context(), caller)).SessionID)
 	headers.Set("X-User-Id", "other")
@@ -71,7 +71,7 @@ func TestSharedAuthenticationNeverFallsBackForActorCredentials(t *testing.T) {
 	verifier, err := substrate.NewActorJWTVerifier(t.Context(), issuer.URL, issuer.CAFile)
 	require.NoError(t, err)
 	store := newBinding()
-	provider := runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL)
+	provider := runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL, nil)
 	for _, claims := range []jwt.MapClaims{
 		issuer.Claims("team-a", substrate.ActorName(store.session.Id), "replaced-uid"),
 		issuer.Claims("other", substrate.ActorName(store.session.Id), store.actorUID),
@@ -104,7 +104,7 @@ func TestSharedHTTPAuthenticationBindsActorsAndPreservesUserMode(t *testing.T) {
 		{"proxy", authimpl.NewProxyAuthenticator("sub"), http.StatusUnauthorized},
 	} {
 		t.Run(mode.name, func(t *testing.T) {
-			provider := runtimeauth.NewProvider(mode.users, verifier, store, issuer.URL)
+			provider := runtimeauth.NewProvider(mode.users, verifier, store, issuer.URL, nil)
 			handler := auth.AuthnMiddleware(provider)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				session, ok := auth.AuthSessionFrom(r.Context())
 				require.True(t, ok)
@@ -137,7 +137,7 @@ func TestActorUpstreamIdentityIsBoundAndDoesNotForwardBearer(t *testing.T) {
 	verifier, err := substrate.NewActorJWTVerifier(t.Context(), issuer.URL, issuer.CAFile)
 	require.NoError(t, err)
 	store := newBinding()
-	provider := runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL)
+	provider := runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL, nil)
 	identity, err := provider.Authenticate(t.Context(), http.Header{"Authorization": {"Bearer " + issuer.Token(t, issuer.Claims("team-a", substrate.ActorName(store.session.Id), store.actorUID))}}, nil)
 	require.NoError(t, err)
 	target := store.session.Id

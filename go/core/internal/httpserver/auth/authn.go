@@ -65,6 +65,8 @@ func (s bearerCredential) Token(ctx context.Context) (string, error) {
 	return token, nil
 }
 
+func (s bearerCredential) Expiry() time.Time { return s.expiresAt }
+
 func jwtExpiration(claims map[string]any) (time.Time, error) {
 	var expiresAt time.Time
 	if raw, exists := claims["exp"]; exists {

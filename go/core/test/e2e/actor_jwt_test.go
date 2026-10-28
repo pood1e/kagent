@@ -107,7 +107,7 @@ func TestEgressPolicyActorJWTInjection(t *testing.T) {
 	require.NoError(t, err)
 	process, err := f.processes.StartProcess(f.guestContext(instance.Id), &guestpb.StartProcessRequest{Command: []string{"sh", "-c", fmt.Sprintf("wget -T 5 -qO- --header 'X-Actor: placeholder' '%s'", origin)}})
 	require.NoError(t, err)
-	outputs, err := f.processes.StreamProcessOutput(f.guestContext(instance.Id), &guestpb.StreamProcessOutputRequest{ProcessId: process.ProcessId, Follow: true})
+	outputs, err := f.processes.StreamProcessOutputs(f.guestContext(instance.Id), &guestpb.StreamProcessOutputsRequest{ProcessId: process.ProcessId, Follow: true})
 	require.NoError(t, err)
 	var output strings.Builder
 	for {
@@ -116,7 +116,7 @@ func TestEgressPolicyActorJWTInjection(t *testing.T) {
 			break
 		}
 		require.NoError(t, err)
-		output.Write(chunk.GetStdout())
+		output.Write(chunk.GetData())
 	}
 	require.Contains(t, output.String(), "received")
 	recorder.mu.Lock()

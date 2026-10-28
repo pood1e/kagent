@@ -311,6 +311,9 @@ func insertSessionRecords(ctx context.Context, db pgx.Tx, session *apiv1.Session
 	`, session.Id, session.ContextId, historyID, sourceCheckpointID, data); err != nil {
 		return sessionRow{}, err
 	}
+	if err := insertSessionAuthority(ctx, db, session); err != nil {
+		return sessionRow{}, err
+	}
 	return readSession(ctx, db, session.Id)
 }
 

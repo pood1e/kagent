@@ -595,5 +595,5 @@ func testSessionService() *sessionsvc.Service {
 }
 
 func testCheckpointService() *checkpoint.Service {
-	return checkpoint.NewService(nil, nil, nil, nil)
+	return checkpoint.NewService(nil, nil, nil, nil, nil)
 }

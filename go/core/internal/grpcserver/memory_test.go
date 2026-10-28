@@ -121,8 +121,8 @@ func TestHumanMemoryPermissionsAndPartitionsThroughGeneratedClient(t *testing.T)
 	verifier, err := substrate.NewActorJWTVerifier(t.Context(), issuer.URL, issuer.CAFile)
 	require.NoError(t, err)
 	connection := newConfigurationConnection(t, nil, func(config *Config) {
-		config.Authenticator = runtimeauth.NewProvider(authimpl.NewProxyAuthenticator("sub"), verifier, store, issuer.URL)
-		config.MemoryService = memorysvc.NewService(store, runtimeauth.NewAuthorizer(policy, store))
+		config.Authenticator = runtimeauth.NewProvider(authimpl.NewProxyAuthenticator("sub"), verifier, store, issuer.URL, nil)
+		config.MemoryService = memorysvc.NewService(store, runtimeauth.NewAuthorizer(policy, store, nil))
 		config.ShareStore = &testShareStore{sessionShare: &apiv1.SessionShare{SessionId: testSessionID.String()}, ownerUserID: "alice"}
 	})
 	client := runtimev1.NewMemoryServiceClient(connection)
@@ -225,8 +225,8 @@ func TestRuntimeMemoryUsesAcceptedActorBindingInsteadOfHumanClaims(t *testing.T)
 	verifier, err := substrate.NewActorJWTVerifier(t.Context(), issuer.URL, issuer.CAFile)
 	require.NoError(t, err)
 	connection := newConfigurationConnection(t, nil, func(config *Config) {
-		config.Authenticator = runtimeauth.NewProvider(authimpl.NewProxyAuthenticator("sub"), verifier, store, issuer.URL)
-		config.MemoryService = memorysvc.NewService(store, runtimeauth.NewAuthorizer(policy, store))
+		config.Authenticator = runtimeauth.NewProvider(authimpl.NewProxyAuthenticator("sub"), verifier, store, issuer.URL, nil)
+		config.MemoryService = memorysvc.NewService(store, runtimeauth.NewAuthorizer(policy, store, nil))
 	})
 	client := runtimev1.NewMemoryServiceClient(connection)
 	for _, credential := range []string{"", "Bearer e30." + base64.RawURLEncoding.EncodeToString([]byte(fmt.Sprintf(`{"iss":%q,"sub":"owner"}`, issuer.URL))) + ".signature"} {

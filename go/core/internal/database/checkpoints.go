@@ -29,7 +29,7 @@ var (
 // the existing fork for the same checkpoint, or ErrIdempotencyConflict otherwise. The
 // boolean reports creation; callers provision the runtime separately. A deleted
 // fork returns ErrFailedPrecondition and retains its request identity.
-func (c *Client) ForkSession(ctx context.Context, checkpointID, userID, requestID, sessionID string) (*apiv1.Session, bool, error) {
+func (c *Client) ForkSession(ctx context.Context, checkpointID, userID, requestID, sessionID string, authority *apiv1.SessionAuthority) (*apiv1.Session, bool, error) {
 	checkpointUUID, err := uuid.Parse(checkpointID)
 	if err != nil {
 		return nil, false, fmt.Errorf("invalid checkpoint ID: %w", err)
@@ -82,6 +82,7 @@ func (c *Client) ForkSession(ctx context.Context, checkpointID, userID, requestI
 		session := &apiv1.Session{
 			Id: sessionID, Creator: userID, ContextId: sessionID,
 			Name:             source.GetName(),
+			Authority:        authority,
 			Agent:            &apiv1.ResourceReference{Namespace: revision.Namespace, Name: revision.AgentName},
 			PreparedRevision: *checkpoint.PreparedRevision,
 			State:            apiv1.RuntimeState_RUNTIME_STATE_CREATING,

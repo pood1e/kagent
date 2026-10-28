@@ -10,6 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/kagent-dev/kagent/go/core/internal/database"
+	"github.com/kagent-dev/kagent/go/core/internal/runtimeauth"
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
 	"github.com/kagent-dev/kagent/go/pkg/logging"
 )
@@ -57,7 +58,7 @@ func (c *Cancellations) tick(ctx context.Context) error {
 		group.Go(func() {
 			attempt, cancel := context.WithTimeout(ctx, 20*time.Second)
 			defer cancel()
-			result, err := c.gateway.CancelTask(attempt, &a2a.CancelTaskRequest{ID: a2a.TaskID(claim.TaskID)})
+			result, err := c.gateway.CancelTask(runtimeauth.CancellationContext(attempt, claim.SessionID, claim.TaskID), &a2a.CancelTaskRequest{ID: a2a.TaskID(claim.TaskID)})
 			if err == nil && result != nil && result.Status.State.Terminal() {
 				err = c.store.CompleteTaskCancellation(attempt, claim)
 			}

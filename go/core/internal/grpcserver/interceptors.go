@@ -25,10 +25,11 @@ import (
 )
 
 var forwardedMetadataKeys = map[string]string{
-	"authorization": "Authorization",
-	"x-user-id":     "X-User-Id",
-	"x-agent-name":  "X-Agent-Name",
-	"x-share-token": "X-Share-Token",
+	"authorization":           "Authorization",
+	"x-substrate-actor-token": "X-Substrate-Actor-Token",
+	"x-user-id":               "X-User-Id",
+	"x-agent-name":            "X-Agent-Name",
+	"x-share-token":           "X-Share-Token",
 }
 
 func authenticationUnaryInterceptor(authenticator auth.AuthProvider, shareStore sessionsvc.ShareStore, policies MethodPolicies) grpc.UnaryServerInterceptor {

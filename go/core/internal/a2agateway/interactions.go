@@ -15,6 +15,7 @@ import (
 	apia2a "github.com/kagent-dev/kagent/go/api/a2a"
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	sessionsvc "github.com/kagent-dev/kagent/go/core/internal/service/session"
+	"github.com/kagent-dev/kagent/go/core/pkg/auth"
 	"github.com/kagent-dev/kagent/go/pkg/logging"
 )
 
@@ -69,6 +70,9 @@ func (g *Gateway) sendMessage(ctx context.Context, agent types.NamespacedName, r
 		return nil, err
 	}
 	session, dispatchID := prepared.Session, prepared.DispatchID
+	if prepared.AuthSession != nil {
+		ctx = auth.AuthSessionTo(ctx, prepared.AuthSession)
+	}
 	if task := prepared.AcceptedTask; task != nil {
 		if req.Config != nil && req.Config.ReturnImmediately {
 			return task, nil
@@ -143,6 +147,9 @@ func (g *Gateway) sendStreamingMessage(ctx context.Context, agent types.Namespac
 			return
 		}
 		session, dispatchID := prepared.Session, prepared.DispatchID
+		if prepared.AuthSession != nil {
+			ctx = auth.AuthSessionTo(ctx, prepared.AuthSession)
+		}
 		var historyLength *int
 		if req.Config != nil {
 			historyLength = req.Config.HistoryLength

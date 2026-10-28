@@ -11,9 +11,15 @@ import (
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 )
 
-func continuationSession(t *testing.T, client *Client) *apiv1.Session {
+func continuationSession(t *testing.T, client *Client, parent ...*apiv1.Session) *apiv1.Session {
 	t.Helper()
-	session, _, err := client.CreateSession(t.Context(), newSessionRequest(uuid.NewString(), "assistant", "kagent", ""), uuid.NewString())
+	request := newSessionRequest(uuid.NewString(), "assistant", "kagent", "")
+	if len(parent) > 0 {
+		grant, _, err := client.GetSessionAuthority(t.Context(), parent[0].Id)
+		require.NoError(t, err)
+		request.Authority = &apiv1.SessionAuthority{SessionId: request.Id, InitiatorId: grant.InitiatorId, ParentSessionId: parent[0].Id, RootSessionId: grant.RootSessionId, Scopes: grant.Scopes, ExpiresAt: grant.ExpiresAt}
+	}
+	session, _, err := client.CreateSession(t.Context(), request, uuid.NewString())
 	require.NoError(t, err)
 	session, err = markSessionReady(t.Context(), client, session.Id, "agent.example")
 	require.NoError(t, err)
@@ -49,7 +55,8 @@ func settleContinuation(t *testing.T, client *Client, task *a2a.Task, state a2a.
 func TestCancelTaskContinuationFencesPendingDispatch(t *testing.T) {
 	client := NewClient(setupTestDB(t), "public")
 	sessionFixture(t, client, t.Context(), "team-a", "revision", "assistant", "kagent")
-	parent, child := continuationSession(t, client), continuationSession(t, client)
+	parent := continuationSession(t, client)
+	child := continuationSession(t, client, parent)
 	caller := continuationTask(t, client, parent, "parent")
 	require.NoError(t, client.RegisterTaskContinuation(t.Context(), parent.Id, child.Id, "child"))
 	callee := continuationTask(t, client, child, "child", &DispatchOrigin{SessionID: parent.Id})
@@ -78,7 +85,8 @@ func TestTaskContinuationWaitsForEveryApprovalAndRecoversClaims(t *testing.T) {
 	pool := setupTestDB(t)
 	client := NewClient(pool, "public")
 	sessionFixture(t, client, t.Context(), "team-a", "revision", "assistant", "kagent")
-	parent, child := continuationSession(t, client), continuationSession(t, client)
+	parent := continuationSession(t, client)
+	child := continuationSession(t, client, parent)
 	caller := continuationTask(t, client, parent, "parent-input")
 	require.NoError(t, client.RegisterTaskContinuation(t.Context(), parent.Id, child.Id, "child-input"))
 	require.NoError(t, client.RegisterTaskContinuation(t.Context(), parent.Id, child.Id, "child-input"))
@@ -127,7 +135,9 @@ func TestTaskContinuationWaitsForEveryApprovalAndRecoversClaims(t *testing.T) {
 func TestTaskContinuationWaitsForNestedParentResume(t *testing.T) {
 	client := NewClient(setupTestDB(t), "public")
 	sessionFixture(t, client, t.Context(), "team-a", "revision", "assistant", "kagent")
-	a, b, c := continuationSession(t, client), continuationSession(t, client), continuationSession(t, client)
+	a := continuationSession(t, client)
+	b := continuationSession(t, client, a)
+	c := continuationSession(t, client, b)
 	ta := continuationTask(t, client, a, "a")
 	require.NoError(t, client.RegisterTaskContinuation(t.Context(), a.Id, b.Id, "b"))
 	tb := continuationTask(t, client, b, "b", &DispatchOrigin{SessionID: a.Id})
@@ -167,7 +177,8 @@ func TestTaskContinuationSkipsSynchronousCompletionAndCancellation(t *testing.T)
 		t.Run(string(state), func(t *testing.T) {
 			client := NewClient(setupTestDB(t), "public")
 			sessionFixture(t, client, t.Context(), "team-a", "revision", "assistant", "kagent")
-			parent, child := continuationSession(t, client), continuationSession(t, client)
+			parent := continuationSession(t, client)
+			child := continuationSession(t, client, parent)
 			caller := continuationTask(t, client, parent, "parent")
 			require.NoError(t, client.RegisterTaskContinuation(t.Context(), parent.Id, child.Id, "child"))
 			callee := continuationTask(t, client, child, "child", &DispatchOrigin{SessionID: parent.Id})
@@ -187,7 +198,9 @@ func TestTaskContinuationSkipsSynchronousCompletionAndCancellation(t *testing.T)
 func TestTaskContinuationCanReuseAChildSessionAfterAnEarlierCancellation(t *testing.T) {
 	client := NewClient(setupTestDB(t), "public")
 	sessionFixture(t, client, t.Context(), "team-a", "revision", "assistant", "kagent")
-	a, b, c := continuationSession(t, client), continuationSession(t, client), continuationSession(t, client)
+	a := continuationSession(t, client)
+	b := continuationSession(t, client, a)
+	c := continuationSession(t, client, b)
 	ta := continuationTask(t, client, a, "a")
 	require.NoError(t, client.RegisterTaskContinuation(t.Context(), a.Id, b.Id, "b"))
 	tb := continuationTask(t, client, b, "b", &DispatchOrigin{SessionID: a.Id})

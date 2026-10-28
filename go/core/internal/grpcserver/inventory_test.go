@@ -59,8 +59,8 @@ func TestToolInventoryGeneratedClientBindsVerifiedRevision(t *testing.T) {
 	verifier, err := substrate.NewActorJWTVerifier(t.Context(), issuer.URL, issuer.CAFile)
 	require.NoError(t, err)
 	connection := newConfigurationConnection(t, kube, func(config *Config) {
-		config.Authenticator = runtimeauth.NewProvider(authimpl.NewProxyAuthenticator("sub"), verifier, store, issuer.URL)
-		config.InventoryService = inventory.NewService(store, runtimeauth.NewAuthorizer(&auth.NoopAuthorizer{}, store))
+		config.Authenticator = runtimeauth.NewProvider(authimpl.NewProxyAuthenticator("sub"), verifier, store, issuer.URL, nil)
+		config.InventoryService = inventory.NewService(store, runtimeauth.NewAuthorizer(&auth.NoopAuthorizer{}, store, nil))
 	})
 	client := runtimev1.NewToolInventoryServiceClient(connection)
 	agents := apiv1.NewAgentServiceClient(connection)

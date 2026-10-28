@@ -136,7 +136,7 @@ func TestActorAndUserPoliciesOnSharedEndpoint(t *testing.T) {
 		{"trusted proxy", authimpl.NewProxyAuthenticator("sub"), codes.Unauthenticated, codes.Unauthenticated},
 	} {
 		t.Run(mode.name, func(t *testing.T) {
-			users := runtimeauth.NewProvider(mode.provider, verifier, store, issuer.URL)
+			users := runtimeauth.NewProvider(mode.provider, verifier, store, issuer.URL, nil)
 			for _, test := range []struct {
 				name, token, method string
 				want                codes.Code

@@ -46,7 +46,7 @@ func (h *Handler) registerCollaborationTools(server *mcp.Server) error {
 }
 
 func (h *Handler) createSession(ctx context.Context, _ *mcp.CallToolRequest, request *apiv1.CreateSessionRequest) (*mcp.CallToolResult, *apiv1.CreateSessionResponse, error) {
-	session, err := h.sessions.Create(ctx, request.Agent, request.RequestId, request.Name)
+	session, err := h.sessions.Create(ctx, request.Agent, request.RequestId, request.Name, request.ScopeCeiling)
 	if err != nil {
 		return toolError(err), &apiv1.CreateSessionResponse{}, nil
 	}

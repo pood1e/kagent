@@ -78,6 +78,19 @@ func ResolveControllerPaths(cfg *configv1.ControllerConfig, path string) {
 	cfg.Push.SigningPrivateKeyFile = FilePath(path, cfg.Push.SigningPrivateKeyFile)
 	cfg.Substrate.CaFile = FilePath(path, cfg.Substrate.CaFile)
 	cfg.Substrate.ClientCertFile = FilePath(path, cfg.Substrate.ClientCertFile)
+	if oidc := cfg.GetServer().GetAuth().GetOidc(); oidc != nil {
+		oidc.CaFile = FilePath(path, oidc.CaFile)
+	}
+	if memory := cfg.GetMemory(); memory != nil {
+		memory.BearerTokenFile = FilePath(path, memory.BearerTokenFile)
+	}
+	if authorization := cfg.GetExecutionAuthorization(); authorization != nil {
+		authorization.EncryptionKeyFile = FilePath(path, authorization.EncryptionKeyFile)
+		if oauth := authorization.GetOauth(); oauth != nil {
+			oauth.ClientSecretFile = FilePath(path, oauth.ClientSecretFile)
+			oauth.CaFile = FilePath(path, oauth.CaFile)
+		}
+	}
 }
 
 // ResolveCLIPaths does not open referenced files: unrelated commands need no

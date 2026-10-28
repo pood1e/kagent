@@ -9,6 +9,9 @@
           "maxLength": 128,
           "minLength": 1,
           "type": "string"
+        },
+        "^(scopeCeiling)$": {
+          "$ref": "#/$defs/kagent.api.v1.ScopeCeiling.schema.json"
         }
       },
       "properties": {
@@ -27,6 +30,9 @@
           "maxLength": 128,
           "minLength": 1,
           "type": "string"
+        },
+        "scope_ceiling": {
+          "$ref": "#/$defs/kagent.api.v1.ScopeCeiling.schema.json"
         }
       },
       "required": [
@@ -55,6 +61,25 @@
         }
       },
       "title": "Resource Reference",
+      "type": "object"
+    },
+    "kagent.api.v1.ScopeCeiling.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "description": "ScopeCeiling is an immutable upper bound. Absent means inherit; present and\n empty means no scopes. Every use also applies the initiator's current scopes.",
+      "properties": {
+        "scopes": {
+          "items": {
+            "maxLength": 256,
+            "minLength": 1,
+            "pattern": "^\\S+$",
+            "type": "string"
+          },
+          "maxItems": 256,
+          "type": "array"
+        }
+      },
+      "title": "Scope Ceiling",
       "type": "object"
     }
   },

@@ -130,3 +130,5 @@ checkpoint/fork; and MCP Tasks continuation.
 Not implemented: Dedicated agent bindings, policy-enforced public
 cross-Session delegation, checkpoint sharing, and multi-replica gateway
 coordination.
+
+- [Execution authority](execution-authority.md): native delegation, scope ceilings, credential lifecycle, and gateway decisions.

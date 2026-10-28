@@ -16,6 +16,7 @@ import (
 
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
+	"github.com/kagent-dev/kagent/go/core/internal/executionauth"
 	"github.com/kagent-dev/kagent/go/core/internal/service/serviceerrors"
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
 )
@@ -67,9 +68,14 @@ type Service struct {
 	authorizer  auth.Authorizer
 	workflow    sessionWorkflow
 	shareMaxTTL time.Duration
+	authority   *executionauth.Service
 }
 
 type Option func(*Service)
+
+func WithExecutionAuthority(authority *executionauth.Service) Option {
+	return func(s *Service) { s.authority = authority }
+}
 
 // WithShareMaxTTL caps how long a share's token grants access. A share created
 // without a ttl receives the cap; zero leaves shares unbounded.
@@ -90,7 +96,7 @@ func NewService(store store, authorizer auth.Authorizer, workflow sessionWorkflo
 // Create reserves and converges a new conversation. name is optional; an empty
 // name leaves the conversation identified by its id, which is how every session
 // created before names existed behaves.
-func (s *Service) Create(ctx context.Context, agent *apiv1.ResourceReference, requestID, name string) (*apiv1.Session, error) {
+func (s *Service) Create(ctx context.Context, agent *apiv1.ResourceReference, requestID, name string, ceiling *apiv1.ScopeCeiling) (*apiv1.Session, error) {
 	if err := validateCreate(agent, requestID); err != nil {
 		return nil, err
 	}
@@ -106,9 +112,19 @@ func (s *Service) Create(ctx context.Context, agent *apiv1.ResourceReference, re
 	if err != nil {
 		return nil, serviceerrors.NewInternal("Failed to generate Session identifier", err)
 	}
+	if err := s.authorizer.Check(ctx, authPrincipal(ctx), auth.VerbGet, auth.Resource{Type: "Agent", Namespace: agent.Namespace, Name: agent.Name}); err != nil {
+		return nil, serviceerrors.NewPermissionDenied("Agent access denied", err)
+	}
+	var grant *apiv1.SessionAuthority
+	if s.authority != nil {
+		grant, err = s.authority.Bind(ctx, id.String(), creator, ceiling)
+		if err != nil {
+			return nil, serviceerrors.NewPermissionDenied("Cannot establish execution authority", err)
+		}
+	}
 	session, _, err := s.store.CreateSession(ctx, &apiv1.Session{
 		Id: id.String(), Creator: creator, Name: name,
-		Agent: agent,
+		Agent: agent, Authority: grant,
 	}, requestID)
 	if errors.Is(err, database.ErrIdempotencyConflict) {
 		return nil, serviceerrors.NewAlreadyExists("request_id was already used for a different Session", err)
