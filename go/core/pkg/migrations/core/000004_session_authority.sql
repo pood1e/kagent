@@ -13,10 +13,6 @@ CREATE TABLE session_authority (
 CREATE INDEX session_authority_parent_idx ON session_authority(parent_session_id);
 CREATE INDEX session_authority_initiator_idx ON session_authority(initiator_id);
 
--- Existing conversations receive independent, scope-empty roots.
-INSERT INTO session_authority (session_id, initiator_id, root_session_id, scopes)
-SELECT id, user_id, id, ARRAY[]::TEXT[] FROM session_record;
-
 CREATE TABLE delegation_credential (
     principal_id TEXT PRIMARY KEY CHECK (principal_id <> ''),
     ciphertext BYTEA NOT NULL CHECK (octet_length(ciphertext) > 28),
