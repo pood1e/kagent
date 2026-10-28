@@ -321,6 +321,7 @@ func readBoundedLine(r *bufio.Reader, max int) ([]byte, error) {
 
 func (p *parser) parseLine(ctx context.Context, line []byte, emit func(Event) error) error {
 	var envelope struct {
+		Tools     *[]string       `json:"tools"`
 		Type      string          `json:"type"`
 		Subtype   string          `json:"subtype"`
 		Status    string          `json:"status"`
@@ -352,7 +353,7 @@ func (p *parser) parseLine(ctx context.Context, line []byte, emit func(Event) er
 	case "system":
 		if envelope.Subtype == "init" && envelope.SessionID != "" {
 			p.callStart[""] = p.now()
-			return emit(Event{Kind: EventSessionStarted, SessionID: envelope.SessionID})
+			return emit(Event{Kind: EventSessionStarted, SessionID: envelope.SessionID, BuiltinTools: envelope.Tools})
 		}
 		if envelope.Subtype == "api_retry" && envelope.ParentToolUseID == "" {
 			p.retry()

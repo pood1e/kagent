@@ -3,7 +3,9 @@ syntax = "proto3";
 package kagent.api.v1;
 
 import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
 import "kagent/api/v1/common.proto";
+import "kagent/api/v1/tools.proto";
 
 option go_package = "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1;apiv1";
 
@@ -21,6 +23,8 @@ message Agent {
 
   // Complete Agent CR, including its inline or referenced configuration and status.
   StructuredObject resource = 2;
+  // Runtime-observed tools of the effective revision. Absent until observed.
+  BuiltinToolCatalog builtin_tools = 3;
 }
 
 message ListAgentsRequest {
@@ -71,3 +75,10 @@ message DeleteAgentRequest {
 }
 
 message DeleteAgentResponse {}
+
+// BuiltinToolCatalog contains SDK-registered tools, independently of MCP discovery.
+message BuiltinToolCatalog {
+  string revision = 1;
+  repeated DiscoveredTool tools = 2;
+  google.protobuf.Timestamp observed_at = 3;
+}

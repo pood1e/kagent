@@ -9,6 +9,7 @@ import (
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	"github.com/kagent-dev/kagent/go/api/structuredobject"
 	"github.com/kagent-dev/kagent/go/api/v1alpha3"
+	"github.com/kagent-dev/kagent/go/core/internal/service/inventory"
 	"github.com/kagent-dev/kagent/go/core/internal/service/kubecrud"
 	"github.com/kagent-dev/kagent/go/core/internal/service/serviceerrors"
 )
@@ -16,13 +17,14 @@ import (
 const agentKind = "Agent"
 
 type agentServer struct {
+	inventory *inventory.Service
 	apiv1.UnimplementedAgentServiceServer
 	service         *kubecrud.Service[*v1alpha3.Agent, *v1alpha3.AgentList]
 	maxMessageBytes int
 }
 
-func newAgentServer(service *kubecrud.Service[*v1alpha3.Agent, *v1alpha3.AgentList], maxMessageBytes int) *agentServer {
-	return &agentServer{service: service, maxMessageBytes: maxMessageBytes}
+func newAgentServer(service *kubecrud.Service[*v1alpha3.Agent, *v1alpha3.AgentList], maxMessageBytes int, inventory *inventory.Service) *agentServer {
+	return &agentServer{inventory: inventory, service: service, maxMessageBytes: maxMessageBytes}
 }
 
 func (s *agentServer) ListAgents(ctx context.Context, request *apiv1.ListAgentsRequest) (*apiv1.ListAgentsResponse, error) {
@@ -36,7 +38,7 @@ func (s *agentServer) ListAgents(ctx context.Context, request *apiv1.ListAgentsR
 	}
 	agents := make([]*apiv1.Agent, 0, len(items))
 	for _, item := range items {
-		agent, err := s.agent(item)
+		agent, err := s.agent(ctx, item)
 		if err != nil {
 			return nil, err
 		}
@@ -51,7 +53,7 @@ func (s *agentServer) GetAgent(ctx context.Context, request *apiv1.GetAgentReque
 	if err != nil {
 		return nil, err
 	}
-	agent, err := s.agent(result)
+	agent, err := s.agent(ctx, result)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +70,7 @@ func (s *agentServer) CreateAgent(ctx context.Context, request *apiv1.CreateAgen
 	if err != nil {
 		return nil, err
 	}
-	agent, err := s.agent(result)
+	agent, err := s.agent(ctx, result)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +93,7 @@ func (s *agentServer) UpdateAgent(ctx context.Context, request *apiv1.UpdateAgen
 	if err != nil {
 		return nil, err
 	}
-	agent, err := s.agent(result)
+	agent, err := s.agent(ctx, result)
 	if err != nil {
 		return nil, err
 	}
@@ -106,14 +108,22 @@ func (s *agentServer) DeleteAgent(ctx context.Context, request *apiv1.DeleteAgen
 	return &apiv1.DeleteAgentResponse{}, nil
 }
 
-func (s *agentServer) agent(agent *v1alpha3.Agent) (*apiv1.Agent, error) {
+func (s *agentServer) agent(ctx context.Context, agent *v1alpha3.Agent) (*apiv1.Agent, error) {
 	resource, err := structuredobject.FromGo(agent, v1alpha3.GroupVersion.String(), agentKind, s.maxMessageBytes)
 	if err != nil {
 		return nil, serviceerrors.NewInternal("Failed to encode Agent resource", err)
 	}
+	var catalog *apiv1.BuiltinToolCatalog
+	if s.inventory != nil {
+		catalog, err = s.inventory.Lookup(ctx, agent.Status.LatestSuccessfulRevision)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return &apiv1.Agent{
-		Ref:      &apiv1.ResourceReference{Namespace: agent.Namespace, Name: agent.Name},
-		Resource: resource,
+		BuiltinTools: catalog,
+		Ref:          &apiv1.ResourceReference{Namespace: agent.Namespace, Name: agent.Name},
+		Resource:     resource,
 	}, nil
 }
 

@@ -47,6 +47,7 @@ type Client struct {
 	taskStoreService runtimev1.TaskStoreServiceClient
 	closeOnce        sync.Once
 	closeErr         error
+	inventory        inventoryState
 }
 
 func New(config Config) (*Client, error) {
