@@ -90,7 +90,7 @@ func (c *RuntimeMCPClient) CallTool(ctx context.Context, ref MCPServerRef, toolN
 }
 
 func (c *RuntimeMCPClient) ReadResource(ctx context.Context, ref MCPServerRef, uri string) (*mcp.ReadResourceResult, error) {
-	session, cleanup, err := c.connect(ctx, ref, false)
+	session, cleanup, err := c.connect(ctx, ref, true)
 	if err != nil {
 		return nil, serviceerrors.NewInternal("Failed to connect to MCP server", err)
 	}

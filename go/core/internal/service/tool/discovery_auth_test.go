@@ -24,11 +24,16 @@ import (
 	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 )
 
+const catalogAppResourceURI = "ui://catalog/panel"
+
 func discoveryServer(t *testing.T, expected *atomic.Value) *httptest.Server {
 	t.Helper()
 	server := mcp.NewServer(&mcp.Implementation{Name: "discovery", Version: "1"}, nil)
 	mcp.AddTool(server, &mcp.Tool{Name: "read"}, func(context.Context, *mcp.CallToolRequest, struct{}) (*mcp.CallToolResult, struct{}, error) {
 		return nil, struct{}{}, nil
+	})
+	server.AddResource(&mcp.Resource{URI: catalogAppResourceURI, Name: "panel", MIMEType: mcpAppHTMLMimeType}, func(context.Context, *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
+		return &mcp.ReadResourceResult{Contents: []*mcp.ResourceContents{{URI: catalogAppResourceURI, MIMEType: mcpAppHTMLMimeType, Text: "<html>panel</html>"}}}, nil
 	})
 	handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return server }, &mcp.StreamableHTTPOptions{Stateless: true})
 	endpoint := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -79,17 +84,24 @@ func TestOAuthDiscoveryCredentialIsLiveAndControllerOnly(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, tools, 1)
 		require.Equal(t, "read", tools[0].Name)
+		resource, err := c.ReadResource(t.Context(), ref, catalogAppResourceURI)
+		require.NoError(t, err, "catalog credentials also authorize MCP App artifacts")
+		require.Len(t, resource.Contents, 1)
+		require.Equal(t, "<html>panel</html>", resource.Contents[0].Text)
 	}
-	require.Equal(t, int32(2), exchanges.Load())
+	require.Equal(t, int32(4), exchanges.Load())
 	_, err := c.CallTool(t.Context(), ref, "read", struct{}{})
 	require.Error(t, err, "app calls must not borrow the catalog client")
-	require.Equal(t, int32(2), exchanges.Load())
+	require.Equal(t, int32(4), exchanges.Load())
 	remote.Spec.ActorJWT = &v1alpha3.ActorJWT{Audiences: []string{"https://runtime.example"}}
 	require.NoError(t, kube.Update(t.Context(), remote))
 	_, err = c.ListTools(t.Context(), ref)
 	require.NoError(t, err, "controller discovery is independent of Actor credentials")
+	_, err = c.ReadResource(t.Context(), ref, catalogAppResourceURI)
+	require.NoError(t, err, "catalog artifacts are independent of Actor credentials")
 	_, err = c.CallTool(t.Context(), ref, "read", struct{}{})
 	require.ErrorContains(t, err, "executing Actor")
+	require.Equal(t, int32(6), exchanges.Load())
 }
 
 func TestServiceAccountDiscoveryCredential(t *testing.T) {
@@ -116,13 +128,21 @@ func TestServiceAccountDiscoveryCredential(t *testing.T) {
 		return nil
 	}}).Build()
 	c := NewRuntimeMCPClient(kube)
+	ref := MCPServerRef{Ref: types.NamespacedName{Namespace: "team", Name: "native"}}
 	for _, credential := range []string{"projected", "rotated"} {
 		value.Store(credential)
-		tools, err := c.ListTools(t.Context(), MCPServerRef{Ref: types.NamespacedName{Namespace: "team", Name: "native"}})
+		tools, err := c.ListTools(t.Context(), ref)
 		require.NoError(t, err)
 		require.Len(t, tools, 1)
+		resource, err := c.ReadResource(t.Context(), ref, catalogAppResourceURI)
+		require.NoError(t, err)
+		require.Len(t, resource.Contents, 1)
+		require.Equal(t, "<html>panel</html>", resource.Contents[0].Text)
 	}
-	require.Equal(t, int32(2), requests.Load())
+	require.Equal(t, int32(4), requests.Load())
+	_, err := c.CallTool(t.Context(), ref, "read", struct{}{})
+	require.Error(t, err, "app calls must not borrow the catalog service account")
+	require.Equal(t, int32(4), requests.Load())
 }
 
 func TestDiscoveryCredentialCannotLeaveOrigin(t *testing.T) {
