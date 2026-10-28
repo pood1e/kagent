@@ -135,7 +135,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 }
 
 func discoveryDisabledMessage(server *v1alpha3.RemoteMCPServer) string {
-	if server.Spec.ActorJWT != nil {
+	if server.Spec.ActorJWT != nil && server.Spec.DiscoveryAuth == nil {
 		return "Global tool discovery requires an executing Actor because actorJwt is enabled; agents resolve the tool list at run time"
 	}
 	if server.Labels[consts.DiscoveryLabel] == consts.DiscoveryDisabled {
@@ -204,6 +204,9 @@ func (r *Reconciler) requestsForDependency(ctx context.Context, object client.Ob
 func referencesDependency(server *v1alpha3.RemoteMCPServer, object client.Object) bool {
 	switch object.(type) {
 	case *corev1.Secret:
+		if discovery := server.Spec.DiscoveryAuth; discovery != nil && discovery.OAuth2 != nil && discovery.OAuth2.ClientSecretRef.Name == object.GetName() {
+			return true
+		}
 		for i := range server.Spec.HeadersFrom {
 			from := server.Spec.HeadersFrom[i].ValueFrom
 			if from != nil && from.Type == v1alpha3.SecretValueSource && from.Name == object.GetName() {
@@ -211,6 +214,9 @@ func referencesDependency(server *v1alpha3.RemoteMCPServer, object client.Object
 			}
 		}
 	case *corev1.ConfigMap:
+		if discovery := server.Spec.DiscoveryAuth; discovery != nil && discovery.OAuth2 != nil && discovery.OAuth2.CACertificateRef != nil && discovery.OAuth2.CACertificateRef.Name == object.GetName() {
+			return true
+		}
 		for i := range server.Spec.HeadersFrom {
 			from := server.Spec.HeadersFrom[i].ValueFrom
 			if from != nil && from.Type == v1alpha3.ConfigMapValueSource && from.Name == object.GetName() {

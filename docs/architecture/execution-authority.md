@@ -33,7 +33,7 @@ executionAuthorization:
     clientId: kagent-delegation
     clientSecretFile: /etc/kagent-credentials/oauth-client-secret
     caFile: /etc/identity/ca.pem
-  gatewayAudience: https://gateway.example
+  gatewayAudiences: [https://gateway.example, http://mcp-gateway.team.svc.cluster.local:8080]
   rules:
     - resourceType: Session
       verbs: [get]
@@ -115,15 +115,25 @@ vault. The independent initiator owns credential issuance and revocation.
 
 ## Gateway authorization
 
-`POST /authorize/runtime?scope=<configured-scope>` checks the current native
-ceiling and revocation for an Actor. The gateway sends its audience-specific
-Actor JWT as `Authorization`; gateway configuration owns the fixed required
-scope. This endpoint has a dedicated verifier for `gatewayAudience`. The public
-control-plane APIs retain the separate `kagent-runtime` Actor audience.
+`POST /authorize/runtime` checks live inherited authority and returns the model
+references selected by the calling Session's prepared revision. Gateway model
+policies match their fixed resource name against these references. The optional
+`server=<namespace/name>` selects one pinned MCP binding and returns the official
+`MCPToolBinding` representation: an omitted tool list selects every server tool.
+`model=<name>` checks one fixed ModelConfig reference. `scope=<configured-scope>`
+adds a live scope requirement. `X-Kagent-Scopes` contains the effective scope array.
 
-Successful decisions return HTTP 200 with `Cache-Control: no-store`. A gateway
-combines this fresh dynamic decision with its selected-tool and static tool-tier
-policies. Credentials remain inside the controller and the native egress path.
+The gateway sends its audience-specific Actor JWT as `Authorization`. The
+`gatewayAudiences` allowlist accepts explicit HTTP(S) origins, independently of
+the public control-plane APIs' `kagent-runtime` Actor audience. Decisions return
+HTTP 200 with `Cache-Control: no-store`; current Agent edits affect future
+Sessions while existing Actors retain their prepared target selection.
+
+For a selected MCP server, `credential=subject_token` supplies the live initiator
+IdP access token in the response `Authorization` header. A trusted gateway uses
+that credential for RFC 8693 destination exchange. This header remains inside
+the controller-to-gateway boundary. Actor JWTs identify runtime bindings; the IdP
+credential supplies the independently authenticated exchange subject.
 
 ## Code navigation
 

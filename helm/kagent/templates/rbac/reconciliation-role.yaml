@@ -1,5 +1,9 @@
 {{- define "kagent.reconciliation.rules" -}}
 # Shared reads for reconciliation and management API requests.
+# Tool discovery mints audience-bound ServiceAccount tokens for discoveryAuth.
+- apiGroups: [""]
+  resources: [serviceaccounts/token]
+  verbs: [create]
 - apiGroups:
   - api.kagent.dev
   resources:

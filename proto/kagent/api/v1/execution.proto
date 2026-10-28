@@ -120,6 +120,8 @@ message TaskExecution {
   TaskReference root = 3;
   TaskRelation relation = 4;
   bool background = 5;
+  // The native delegated task that caused this continuation.
+  TaskReference resumed_task = 6;
 }
 
 message GetTaskExecutionRequest {

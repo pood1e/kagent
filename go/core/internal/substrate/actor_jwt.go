@@ -38,10 +38,10 @@ type actorClaims struct {
 
 // ActorJWTVerifier trusts one configured issuer and refreshes its signing keys.
 type ActorJWTVerifier struct {
-	issuer   string
-	jwksURL  string
-	keys     *jwk.AutoRefresh
-	audience string
+	issuer    string
+	audiences []string
+	jwksURL   string
+	keys      *jwk.AutoRefresh
 }
 
 // NewActorJWTVerifier loads discovery over verified TLS. The context owns key
@@ -50,6 +50,25 @@ func NewActorJWTVerifier(ctx context.Context, issuer, caFile, audience string) (
 	if audience == "" || strings.TrimSpace(audience) != audience {
 		return nil, fmt.Errorf("actor JWT audience must not be empty or have surrounding whitespace")
 	}
+	return newActorJWTVerifier(ctx, issuer, caFile, audience)
+}
+
+// NewGatewayActorJWTVerifier verifies gateway credentials only for ext-authz.
+// This verifier remains separate from the control-plane runtime audience.
+func NewGatewayActorJWTVerifier(ctx context.Context, issuer, caFile string, audiences ...string) (*ActorJWTVerifier, error) {
+	if len(audiences) == 0 || len(audiences) > 64 {
+		return nil, fmt.Errorf("gateway Actor JWT audiences must contain 1 to 64 origins")
+	}
+	for _, audience := range audiences {
+		u, err := url.Parse(audience)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil || u.Path != "" || u.RawQuery != "" || u.ForceQuery || strings.Contains(audience, "#") {
+			return nil, fmt.Errorf("gateway Actor JWT audience must be an HTTP(S) origin")
+		}
+	}
+	return newActorJWTVerifier(ctx, issuer, caFile, audiences...)
+}
+
+func newActorJWTVerifier(ctx context.Context, issuer, caFile string, audiences ...string) (*ActorJWTVerifier, error) {
 	if err := validateIssuerURL(issuer); err != nil {
 		return nil, err
 	}
@@ -109,14 +128,14 @@ func NewActorJWTVerifier(ctx context.Context, issuer, caFile, audience string) (
 			}
 		}
 	}()
-	return &ActorJWTVerifier{issuer: issuer, jwksURL: discovery.JWKSURI, keys: keys, audience: audience}, nil
+	return &ActorJWTVerifier{issuer: issuer, audiences: slices.Clone(audiences), jwksURL: discovery.JWKSURI, keys: keys}, nil
 }
 
 // ForAudience returns an immutable verifier sharing this issuer's signing-key
 // cache. Audiences come from trusted server configuration, never request fields.
 func (v *ActorJWTVerifier) ForAudience(audience string) *ActorJWTVerifier {
 	bound := *v
-	bound.audience = audience
+	bound.audiences = []string{audience}
 	return &bound
 }
 
@@ -134,15 +153,6 @@ func (a ActorIdentity) SessionID() (string, error) {
 	return id, nil
 }
 
-// NewGatewayActorJWTVerifier verifies gateway credentials only for ext-authz.
-// This verifier remains separate from the control-plane runtime audience.
-func NewGatewayActorJWTVerifier(ctx context.Context, issuer, caFile, audience string) (*ActorJWTVerifier, error) {
-	if err := validateIssuerURL(audience); err != nil {
-		return nil, fmt.Errorf("invalid gateway Actor JWT audience: %w", err)
-	}
-	return NewActorJWTVerifier(ctx, issuer, caFile, audience)
-}
-
 func validateIssuerURL(raw string) error {
 	u, err := url.Parse(raw)
 	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.ForceQuery || strings.Contains(raw, "#") {
@@ -154,7 +164,7 @@ func validateIssuerURL(raw string) error {
 // Verify authenticates an Actor token for this verifier's audience. Authorization remains with the
 // control-plane service and checks this identity against the recorded Actor UID.
 func (v *ActorJWTVerifier) Verify(ctx context.Context, raw string) (ActorIdentity, error) {
-	if v.audience == "" || strings.TrimSpace(v.audience) != v.audience {
+	if len(v.audiences) == 0 {
 		return ActorIdentity{}, fmt.Errorf("actor JWT verifier has no valid audience")
 	}
 	claims := &actorClaims{}
@@ -177,12 +187,12 @@ func (v *ActorJWTVerifier) Verify(ctx context.Context, raw string) (ActorIdentit
 		}
 		return publicKey, nil
 	}, jwt.WithValidMethods([]string{"ES256", "RS256", "RS384", "RS512"}),
-		jwt.WithIssuer(v.issuer), jwt.WithAudience(v.audience), jwt.WithExpirationRequired(), jwt.WithIssuedAt(),
+		jwt.WithIssuer(v.issuer), jwt.WithAudience(v.audiences...), jwt.WithExpirationRequired(), jwt.WithIssuedAt(),
 		jwt.WithLeeway(runtimeJWTClockSkew))
 	if err != nil {
 		return ActorIdentity{}, fmt.Errorf("verify Actor JWT: %w", err)
 	}
-	if v.audience != RuntimeJWTAudience && slices.Contains(claims.Audience, RuntimeJWTAudience) {
+	if !slices.Contains(v.audiences, RuntimeJWTAudience) && slices.Contains(claims.Audience, RuntimeJWTAudience) {
 		return ActorIdentity{}, fmt.Errorf("outbound Actor token also grants runtime authority")
 	}
 	a := claims.Actor

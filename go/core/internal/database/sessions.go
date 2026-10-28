@@ -210,11 +210,12 @@ func (c *Client) ListSessions(ctx context.Context, query SessionQuery) ([]*apiv1
 		WHERE i.state <> 'RUNTIME_STATE_DELETED' AND ($1::boolean OR i.user_id = $2)
 		  AND (NULLIF($3::text, '') IS NULL OR i.id > NULLIF($3::text, '')::uuid)
 		  AND ($4::text = '' OR (r.agent_name = $4 AND r.namespace = $5))
+ AND ($7::text = '' OR EXISTS (SELECT 1 FROM session_authority a WHERE a.session_id=i.id AND a.root_session_id=NULLIF($7,'')::uuid))
 		ORDER BY i.id
 		LIMIT $6
 	`,
 		pgx.RowToStructByName[sessionRow], query.AllUsers, query.UserID, query.AfterID,
-		agent.GetName(), agent.GetNamespace(), int32(query.Limit),
+		agent.GetName(), agent.GetNamespace(), int32(query.Limit), query.RootSessionID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list Sessions: %w", err)

@@ -120,6 +120,12 @@ func (c *Compiler) CompileAgent(ctx context.Context, agent *v1alpha3.Agent) (*Co
 		}
 		template = templateConfiguration(*found)
 	}
+	if agent.Spec.ModelConfigRef != nil {
+		if agent.Spec.ModelConfigRef.Name == "" {
+			return nil, NewValidationError("Agent modelConfigRef.name must not be empty")
+		}
+		template.Spec.ModelConfig = &v1alpha3.ObjectReference{Name: agent.Spec.ModelConfigRef.Name}
+	}
 	harnessKey := types.NamespacedName{Namespace: agent.Namespace, Name: agent.Spec.HarnessRef.Name}
 	foundHarness := FetchOne(c.ctx, c.collections.Harnesses, krt.FilterObjectName(harnessKey))
 	if foundHarness == nil {
@@ -167,6 +173,7 @@ func (c *Compiler) compileConfiguration(ctx context.Context, agent *v1alpha3.Age
 	if err != nil {
 		return nil, err
 	}
+	result.MCPTools, result.Models = runtimeTargets(input.Root)
 	workerKey := types.NamespacedName{Namespace: harness.Namespace, Name: harness.Spec.Substrate.WorkerPoolRef.Name}
 	workerPool := FetchOne(c.ctx, c.collections.WorkerPools, krt.FilterObjectName(workerKey))
 	if workerPool == nil {

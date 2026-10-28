@@ -864,12 +864,14 @@ func (x *TaskReference) GetTaskId() string {
 // TaskExecution is immutable. Message metadata and reference_task_ids never
 // establish ancestry. Cancellation follows these persisted relationships.
 type TaskExecution struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Task          *TaskReference         `protobuf:"bytes,1,opt,name=task,proto3" json:"task,omitempty"`
-	Parent        *TaskReference         `protobuf:"bytes,2,opt,name=parent,proto3" json:"parent,omitempty"`
-	Root          *TaskReference         `protobuf:"bytes,3,opt,name=root,proto3" json:"root,omitempty"`
-	Relation      TaskRelation           `protobuf:"varint,4,opt,name=relation,proto3,enum=kagent.api.v1.TaskRelation" json:"relation,omitempty"`
-	Background    bool                   `protobuf:"varint,5,opt,name=background,proto3" json:"background,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Task       *TaskReference         `protobuf:"bytes,1,opt,name=task,proto3" json:"task,omitempty"`
+	Parent     *TaskReference         `protobuf:"bytes,2,opt,name=parent,proto3" json:"parent,omitempty"`
+	Root       *TaskReference         `protobuf:"bytes,3,opt,name=root,proto3" json:"root,omitempty"`
+	Relation   TaskRelation           `protobuf:"varint,4,opt,name=relation,proto3,enum=kagent.api.v1.TaskRelation" json:"relation,omitempty"`
+	Background bool                   `protobuf:"varint,5,opt,name=background,proto3" json:"background,omitempty"`
+	// The native delegated task that caused this continuation.
+	ResumedTask   *TaskReference `protobuf:"bytes,6,opt,name=resumed_task,json=resumedTask,proto3" json:"resumed_task,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -937,6 +939,13 @@ func (x *TaskExecution) GetBackground() bool {
 		return x.Background
 	}
 	return false
+}
+
+func (x *TaskExecution) GetResumedTask() *TaskReference {
+	if x != nil {
+		return x.ResumedTask
+	}
+	return nil
 }
 
 type GetTaskExecutionRequest struct {
@@ -1183,7 +1192,7 @@ const file_kagent_api_v1_execution_proto_rawDesc = "" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tsessionId\x12#\n" +
 	"\atask_id\x18\x02 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\x80\x02R\x06taskId\"\x82\x02\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x02R\x06taskId\"\xc3\x02\n" +
 	"\rTaskExecution\x120\n" +
 	"\x04task\x18\x01 \x01(\v2\x1c.kagent.api.v1.TaskReferenceR\x04task\x124\n" +
 	"\x06parent\x18\x02 \x01(\v2\x1c.kagent.api.v1.TaskReferenceR\x06parent\x120\n" +
@@ -1191,7 +1200,8 @@ const file_kagent_api_v1_execution_proto_rawDesc = "" +
 	"\brelation\x18\x04 \x01(\x0e2\x1b.kagent.api.v1.TaskRelationR\brelation\x12\x1e\n" +
 	"\n" +
 	"background\x18\x05 \x01(\bR\n" +
-	"background\">\n" +
+	"background\x12?\n" +
+	"\fresumed_task\x18\x06 \x01(\v2\x1c.kagent.api.v1.TaskReferenceR\vresumedTask\">\n" +
 	"\x17GetTaskExecutionRequest\x12#\n" +
 	"\atask_id\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x02R\x06taskId\"V\n" +
@@ -1276,33 +1286,34 @@ var file_kagent_api_v1_execution_proto_depIdxs = []int32{
 	17, // 6: kagent.api.v1.TaskExecution.parent:type_name -> kagent.api.v1.TaskReference
 	17, // 7: kagent.api.v1.TaskExecution.root:type_name -> kagent.api.v1.TaskReference
 	0,  // 8: kagent.api.v1.TaskExecution.relation:type_name -> kagent.api.v1.TaskRelation
-	18, // 9: kagent.api.v1.GetTaskExecutionResponse.execution:type_name -> kagent.api.v1.TaskExecution
-	25, // 10: kagent.api.v1.ListTaskExecutionsRequest.page:type_name -> kagent.api.v1.PageRequest
-	18, // 11: kagent.api.v1.ListTaskExecutionsResponse.executions:type_name -> kagent.api.v1.TaskExecution
-	26, // 12: kagent.api.v1.ListTaskExecutionsResponse.page:type_name -> kagent.api.v1.PageResponse
-	19, // 13: kagent.api.v1.ExecutionService.GetTaskExecution:input_type -> kagent.api.v1.GetTaskExecutionRequest
-	21, // 14: kagent.api.v1.ExecutionService.ListTaskExecutions:input_type -> kagent.api.v1.ListTaskExecutionsRequest
-	3,  // 15: kagent.api.v1.ExecutionService.GetSessionAuthority:input_type -> kagent.api.v1.GetSessionAuthorityRequest
-	5,  // 16: kagent.api.v1.ExecutionService.RevokeSessionAuthority:input_type -> kagent.api.v1.RevokeSessionAuthorityRequest
-	7,  // 17: kagent.api.v1.ExecutionService.GetRuntimeAuthority:input_type -> kagent.api.v1.GetRuntimeAuthorityRequest
-	9,  // 18: kagent.api.v1.ExecutionService.RegisterDelegationCredential:input_type -> kagent.api.v1.RegisterDelegationCredentialRequest
-	11, // 19: kagent.api.v1.ExecutionService.RevokeDelegationCredential:input_type -> kagent.api.v1.RevokeDelegationCredentialRequest
-	13, // 20: kagent.api.v1.ExecutionService.GetDelegationCredentialStatus:input_type -> kagent.api.v1.GetDelegationCredentialStatusRequest
-	15, // 21: kagent.api.v1.ExecutionService.IssueSessionCredential:input_type -> kagent.api.v1.IssueSessionCredentialRequest
-	20, // 22: kagent.api.v1.ExecutionService.GetTaskExecution:output_type -> kagent.api.v1.GetTaskExecutionResponse
-	22, // 23: kagent.api.v1.ExecutionService.ListTaskExecutions:output_type -> kagent.api.v1.ListTaskExecutionsResponse
-	4,  // 24: kagent.api.v1.ExecutionService.GetSessionAuthority:output_type -> kagent.api.v1.GetSessionAuthorityResponse
-	6,  // 25: kagent.api.v1.ExecutionService.RevokeSessionAuthority:output_type -> kagent.api.v1.RevokeSessionAuthorityResponse
-	8,  // 26: kagent.api.v1.ExecutionService.GetRuntimeAuthority:output_type -> kagent.api.v1.GetRuntimeAuthorityResponse
-	10, // 27: kagent.api.v1.ExecutionService.RegisterDelegationCredential:output_type -> kagent.api.v1.RegisterDelegationCredentialResponse
-	12, // 28: kagent.api.v1.ExecutionService.RevokeDelegationCredential:output_type -> kagent.api.v1.RevokeDelegationCredentialResponse
-	14, // 29: kagent.api.v1.ExecutionService.GetDelegationCredentialStatus:output_type -> kagent.api.v1.GetDelegationCredentialStatusResponse
-	16, // 30: kagent.api.v1.ExecutionService.IssueSessionCredential:output_type -> kagent.api.v1.IssueSessionCredentialResponse
-	22, // [22:31] is the sub-list for method output_type
-	13, // [13:22] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	17, // 9: kagent.api.v1.TaskExecution.resumed_task:type_name -> kagent.api.v1.TaskReference
+	18, // 10: kagent.api.v1.GetTaskExecutionResponse.execution:type_name -> kagent.api.v1.TaskExecution
+	25, // 11: kagent.api.v1.ListTaskExecutionsRequest.page:type_name -> kagent.api.v1.PageRequest
+	18, // 12: kagent.api.v1.ListTaskExecutionsResponse.executions:type_name -> kagent.api.v1.TaskExecution
+	26, // 13: kagent.api.v1.ListTaskExecutionsResponse.page:type_name -> kagent.api.v1.PageResponse
+	19, // 14: kagent.api.v1.ExecutionService.GetTaskExecution:input_type -> kagent.api.v1.GetTaskExecutionRequest
+	21, // 15: kagent.api.v1.ExecutionService.ListTaskExecutions:input_type -> kagent.api.v1.ListTaskExecutionsRequest
+	3,  // 16: kagent.api.v1.ExecutionService.GetSessionAuthority:input_type -> kagent.api.v1.GetSessionAuthorityRequest
+	5,  // 17: kagent.api.v1.ExecutionService.RevokeSessionAuthority:input_type -> kagent.api.v1.RevokeSessionAuthorityRequest
+	7,  // 18: kagent.api.v1.ExecutionService.GetRuntimeAuthority:input_type -> kagent.api.v1.GetRuntimeAuthorityRequest
+	9,  // 19: kagent.api.v1.ExecutionService.RegisterDelegationCredential:input_type -> kagent.api.v1.RegisterDelegationCredentialRequest
+	11, // 20: kagent.api.v1.ExecutionService.RevokeDelegationCredential:input_type -> kagent.api.v1.RevokeDelegationCredentialRequest
+	13, // 21: kagent.api.v1.ExecutionService.GetDelegationCredentialStatus:input_type -> kagent.api.v1.GetDelegationCredentialStatusRequest
+	15, // 22: kagent.api.v1.ExecutionService.IssueSessionCredential:input_type -> kagent.api.v1.IssueSessionCredentialRequest
+	20, // 23: kagent.api.v1.ExecutionService.GetTaskExecution:output_type -> kagent.api.v1.GetTaskExecutionResponse
+	22, // 24: kagent.api.v1.ExecutionService.ListTaskExecutions:output_type -> kagent.api.v1.ListTaskExecutionsResponse
+	4,  // 25: kagent.api.v1.ExecutionService.GetSessionAuthority:output_type -> kagent.api.v1.GetSessionAuthorityResponse
+	6,  // 26: kagent.api.v1.ExecutionService.RevokeSessionAuthority:output_type -> kagent.api.v1.RevokeSessionAuthorityResponse
+	8,  // 27: kagent.api.v1.ExecutionService.GetRuntimeAuthority:output_type -> kagent.api.v1.GetRuntimeAuthorityResponse
+	10, // 28: kagent.api.v1.ExecutionService.RegisterDelegationCredential:output_type -> kagent.api.v1.RegisterDelegationCredentialResponse
+	12, // 29: kagent.api.v1.ExecutionService.RevokeDelegationCredential:output_type -> kagent.api.v1.RevokeDelegationCredentialResponse
+	14, // 30: kagent.api.v1.ExecutionService.GetDelegationCredentialStatus:output_type -> kagent.api.v1.GetDelegationCredentialStatusResponse
+	16, // 31: kagent.api.v1.ExecutionService.IssueSessionCredential:output_type -> kagent.api.v1.IssueSessionCredentialResponse
+	23, // [23:32] is the sub-list for method output_type
+	14, // [14:23] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_kagent_api_v1_execution_proto_init() }

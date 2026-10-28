@@ -44,8 +44,10 @@ type sessionWorkflow interface {
 }
 
 type ListRequest struct {
-	AllCreators bool
+	RootSessionID string
+	AllCreators   bool
 	// Agent narrows the page to one Agent's conversations.
+	// Either may be given alone.
 	Agent     *apiv1.ResourceReference
 	PageSize  int
 	PageToken string
@@ -241,14 +243,20 @@ func (s *Service) List(ctx context.Context, request ListRequest) (ListResult, er
 	if err != nil {
 		return ListResult{}, err
 	}
+	if request.RootSessionID != "" {
+		if _, err := s.getAuthorized(ctx, request.RootSessionID, auth.VerbGet); err != nil {
+			return ListResult{}, err
+		}
+	}
 	if request.AllCreators {
 		if _, err := s.authorizeResource(ctx, auth.VerbList, auth.Resource{Type: "SessionAllCreators"}); err != nil {
 			return ListResult{}, err
 		}
 	}
 	query := database.SessionQuery{
-		UserID: userID, AllUsers: request.AllCreators, Agent: request.Agent,
-		AfterID: afterID, Limit: pageSize + 1,
+		UserID: userID, AllUsers: request.AllCreators || request.RootSessionID != "", Agent: request.Agent,
+		RootSessionID: request.RootSessionID,
+		AfterID:       afterID, Limit: pageSize + 1,
 	}
 	result := ListResult{Sessions: []*apiv1.Session{}}
 	for {

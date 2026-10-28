@@ -85,6 +85,9 @@ func (s *snapshot) affected(agent *v1alpha3.Agent, incoming client.Object) bool 
 	case *v1alpha3.Harness:
 		return agent.Spec.HarnessRef.Name == object.Name
 	}
+	if model, ok := incoming.(*v1alpha3.ModelConfig); ok && agent.Spec.ModelConfigRef != nil && agent.Spec.ModelConfigRef.Name == model.Name {
+		return true
+	}
 	seen := make(map[string]bool)
 	var visit func(*v1alpha3.AgentTemplateSpec) bool
 	reference := func(name string) bool {

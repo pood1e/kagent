@@ -3,6 +3,7 @@ package grpcserver
 import (
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -16,9 +17,11 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/durationpb"
+	corev1 "k8s.io/api/core/v1"
 
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	configv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/config/v1"
+	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
 	"github.com/kagent-dev/kagent/go/core/internal/dbtest"
 	"github.com/kagent-dev/kagent/go/core/internal/executionauth"
@@ -63,7 +66,16 @@ func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(db.Close)
 	store := database.NewClient(db, "public")
-	createTaskStoreSession(t, store) // Seed a ready runtime revision.
+	createTaskStoreSession(t, store)
+	revision, err := store.GetRuntimeRevision(t.Context(), "revision-1")
+	require.NoError(t, err)
+	revision.Revision = "selected-targets"
+	revision.ActorTemplateName = "selected-targets"
+	revision.MCPTools = []v1alpha3.MCPToolBinding{{Server: corev1.TypedObjectReference{Kind: "RemoteMCPServer", Name: "native"}, Tools: []string{"read_nodes"}}}
+	revision.Models = []corev1.LocalObjectReference{{Name: "language"}}
+	require.NoError(t, store.UpsertAgentDefinition(t.Context(), database.AgentDefinition{Namespace: revision.Namespace, AgentName: revision.AgentName, AgentUID: revision.AgentUID, DesiredRevision: revision.Revision}))
+	_, err = store.RecordRuntimeRevision(t.Context(), *revision, database.RecordRevisionOptions{Ready: true})
+	require.NoError(t, err)
 	users, actors := jwttest.New(t), jwttest.New(t)
 	userProvider, err := authimpl.NewOIDCAuthenticator(t.Context(), &configv1.OIDCAuthentication{Issuer: users.URL, Audience: "kagent-api", CaFile: users.CAFile})
 	require.NoError(t, err)
@@ -117,6 +129,16 @@ func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	_, err = client.CreateSession(withToken(limitedToken), &apiv1.CreateSessionRequest{Agent: root.GetAgent().GetRef(), RequestId: uuid.NewString()})
 	assertGRPCCode(t, err, codes.PermissionDenied)
 	other := create(user, "write")
+	group, err := client.ListSessions(user, &apiv1.ListSessionsRequest{RootSessionId: root.Id, Page: &apiv1.PageRequest{Limit: 100}})
+	require.NoError(t, err)
+	var sessionIDs []string
+	for _, session := range group.Sessions {
+		sessionIDs = append(sessionIDs, session.Id)
+	}
+	require.ElementsMatch(t, []string{root.Id, child.Id, limited.Id}, sessionIDs)
+	stranger := users.Token(t, jwt.MapClaims{"iss": users.URL, "aud": "kagent-api", "sub": "stranger", "roles": []string{"read"}, "exp": time.Now().Add(time.Hour).Unix()})
+	_, err = client.ListSessions(withToken(stranger), &apiv1.ListSessionsRequest{RootSessionId: root.Id})
+	assertGRPCCode(t, err, codes.NotFound)
 	credential, err := executionClient.IssueSessionCredential(user, &apiv1.IssueSessionCredentialRequest{SessionId: root.Id, Ttl: durationpb.New(5 * time.Minute)})
 	require.NoError(t, err)
 	require.NotContains(t, credential.Credential, userToken)
@@ -179,6 +201,42 @@ func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	checkScope(gatewayToken, "write", http.StatusOK)
 	checkScope(gatewayToken, "admin", http.StatusForbidden)
 	checkScope(actorToken, "write", http.StatusUnauthorized)
+	checkScope(userToken, "write", http.StatusForbidden)
+	checkTarget := func(query string, want int) *http.Response {
+		t.Helper()
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, callback.URL+"?"+query, nil)
+		require.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+gatewayToken)
+		response, err := callback.Client().Do(req)
+		require.NoError(t, err)
+		t.Cleanup(func() { require.NoError(t, response.Body.Close()) })
+		require.Equal(t, want, response.StatusCode)
+		require.Equal(t, "no-store", response.Header.Get("Cache-Control"))
+		return response
+	}
+	selected := checkTarget("scope=write&server=team-a/native&credential=subject_token", http.StatusOK)
+	require.Equal(t, "Bearer "+userToken, selected.Header.Get("Authorization"))
+	require.NotEqual(t, "Bearer "+gatewayToken, selected.Header.Get("Authorization"))
+	var binding v1alpha3.MCPToolBinding
+	require.NoError(t, json.NewDecoder(selected.Body).Decode(&binding))
+	require.Equal(t, []string{"read_nodes"}, binding.Tools)
+	checkTarget("server=team-a/other", http.StatusForbidden)
+	checkTarget("server=team-b/native", http.StatusForbidden)
+	checkTarget("model=language", http.StatusOK)
+	checkTarget("model=other", http.StatusForbidden)
+	checkTarget("credential=subject_token", http.StatusBadRequest)
+	checkTarget("server=team-a/native&credential=actor_token", http.StatusBadRequest)
+	// Configuration edits affect future Sessions, not an existing Actor's grants.
+	revision.Revision = "changed-targets"
+	revision.ActorTemplateName = "changed-targets"
+	revision.MCPTools[0].Tools = []string{"delete_nodes"}
+	require.NoError(t, store.UpsertAgentDefinition(t.Context(), database.AgentDefinition{Namespace: revision.Namespace, AgentName: revision.AgentName, AgentUID: revision.AgentUID, DesiredRevision: revision.Revision}))
+	_, err = store.RecordRuntimeRevision(t.Context(), *revision, database.RecordRevisionOptions{Ready: true})
+	require.NoError(t, err)
+	original := checkTarget("server=team-a/native", http.StatusOK)
+	require.NoError(t, json.NewDecoder(original.Body).Decode(&binding))
+	require.Equal(t, []string{"read_nodes"}, binding.Tools)
+	afterRevoke := authorityGatewayProof(t, callback.URL, gatewayToken, actorToken, userToken)
 
 	_, err = executionClient.RevokeSessionAuthority(actor, &apiv1.RevokeSessionAuthorityRequest{SessionId: root.Id})
 	assertGRPCCode(t, err, codes.PermissionDenied)
@@ -190,6 +248,7 @@ func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	_, err = executionClient.GetRuntimeAuthority(actor, &apiv1.GetRuntimeAuthorityRequest{})
 	assertGRPCCode(t, err, codes.PermissionDenied)
 	checkScope(gatewayToken, "write", http.StatusForbidden)
+	afterRevoke()
 	_, err = client.GetSession(bound, &apiv1.GetSessionRequest{SessionId: root.Id})
 	assertGRPCCode(t, err, codes.Unauthenticated)
 	independent, err := executionClient.GetSessionAuthority(user, &apiv1.GetSessionAuthorityRequest{SessionId: other.Id})

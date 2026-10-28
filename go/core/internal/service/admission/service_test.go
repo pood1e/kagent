@@ -85,3 +85,27 @@ func TestAdmissionChecksOnlyTransitiveDependents(t *testing.T) {
 	template.Spec.ModelConfig.Name = "missing"
 	require.ErrorContains(t, service.AgentTemplate(t.Context(), template), "ModelConfig")
 }
+
+func TestAdmissionSwitchesHarnessAndRootModelInOneAgentUpdate(t *testing.T) {
+	service, agent, model := admissionFixture(t, "codex")
+	harness := &v1alpha3.Harness{}
+	require.NoError(t, service.kube.Get(t.Context(), client.ObjectKey{Namespace: agent.Namespace, Name: agent.Spec.HarnessRef.Name}, harness))
+	harness.Name, harness.ResourceVersion = "claude", ""
+	harness.Spec.Codex, harness.Spec.Claude = nil, &v1alpha3.ClaudeHarness{}
+	require.NoError(t, service.kube.Create(t.Context(), harness))
+	anthropic := model.DeepCopy()
+	anthropic.Name, anthropic.ResourceVersion = "anthropic", ""
+	anthropic.Spec.Provider, anthropic.Spec.Model, anthropic.Spec.OpenAI = v1alpha3.ModelProviderAnthropic, "claude-test", nil
+	require.NoError(t, service.kube.Create(t.Context(), anthropic))
+	for _, choice := range []struct{ harness, model string }{{"claude", "anthropic"}, {"harness", "model"}, {"claude", "anthropic"}} {
+		agent.Spec.HarnessRef.Name = choice.harness
+		agent.Spec.ModelConfigRef = &corev1.LocalObjectReference{Name: choice.model}
+		require.NoError(t, service.Agent(t.Context(), agent))
+		require.NoError(t, service.kube.Update(t.Context(), agent))
+	}
+	template := &v1alpha3.AgentTemplate{}
+	require.NoError(t, service.kube.Get(t.Context(), client.ObjectKey{Namespace: agent.Namespace, Name: agent.Spec.Template.Ref.Name}, template))
+	require.Equal(t, model.Name, template.Spec.ModelConfig.Name)
+	anthropic.Spec.Model = ""
+	require.Error(t, service.ValidateModel(t.Context(), anthropic, nil), "model overrides remain native compiler dependencies")
+}
