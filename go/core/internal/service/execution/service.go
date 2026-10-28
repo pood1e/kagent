@@ -15,6 +15,7 @@ import (
 )
 
 type Store interface {
+	GetRuntimeRevision(context.Context, string) (*database.RuntimeRevision, error)
 	GetTaskExecution(context.Context, string) (*apiv1.TaskExecution, error)
 	ListTaskExecutions(context.Context, string, string, int) ([]*apiv1.TaskExecution, error)
 }

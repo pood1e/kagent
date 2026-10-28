@@ -20,20 +20,25 @@ type DispatchOrigin struct {
 }
 
 type executionRow struct {
-	TaskID          string
-	SessionID       string
-	ParentTaskID    *string
-	ParentSessionID *string
-	RootTaskID      string
-	RootSessionID   string
-	Relation        string
-	Background      bool
+	TaskID           string
+	SessionID        string
+	ParentTaskID     *string
+	ParentSessionID  *string
+	RootTaskID       string
+	RootSessionID    string
+	Relation         string
+	Background       bool
+	ResumedTaskID    *string
+	ResumedSessionID *string
 }
 
 func (r executionRow) proto() *apiv1.TaskExecution {
 	result := &apiv1.TaskExecution{Task: &apiv1.TaskReference{SessionId: r.SessionID, TaskId: r.TaskID}, Root: &apiv1.TaskReference{SessionId: r.RootSessionID, TaskId: r.RootTaskID}, Background: r.Background, Relation: apiv1.TaskRelation(apiv1.TaskRelation_value[r.Relation])}
 	if r.ParentTaskID != nil {
 		result.Parent = &apiv1.TaskReference{SessionId: *r.ParentSessionID, TaskId: *r.ParentTaskID}
+	}
+	if r.ResumedTaskID != nil {
+		result.ResumedTask = &apiv1.TaskReference{SessionId: *r.ResumedSessionID, TaskId: *r.ResumedTaskID}
 	}
 	return result
 }
@@ -43,10 +48,12 @@ func (r executionRow) proto() *apiv1.TaskExecution {
 func (c *Client) GetTaskExecution(ctx context.Context, taskID string) (*apiv1.TaskExecution, error) {
 	row, err := queryOne(ctx, c.db, `
  SELECT e.task_id, s.id::text AS session_id, e.parent_task_id, p.id::text AS parent_session_id,
-   e.root_task_id, r.id::text AS root_session_id, e.relation, e.background
+   e.root_task_id, r.id::text AS root_session_id, e.relation, e.background,
+ e.resumed_task_id, resumed_session.id::text AS resumed_session_id
  FROM task_execution e JOIN session s ON s.history_id = e.history_id
  JOIN task_execution root ON root.task_id = e.root_task_id JOIN session r ON r.history_id = root.history_id
  LEFT JOIN task_execution parent ON parent.task_id = e.parent_task_id LEFT JOIN session p ON p.history_id = parent.history_id
+ LEFT JOIN task_execution resumed ON resumed.task_id=e.resumed_task_id LEFT JOIN session resumed_session ON resumed_session.history_id=resumed.history_id
  WHERE e.task_id = $1
  `, pgx.RowToStructByName[executionRow], taskID)
 	if err != nil {
@@ -60,10 +67,12 @@ func (c *Client) GetTaskExecution(ctx context.Context, taskID string) (*apiv1.Ta
 func (c *Client) ListTaskExecutions(ctx context.Context, rootTaskID, after string, limit int) ([]*apiv1.TaskExecution, error) {
 	rows, err := queryMany(ctx, c.db, `
  SELECT e.task_id, s.id::text AS session_id, e.parent_task_id, p.id::text AS parent_session_id,
-   e.root_task_id, r.id::text AS root_session_id, e.relation, e.background
+   e.root_task_id, r.id::text AS root_session_id, e.relation, e.background,
+ e.resumed_task_id, resumed_session.id::text AS resumed_session_id
  FROM task_execution e JOIN session s ON s.history_id = e.history_id
  JOIN task_execution root ON root.task_id = e.root_task_id JOIN session r ON r.history_id = root.history_id
  LEFT JOIN task_execution parent ON parent.task_id = e.parent_task_id LEFT JOIN session p ON p.history_id = parent.history_id
+ LEFT JOIN task_execution resumed ON resumed.task_id=e.resumed_task_id LEFT JOIN session resumed_session ON resumed_session.history_id=resumed.history_id
  WHERE e.root_task_id = $1 AND e.task_id > $2 ORDER BY e.task_id LIMIT $3
  `, pgx.RowToStructByName[executionRow], rootTaskID, after, limit)
 	if err != nil {
@@ -94,13 +103,14 @@ func runtimeExecutionLock(ctx context.Context, tx pgx.Tx, taskID, dispatchID str
 
 func bindTaskExecution(ctx context.Context, tx pgx.Tx, session sessionRow, taskID, dispatchID string) error {
 	type intent struct {
-		ParentTaskID *string
-		RootTaskID   *string
-		Relation     string
-		Background   bool
+		ParentTaskID  *string
+		RootTaskID    *string
+		Relation      string
+		Background    bool
+		ResumedTaskID *string
 	}
 	value, err := queryOne(ctx, tx, `
- SELECT parent_task_id, root_task_id, relation, background FROM task_dispatch WHERE session_id = $1 AND dispatch_id::text = $2
+ SELECT parent_task_id, root_task_id, relation, background,resumed_task_id FROM task_dispatch WHERE session_id = $1 AND dispatch_id::text = $2
  `, pgx.RowToStructByName[intent], session.ID, dispatchID)
 	if err != nil {
 		return fmt.Errorf("task creation requires admitted dispatch lineage: %w", notFoundOr(err))
@@ -119,8 +129,8 @@ func bindTaskExecution(ctx context.Context, tx pgx.Tx, session sessionRow, taskI
 		root = *value.RootTaskID
 	}
 	if err := execSQL(ctx, tx, `
- INSERT INTO task_execution (task_id, history_id, parent_task_id, root_task_id, relation, background) VALUES ($1, $2, $3, $4, $5, $6)
- `, taskID, session.HistoryID, value.ParentTaskID, root, value.Relation, value.Background); err != nil {
+ INSERT INTO task_execution (task_id, history_id, parent_task_id, root_task_id, relation, background,resumed_task_id) VALUES ($1, $2, $3, $4, $5, $6,$7)
+ `, taskID, session.HistoryID, value.ParentTaskID, root, value.Relation, value.Background, value.ResumedTaskID); err != nil {
 		return err
 	}
 	return execSQL(ctx, tx, `DELETE FROM task_dispatch WHERE session_id = $1 AND dispatch_id::text = $2`, session.ID, dispatchID)
@@ -192,9 +202,13 @@ func recordTaskDispatch(ctx context.Context, tx pgx.Tx, sessionID, dispatchID uu
 			relation, background = apiv1.TaskRelation_TASK_RELATION_CONTINUATION.String(), false
 		}
 	}
+	continuationID := uuid.Nil
+	if origin != nil {
+		continuationID = origin.ContinuationID
+	}
 	return execSQL(ctx, tx, `
- INSERT INTO task_dispatch (session_id, dispatch_id, parent_task_id, root_task_id, relation, background) VALUES ($1,$2,$3,$4,$5,$6)
+ INSERT INTO task_dispatch (session_id, dispatch_id, parent_task_id, root_task_id, relation, background,resumed_task_id) VALUES ($1,$2,$3,$4,$5,$6, (SELECT child_task_id FROM task_continuation WHERE id=$7))
  ON CONFLICT (session_id) DO UPDATE SET dispatch_id = EXCLUDED.dispatch_id, parent_task_id = EXCLUDED.parent_task_id,
- root_task_id = EXCLUDED.root_task_id, relation = EXCLUDED.relation, background = EXCLUDED.background
- `, sessionID, dispatchID, parentID, rootID, relation, background)
+ root_task_id = EXCLUDED.root_task_id, relation = EXCLUDED.relation, background = EXCLUDED.background,resumed_task_id=EXCLUDED.resumed_task_id
+ `, sessionID, dispatchID, parentID, rootID, relation, background, continuationID)
 }

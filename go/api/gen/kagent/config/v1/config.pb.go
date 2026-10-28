@@ -609,10 +609,10 @@ type ExecutionAuthorizationConfig struct {
 	// File containing exactly 32 random bytes; mounted from a controller Secret.
 	EncryptionKeyFile string                 `protobuf:"bytes,3,opt,name=encryption_key_file,json=encryptionKeyFile,proto3" json:"encryption_key_file,omitempty"`
 	Oauth             *OAuthCredentialConfig `protobuf:"bytes,4,opt,name=oauth,proto3" json:"oauth,omitempty"`
-	// Enables the runtime ext-authz endpoint for this distinct gateway audience.
-	GatewayAudience string `protobuf:"bytes,5,opt,name=gateway_audience,json=gatewayAudience,proto3" json:"gateway_audience,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Gateway origins accepted solely by the runtime ext-authz endpoint.
+	GatewayAudiences []string `protobuf:"bytes,5,rep,name=gateway_audiences,json=gatewayAudiences,proto3" json:"gateway_audiences,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ExecutionAuthorizationConfig) Reset() {
@@ -673,11 +673,11 @@ func (x *ExecutionAuthorizationConfig) GetOauth() *OAuthCredentialConfig {
 	return nil
 }
 
-func (x *ExecutionAuthorizationConfig) GetGatewayAudience() string {
+func (x *ExecutionAuthorizationConfig) GetGatewayAudiences() []string {
 	if x != nil {
-		return x.GatewayAudience
+		return x.GatewayAudiences
 	}
-	return ""
+	return nil
 }
 
 type ResourceScopeRule struct {
@@ -2432,14 +2432,14 @@ const file_kagent_config_v1_config_proto_rawDesc = "" +
 	"\x17execution_authorization\x18\x11 \x01(\v2..kagent.config.v1.ExecutionAuthorizationConfigR\x16executionAuthorization:\x80\x05\xbaH\xfc\x04\x1a\xa4\x01\n" +
 	"#controller.execution_authentication\x126execution_authorization requires server.auth.mode oidc\x1aE!has(this.execution_authorization) || this.server.auth.mode == 'oidc'\x1a\xce\x01\n" +
 	"\x1econtroller.database_read_write\x12Fdatabase.read_write.url_file and database.read_write.role are required\x1adhas(this.database) && this.database.read_write.url_file != '' && this.database.read_write.role != ''\x1a\x81\x02\n" +
-	"\x19controller.database_owner\x12ddatabase.owner.url_file and database.owner.role are required unless database.skip_migrations is true\x1a~!has(this.database) || this.database.skip_migrations || (this.database.owner.url_file != '' && this.database.owner.role != '')\"\xcc\x02\n" +
+	"\x19controller.database_owner\x12ddatabase.owner.url_file and database.owner.role are required unless database.skip_migrations is true\x1a~!has(this.database) || this.database.skip_migrations || (this.database.owner.url_file != '' && this.database.owner.role != '')\"\xd7\x02\n" +
 	"\x1cExecutionAuthorizationConfig\x12(\n" +
 	"\vscope_claim\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
 	"scopeClaim\x12C\n" +
 	"\x05rules\x18\x02 \x03(\v2#.kagent.config.v1.ResourceScopeRuleB\b\xbaH\x05\x92\x01\x02\b\x01R\x05rules\x127\n" +
 	"\x13encryption_key_file\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11encryptionKeyFile\x12=\n" +
-	"\x05oauth\x18\x04 \x01(\v2'.kagent.config.v1.OAuthCredentialConfigR\x05oauth\x12E\n" +
-	"\x10gateway_audience\x18\x05 \x01(\tB\x1a\xbaH\x17r\x152\x13^$|^https://[^/?#]+R\x0fgatewayAudience\"\xc1\x01\n" +
+	"\x05oauth\x18\x04 \x01(\v2'.kagent.config.v1.OAuthCredentialConfigR\x05oauth\x12P\n" +
+	"\x11gateway_audiences\x18\x05 \x03(\tB#\xbaH \x92\x01\x1d\x10@\x18\x01\"\x17r\x152\x13^https?://[^/?#@]+$R\x10gatewayAudiences\"\xc1\x01\n" +
 	"\x11ResourceScopeRule\x12,\n" +
 	"\rresource_type\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fresourceType\x12G\n" +
 	"\x05verbs\x18\x02 \x03(\tB1\xbaH.\x92\x01+\b\x01\x18\x01\"%r#R\x03getR\x04listR\x06createR\x06updateR\x06deleteR\x05verbs\x125\n" +

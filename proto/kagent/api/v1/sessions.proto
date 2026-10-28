@@ -97,6 +97,8 @@ message ListSessionsRequest {
   reserved "agent_template", "harness";
   // Filters by the Agent that produced each session's pinned revision.
   ResourceReference agent = 6;
+  // Narrows the page to a native authority tree. Each Session is authorized.
+  string root_session_id = 7 [(buf.validate.field).string = {pattern: "^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"}];
 }
 
 message ListSessionsResponse {

@@ -138,3 +138,32 @@ func TestRuntimeTaskCannotForgeDispatchAncestry(t *testing.T) {
 	require.Equal(t, result.Task, result.Root)
 	require.Equal(t, apiv1.TaskRelation_TASK_RELATION_ROOT, result.Relation)
 }
+
+func TestContinuationExecutionPinsResumedTask(t *testing.T) {
+	c := NewClient(setupTestDB(t), "public")
+	sessionFixture(t, c, t.Context(), "team-a", "revision", "assistant", "kagent")
+	parent := continuationSession(t, c)
+	child := continuationSession(t, c, parent)
+	root := continuationTask(t, c, parent, "root")
+	require.NoError(t, c.RegisterTaskContinuation(t.Context(), parent.Id, child.Id, "child"))
+	callee := continuationTask(t, c, child, "child", &DispatchOrigin{SessionID: parent.Id})
+	settleContinuation(t, c, callee, a2a.TaskStateInputRequired)
+	settleContinuation(t, c, root, a2a.TaskStateCompleted)
+	reply := a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart("yes"))
+	reply.ID, reply.ContextID, reply.TaskID = "yes", child.Id, callee.ID
+	callee, _ = resumeRuntimeTask(t, c, child.Id, reply)
+	settleContinuation(t, c, callee, a2a.TaskStateCompleted)
+	claims, err := c.ClaimTaskContinuations(t.Context(), 1)
+	require.NoError(t, err)
+	require.Len(t, claims, 1)
+	resumed := continuationTask(t, c, parent, "kagent-continuation-"+claims[0].ID.String(), &DispatchOrigin{ContinuationID: claims[0].ID})
+	execution, err := c.GetTaskExecution(t.Context(), string(resumed.ID))
+	require.NoError(t, err)
+	require.Equal(t, apiv1.TaskRelation_TASK_RELATION_CONTINUATION, execution.Relation)
+	require.Equal(t, &apiv1.TaskReference{SessionId: parent.Id, TaskId: string(root.ID)}, execution.Parent)
+	require.Equal(t, &apiv1.TaskReference{SessionId: child.Id, TaskId: string(callee.ID)}, execution.ResumedTask)
+	require.NoError(t, c.CompleteTaskContinuation(t.Context(), claims[0], string(resumed.ID)))
+	persisted, err := NewClient(c.db, "public").GetTaskExecution(t.Context(), string(resumed.ID))
+	require.NoError(t, err)
+	require.Equal(t, execution, persisted)
+}

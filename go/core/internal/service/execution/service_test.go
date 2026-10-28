@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
+	"github.com/kagent-dev/kagent/go/core/internal/database"
 	"github.com/kagent-dev/kagent/go/core/internal/service/serviceerrors"
 )
 
@@ -57,3 +58,7 @@ func TestExecutionPaginationFiltersBeforeSlicing(t *testing.T) {
 }
 
 func (*executionFixture) RevokeExecutionAuthority(context.Context, string) error { return nil }
+
+func (*executionFixture) GetRuntimeRevision(context.Context, string) (*database.RuntimeRevision, error) {
+	return &database.RuntimeRevision{}, nil
+}

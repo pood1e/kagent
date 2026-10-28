@@ -122,3 +122,25 @@ func TestActorJWTVerifierClockSkew(t *testing.T) {
 		})
 	}
 }
+
+func TestGatewayActorAudiencesAreExplicitOrigins(t *testing.T) {
+	i := jwttest.New(t)
+	origins := []string{"http://model-gateway.team.svc:8080", "https://mcp.example"}
+	v, err := NewGatewayActorJWTVerifier(t.Context(), i.URL, i.CAFile, origins...)
+	require.NoError(t, err)
+	origins[0] = "http://mutated"
+	for _, audience := range []string{"http://model-gateway.team.svc:8080", "https://mcp.example", "kagent-runtime", "https://unselected.example"} {
+		claims := i.Claims("team", "session", "uid")
+		claims["aud"] = []string{audience}
+		_, err := v.Verify(t.Context(), i.Token(t, claims))
+		if audience == "kagent-runtime" || audience == "https://unselected.example" {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+		}
+	}
+	for _, audience := range []string{"", "kagent-runtime", "http://", "https://user:secret@gateway.example", "https://gateway.example/", "https://gateway.example?query", "https://gateway.example#fragment"} {
+		_, err := NewGatewayActorJWTVerifier(t.Context(), i.URL, i.CAFile, audience)
+		require.Error(t, err, audience)
+	}
+}

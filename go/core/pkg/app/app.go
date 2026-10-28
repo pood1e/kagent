@@ -458,8 +458,8 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 	} else {
 		mux.HandleFunc("GET /.well-known/jwks.json", http.NotFound)
 	}
-	if audience := cfg.GetExecutionAuthorization().GetGatewayAudience(); audience != "" {
-		verifier, err := substrate.NewGatewayActorJWTVerifier(ctx, cfg.GetSubstrate().GetActorJwtIssuer(), cfg.GetSubstrate().GetCaFile(), audience)
+	if audiences := cfg.GetExecutionAuthorization().GetGatewayAudiences(); len(audiences) > 0 {
+		verifier, err := substrate.NewGatewayActorJWTVerifier(ctx, cfg.GetSubstrate().GetActorJwtIssuer(), cfg.GetSubstrate().GetCaFile(), audiences...)
 		if err != nil {
 			return fmt.Errorf("configure runtime gateway authorization: %w", err)
 		}

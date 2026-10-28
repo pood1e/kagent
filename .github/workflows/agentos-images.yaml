@@ -14,7 +14,7 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io/${{ github.repository }}
-  VERSION: 1.0.0-alpha17-agentos.5
+  VERSION: 1.0.0-alpha17-agentos.6
 
 jobs:
   verify:
@@ -41,10 +41,17 @@ jobs:
           cache-dependency-path: go/go.sum
       - run: psql "$KAGENT_TEST_POSTGRES_URL" -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION vector'
       - run: echo "KUBEBUILDER_ASSETS=$(go tool setup-envtest use 1.37 -p path)" >> "$GITHUB_ENV"
+      - name: Install agentgateway verification binary
+        run: |
+          curl --fail --location --retry 3 -o /tmp/agentgateway-linux-amd64 \
+            https://github.com/agentgateway/agentgateway/releases/download/v1.7.0/agentgateway-linux-amd64
+          echo '1b2fc01a2de29ca113bbb6258b5cae7b1eb3c724071c09d687a449132f2f42f8  /tmp/agentgateway-linux-amd64' | sha256sum --check
+          chmod +x /tmp/agentgateway-linux-amd64
+          echo 'KAGENT_TEST_AGENTGATEWAY=/tmp/agentgateway-linux-amd64' >> "$GITHUB_ENV"
       - name: Test the AgentOS runtime extensions
         run: |
           go test -race -count=1 ./api/a2a ./core/internal/database ./core/pkg/migrations \
-            ./core/internal/runtimeauth ./core/internal/service/memory ./core/internal/service/taskstore \
+            ./core/internal/runtimeauth ./core/internal/executionauth ./core/internal/service/execution ./core/internal/service/admission ./core/internal/service/kubecrud ./core/internal/service/memory ./core/internal/service/taskstore \
             ./core/internal/service/session ./core/internal/service/tool ./core/internal/service/scheduledrun \
             ./core/internal/controller/scheduledrun ./core/internal/grpcserver ./core/internal/a2agateway \
             ./core/internal/mcp ./core/internal/translator/adkconfig ./core/internal/substrate \
@@ -52,7 +59,7 @@ jobs:
           go test -race -count=1 ./core/internal/translator/claude ./core/internal/translator/codex \
             ./harness/... ./adk/pkg/a2a ./adk/pkg/tools ./adk/pkg/controllerclient ./adk/pkg/taskstore \
             ./adk/pkg/embedding
-          go test -race -count=1 ./core/internal/controller -run '^TestStatusForPairPublishesCompilationWarnings$'
+          go test -race -count=1 ./core/internal/controller ./core/internal/httpserver/auth ./core/pkg/auth
       - run: make lint AWK=awk
       - name: Build binaries
         run: |

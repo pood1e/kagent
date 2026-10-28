@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,6 +44,11 @@ const (
 // +kubebuilder:validation:AtMostOneOf=actorJwt;tokenPassthrough
 // +kubebuilder:validation:XValidation:message="headersFrom cannot set Authorization when actorJwt is enabled",rule="!has(self.actorJwt) || !has(self.headersFrom) || !self.headersFrom.exists(h, h.name.lowerAscii() == 'authorization')"
 type RemoteMCPServerSpec struct {
+	// DiscoveryAuth authenticates controller tool discovery independently of
+	// runtime credentials. Credentials are confined to this server's origin.
+	// +optional
+	DiscoveryAuth *MCPDiscoveryAuth `json:"discoveryAuth,omitempty"`
+
 	// ActorJWT authenticates as the executing Actor with Authorization: Bearer.
 	// Substrate injects the token; tool discovery runs inside the Actor.
 	// +optional
@@ -93,6 +99,45 @@ type RemoteMCPServerSpec struct {
 	// Custom CA bundles are not supported. TLS must be unset for HTTP URLs.
 	// +optional
 	TLS *TLSConfig `json:"tls,omitempty"`
+}
+
+// MCPDiscoveryAuth selects a controller-only discovery credential source.
+// +kubebuilder:validation:ExactlyOneOf=oauth2;serviceAccount
+type MCPDiscoveryAuth struct {
+	// +optional
+	OAuth2 *MCPDiscoveryOAuth2 `json:"oauth2,omitempty"`
+	// +optional
+	ServiceAccount *MCPDiscoveryServiceAccount `json:"serviceAccount,omitempty"`
+}
+
+// MCPDiscoveryOAuth2 uses the OAuth 2.0 client credentials grant.
+type MCPDiscoveryOAuth2 struct {
+	// +kubebuilder:validation:Pattern=`^https://[^/?#@]+[^#]*$`
+	// +required
+	TokenEndpoint string `json:"tokenEndpoint"`
+	// +kubebuilder:validation:MinLength=1
+	// +required
+	ClientID string `json:"clientId"`
+	// ClientSecretRef selects a same-namespace Secret.
+	// +required
+	ClientSecretRef corev1.SecretKeySelector `json:"clientSecretRef"`
+	// CACertificateRef adds a PEM certificate bundle to system trust for the token endpoint.
+	// +optional
+	CACertificateRef *corev1.ConfigMapKeySelector `json:"caCertificateRef,omitempty"`
+	// +optional
+	// +kubebuilder:validation:MaxItems=32
+	Scopes []string `json:"scopes,omitempty"`
+}
+
+// MCPDiscoveryServiceAccount requests a short-lived Kubernetes token.
+type MCPDiscoveryServiceAccount struct {
+	// ServiceAccountRef selects a same-namespace ServiceAccount.
+	// +required
+	ServiceAccountRef corev1.LocalObjectReference `json:"serviceAccountRef"`
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=512
+	// +required
+	Audience string `json:"audience"`
 }
 
 var _ sql.Scanner = (*RemoteMCPServerSpec)(nil)

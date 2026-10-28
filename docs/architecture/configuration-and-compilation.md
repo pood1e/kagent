@@ -442,3 +442,11 @@ runtime revision nor an ActorTemplate.
 API clients use native diagnostics for provider, model options, tool bindings and
 resolved-reference validation. Kubernetes-authored resources retain the
 controller's `ResolvedRefs` and `Compatible` readiness conditions.
+
+### Per-Agent model selection
+
+`Agent.spec.modelConfigRef` selects the root model independently of a reusable
+AgentTemplate's default. A single versioned Agent update selects both Harness
+and model, and the native compiler validates the complete candidate. Shared
+subagents retain their own template models. Existing Sessions keep their prepared
+revision and credentials; later Sessions resolve the updated Agent selection.

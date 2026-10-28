@@ -130,8 +130,14 @@ message ExecutionAuthorizationConfig {
   // File containing exactly 32 random bytes; mounted from a controller Secret.
   string encryption_key_file = 3 [(buf.validate.field).string.min_len = 1];
   OAuthCredentialConfig oauth = 4;
-  // Enables the runtime ext-authz endpoint for this distinct gateway audience.
-  string gateway_audience = 5 [(buf.validate.field).string = {pattern: "^$|^https://[^/?#]+"}];
+  // Gateway origins accepted solely by the runtime ext-authz endpoint.
+  repeated string gateway_audiences = 5 [(buf.validate.field).repeated = {
+    max_items: 64
+    unique: true
+    items: {
+      string: {pattern: "^https?://[^/?#@]+$"}
+    }
+  }];
 }
 
 message ResourceScopeRule {

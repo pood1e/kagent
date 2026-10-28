@@ -428,7 +428,9 @@ type ListSessionsRequest struct {
 	AllCreators bool         `protobuf:"varint,2,opt,name=all_creators,json=allCreators,proto3" json:"all_creators,omitempty"`
 	Page        *PageRequest `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
 	// Filters by the Agent that produced each session's pinned revision.
-	Agent         *ResourceReference `protobuf:"bytes,6,opt,name=agent,proto3" json:"agent,omitempty"`
+	Agent *ResourceReference `protobuf:"bytes,6,opt,name=agent,proto3" json:"agent,omitempty"`
+	// Narrows the page to a native authority tree. Each Session is authorized.
+	RootSessionId string `protobuf:"bytes,7,opt,name=root_session_id,json=rootSessionId,proto3" json:"root_session_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -482,6 +484,13 @@ func (x *ListSessionsRequest) GetAgent() *ResourceReference {
 		return x.Agent
 	}
 	return nil
+}
+
+func (x *ListSessionsRequest) GetRootSessionId() string {
+	if x != nil {
+		return x.RootSessionId
+	}
+	return ""
 }
 
 type ListSessionsResponse struct {
@@ -1299,11 +1308,12 @@ const file_kagent_api_v1_sessions_proto_rawDesc = "" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tsessionId\"F\n" +
 	"\x12GetSessionResponse\x120\n" +
-	"\asession\x18\x01 \x01(\v2\x16.kagent.api.v1.SessionR\asession\"\xd9\x01\n" +
+	"\asession\x18\x01 \x01(\v2\x16.kagent.api.v1.SessionR\asession\"\xda\x02\n" +
 	"\x13ListSessionsRequest\x12!\n" +
 	"\fall_creators\x18\x02 \x01(\bR\vallCreators\x12.\n" +
 	"\x04page\x18\x03 \x01(\v2\x1a.kagent.api.v1.PageRequestR\x04page\x126\n" +
-	"\x05agent\x18\x06 \x01(\v2 .kagent.api.v1.ResourceReferenceR\x05agentJ\x04\b\x01\x10\x02J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\fmatch_labelsR\x0eagent_templateR\aharness\"{\n" +
+	"\x05agent\x18\x06 \x01(\v2 .kagent.api.v1.ResourceReferenceR\x05agent\x12\x7f\n" +
+	"\x0froot_session_id\x18\a \x01(\tBW\xbaHTrR2P^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$R\rrootSessionIdJ\x04\b\x01\x10\x02J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\fmatch_labelsR\x0eagent_templateR\aharness\"{\n" +
 	"\x14ListSessionsResponse\x122\n" +
 	"\bsessions\x18\x01 \x03(\v2\x16.kagent.api.v1.SessionR\bsessions\x12/\n" +
 	"\x04page\x18\x02 \x01(\v2\x1b.kagent.api.v1.PageResponseR\x04page\"\x96\x01\n" +

@@ -90,3 +90,19 @@ same durable A2A task, including `input-required` continuation. There is no
 separate MCP task or session store.
 
 The implementation is in [`go/core/internal/mcp`](../../go/core/internal/mcp).
+
+## Controller discovery credentials
+
+`RemoteMCPServer.spec.discoveryAuth` supplies a separate controller-only catalog
+credential. `oauth2` uses an HTTPS token endpoint, a client ID, a same-namespace
+Secret key reference, optional scopes, and an optional PEM CA ConfigMap key.
+`serviceAccount` uses a same-namespace account reference and one explicit
+TokenRequest audience. Discovery reads current credential references on each
+connection and confines credentials to the configured server origin.
+
+Runtime Actor JWT selection remains in `actorJwt`; discovery credentials apply
+to metadata enumeration. Secret and CA changes trigger discovery reconciliation.
+Servers configured with Actor JWT and a discovery credential publish metadata
+through the controller, while ordinary runtime calls retain Actor verification.
+Native collaboration uses the controller's `/mcp` endpoint and the native runtime
+audience independently of business gateway audiences.
