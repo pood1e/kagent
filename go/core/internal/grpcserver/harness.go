@@ -51,6 +51,45 @@ func (s *harnessServer) ListHarnesses(ctx context.Context, request *apiv1.ListHa
 	return &apiv1.ListHarnessesResponse{Harnesses: harnesses}, nil
 }
 
+func (s *harnessServer) GetHarness(ctx context.Context, request *apiv1.GetHarnessRequest) (*apiv1.GetHarnessResponse, error) {
+	ref, err := requiredHarnessRef(request.GetRef())
+	if err != nil {
+		return nil, err
+	}
+	result, err := s.service.Get(ctx, ref)
+	if err != nil {
+		return nil, err
+	}
+	encoded, err := s.harness(result)
+	if err != nil {
+		return nil, err
+	}
+	return &apiv1.GetHarnessResponse{Harness: encoded}, nil
+}
+
+func (s *harnessServer) UpdateHarness(ctx context.Context, request *apiv1.UpdateHarnessRequest) (*apiv1.UpdateHarnessResponse, error) {
+	incoming := &v1alpha3.Harness{}
+	if err := s.decodeResource(request.GetRef(), request.GetResource(), incoming); err != nil {
+		return nil, err
+	}
+	ref := types.NamespacedName{Namespace: incoming.Namespace, Name: incoming.Name}
+	existing, err := s.service.Get(ctx, ref)
+	if err != nil {
+		return nil, err
+	}
+	existing.Spec = *incoming.Spec.DeepCopy()
+	applyResourceMetadata(existing, incoming)
+	result, err := s.service.Update(ctx, existing)
+	if err != nil {
+		return nil, err
+	}
+	encoded, err := s.harness(result)
+	if err != nil {
+		return nil, err
+	}
+	return &apiv1.UpdateHarnessResponse{Harness: encoded}, nil
+}
+
 func (s *harnessServer) CreateHarness(ctx context.Context, request *apiv1.CreateHarnessRequest) (*apiv1.CreateHarnessResponse, error) {
 	incoming := &v1alpha3.Harness{}
 	if err := s.decodeResource(request.GetRef(), request.GetResource(), incoming); err != nil {
@@ -73,7 +112,7 @@ func (s *harnessServer) DeleteHarness(ctx context.Context, request *apiv1.Delete
 	if err != nil {
 		return nil, err
 	}
-	if err := s.service.Delete(ctx, ref); err != nil {
+	if err := s.service.Delete(ctx, ref, request.GetResourceVersion()); err != nil {
 		return nil, err
 	}
 	return &apiv1.DeleteHarnessResponse{}, nil

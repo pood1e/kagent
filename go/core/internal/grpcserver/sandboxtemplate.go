@@ -62,7 +62,7 @@ func (s *sandboxTemplateServer) CreateSandboxTemplate(ctx context.Context, reque
 
 func (s *sandboxTemplateServer) DeleteSandboxTemplate(ctx context.Context, request *apiv1.DeleteSandboxTemplateRequest) (*apiv1.DeleteSandboxTemplateResponse, error) {
 	ref := types.NamespacedName{Namespace: request.GetRef().GetNamespace(), Name: request.GetRef().GetName()}
-	if err := s.service.Delete(ctx, ref); err != nil {
+	if err := s.service.Delete(ctx, ref, ""); err != nil {
 		return nil, err
 	}
 	return &apiv1.DeleteSandboxTemplateResponse{}, nil

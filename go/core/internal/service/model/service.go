@@ -249,7 +249,7 @@ func (s *Service) Update(ctx context.Context, request UpdateRequest) (*v1alpha3.
 }
 
 func (s *Service) Delete(ctx context.Context, request DeleteRequest) error {
-	return s.modelConfigs.Delete(ctx, request.Ref)
+	return s.modelConfigs.Delete(ctx, request.Ref, "")
 }
 
 func validateAPIKeySecretRef(apiKeySecret, apiKeySecretKey string, provider v1alpha3.ModelProvider) error {

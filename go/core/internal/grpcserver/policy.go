@@ -71,6 +71,8 @@ func DefaultMethodPolicies() MethodPolicies {
 		apiv1.AgentTemplateService_UpdateAgentTemplate_FullMethodName:       auth.AccessUpdate,
 		apiv1.AgentTemplateService_DeleteAgentTemplate_FullMethodName:       auth.AccessDelete,
 		apiv1.HarnessService_ListHarnesses_FullMethodName:                   auth.AccessRead,
+		apiv1.HarnessService_GetHarness_FullMethodName:                      auth.AccessRead,
+		apiv1.HarnessService_UpdateHarness_FullMethodName:                   auth.AccessUpdate,
 		apiv1.HarnessService_CreateHarness_FullMethodName:                   auth.AccessCreate,
 		apiv1.HarnessService_DeleteHarness_FullMethodName:                   auth.AccessDelete,
 
