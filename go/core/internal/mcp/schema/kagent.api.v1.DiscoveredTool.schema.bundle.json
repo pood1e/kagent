@@ -1,27 +1,23 @@
 {
   "$defs": {
-    "kagent.api.v1.SessionSummary.jsonschema.json": {
+    "kagent.api.v1.DiscoveredTool.schema.json": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
       "properties": {
-        "agent": {
+        "description": {
           "default": "",
           "type": "string"
         },
-        "id": {
-          "default": "",
-          "type": "string"
-        },
-        "state": {
+        "name": {
           "default": "",
           "type": "string"
         }
       },
-      "title": "Session Summary",
+      "title": "Discovered Tool",
       "type": "object"
     }
   },
-  "$id": "kagent.api.v1.SessionSummary.jsonschema.bundle.json",
-  "$ref": "#/$defs/kagent.api.v1.SessionSummary.jsonschema.json",
+  "$id": "kagent.api.v1.DiscoveredTool.schema.bundle.json",
+  "$ref": "#/$defs/kagent.api.v1.DiscoveredTool.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema"
 }

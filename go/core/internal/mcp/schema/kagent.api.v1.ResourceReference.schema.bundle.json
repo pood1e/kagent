@@ -1,0 +1,29 @@
+{
+  "$defs": {
+    "kagent.api.v1.ResourceReference.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "default": "",
+          "maxLength": 253,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?([.][a-z0-9]([-a-z0-9]*[a-z0-9])?)*$",
+          "type": "string"
+        },
+        "namespace": {
+          "default": "",
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+          "type": "string"
+        }
+      },
+      "title": "Resource Reference",
+      "type": "object"
+    }
+  },
+  "$id": "kagent.api.v1.ResourceReference.schema.bundle.json",
+  "$ref": "#/$defs/kagent.api.v1.ResourceReference.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

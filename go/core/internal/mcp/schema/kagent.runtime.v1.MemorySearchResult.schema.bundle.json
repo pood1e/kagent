@@ -1,0 +1,64 @@
+{
+  "$defs": {
+    "google.protobuf.Struct.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "Struct",
+      "type": "object"
+    },
+    "google.protobuf.Timestamp.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "format": "date-time",
+      "title": "Timestamp",
+      "type": "string"
+    },
+    "kagent.runtime.v1.MemorySearchResult.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^(createdAt)$": {
+          "$ref": "#/$defs/google.protobuf.Timestamp.schema.json"
+        }
+      },
+      "properties": {
+        "content": {
+          "default": "",
+          "type": "string"
+        },
+        "created_at": {
+          "$ref": "#/$defs/google.protobuf.Timestamp.schema.json"
+        },
+        "id": {
+          "default": "",
+          "type": "string"
+        },
+        "metadata": {
+          "$ref": "#/$defs/google.protobuf.Struct.schema.json"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "enum": [
+                "Infinity",
+                "-Infinity",
+                "NaN"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "default": 0
+        }
+      },
+      "title": "Memory Search Result",
+      "type": "object"
+    }
+  },
+  "$id": "kagent.runtime.v1.MemorySearchResult.schema.bundle.json",
+  "$ref": "#/$defs/kagent.runtime.v1.MemorySearchResult.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

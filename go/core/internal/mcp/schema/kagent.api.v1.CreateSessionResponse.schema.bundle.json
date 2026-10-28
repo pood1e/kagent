@@ -1,0 +1,180 @@
+{
+  "$defs": {
+    "google.protobuf.Timestamp.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "format": "date-time",
+      "title": "Timestamp",
+      "type": "string"
+    },
+    "kagent.api.v1.CreateSessionResponse.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "session": {
+          "$ref": "#/$defs/kagent.api.v1.Session.schema.json"
+        }
+      },
+      "title": "Create Session Response",
+      "type": "object"
+    },
+    "kagent.api.v1.Failure.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "message": {
+          "default": "",
+          "type": "string"
+        },
+        "reason": {
+          "default": "",
+          "type": "string"
+        }
+      },
+      "title": "Failure",
+      "type": "object"
+    },
+    "kagent.api.v1.ResourceReference.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "default": "",
+          "maxLength": 253,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?([.][a-z0-9]([-a-z0-9]*[a-z0-9])?)*$",
+          "type": "string"
+        },
+        "namespace": {
+          "default": "",
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+          "type": "string"
+        }
+      },
+      "title": "Resource Reference",
+      "type": "object"
+    },
+    "kagent.api.v1.Session.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^(a2aAuthority)$": {
+          "default": "",
+          "type": "string"
+        },
+        "^(contextId)$": {
+          "default": "",
+          "description": "Output only. A2A conversation ID, equal to this session's ID.\n Forks receive a new conversation ID and new task IDs.",
+          "type": "string"
+        },
+        "^(createdAt)$": {
+          "$ref": "#/$defs/google.protobuf.Timestamp.schema.json"
+        },
+        "^(preparedRevision)$": {
+          "default": "",
+          "type": "string"
+        },
+        "^(updatedAt)$": {
+          "$ref": "#/$defs/google.protobuf.Timestamp.schema.json"
+        }
+      },
+      "properties": {
+        "a2a_authority": {
+          "default": "",
+          "type": "string"
+        },
+        "agent": {
+          "$ref": "#/$defs/kagent.api.v1.ResourceReference.schema.json"
+        },
+        "context_id": {
+          "default": "",
+          "description": "Output only. A2A conversation ID, equal to this session's ID.\n Forks receive a new conversation ID and new task IDs.",
+          "type": "string"
+        },
+        "created_at": {
+          "$ref": "#/$defs/google.protobuf.Timestamp.schema.json"
+        },
+        "creator": {
+          "default": "",
+          "type": "string"
+        },
+        "failure": {
+          "$ref": "#/$defs/kagent.api.v1.Failure.schema.json"
+        },
+        "id": {
+          "default": "",
+          "type": "string"
+        },
+        "name": {
+          "default": "",
+          "description": "Reader-supplied display name for the conversation. Empty means unnamed,\n which is the state every session created before this field existed is in.",
+          "type": "string"
+        },
+        "operation": {
+          "anyOf": [
+            {
+              "pattern": "^RUNTIME_OPERATION_UNSPECIFIED$",
+              "type": "string"
+            },
+            {
+              "enum": [
+                "RUNTIME_OPERATION_CREATE",
+                "RUNTIME_OPERATION_SUSPEND",
+                "RUNTIME_OPERATION_RESUME",
+                "RUNTIME_OPERATION_DELETE",
+                "RUNTIME_OPERATION_NONE"
+              ],
+              "type": "string"
+            },
+            {
+              "maximum": 2147483647,
+              "minimum": -2147483648,
+              "type": "integer"
+            }
+          ],
+          "default": 0,
+          "title": "Runtime Operation"
+        },
+        "prepared_revision": {
+          "default": "",
+          "type": "string"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "pattern": "^RUNTIME_STATE_UNSPECIFIED$",
+              "type": "string"
+            },
+            {
+              "enum": [
+                "RUNTIME_STATE_CREATING",
+                "RUNTIME_STATE_READY",
+                "RUNTIME_STATE_SUSPENDED",
+                "RUNTIME_STATE_FAILED",
+                "RUNTIME_STATE_DELETING",
+                "RUNTIME_STATE_DELETED"
+              ],
+              "type": "string"
+            },
+            {
+              "maximum": 2147483647,
+              "minimum": -2147483648,
+              "type": "integer"
+            }
+          ],
+          "default": 0,
+          "title": "Runtime State"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/google.protobuf.Timestamp.schema.json"
+        }
+      },
+      "title": "Session",
+      "type": "object"
+    }
+  },
+  "$id": "kagent.api.v1.CreateSessionResponse.schema.bundle.json",
+  "$ref": "#/$defs/kagent.api.v1.CreateSessionResponse.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

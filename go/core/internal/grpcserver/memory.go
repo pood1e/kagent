@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 
-	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	runtimev1 "github.com/kagent-dev/kagent/go/api/gen/kagent/runtime/v1"
@@ -53,35 +52,7 @@ func (s *memoryServer) AddSessionBatch(ctx context.Context, request *runtimev1.M
 }
 
 func (s *memoryServer) Search(ctx context.Context, request *runtimev1.MemoryServiceSearchRequest) (*runtimev1.MemoryServiceSearchResponse, error) {
-	results, err := s.service.Search(ctx, memoryservice.SearchRequest{
-		Scope:    request.GetScope(),
-		Query:    request.GetQuery(),
-		Vector:   request.GetVector(),
-		Limit:    int(request.GetLimit()),
-		MinScore: request.GetMinScore(),
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	memories := make([]*runtimev1.MemorySearchResult, 0, len(results))
-	for _, result := range results {
-		metadata, err := memoryMetadataToProto(result.Metadata)
-		if err != nil {
-			return nil, err
-		}
-		memory := &runtimev1.MemorySearchResult{
-			Id:       result.ID,
-			Content:  result.Content,
-			Score:    result.Score,
-			Metadata: metadata,
-		}
-		if !result.CreatedAt.IsZero() {
-			memory.CreatedAt = timestamppb.New(result.CreatedAt)
-		}
-		memories = append(memories, memory)
-	}
-	return &runtimev1.MemoryServiceSearchResponse{Memories: memories}, nil
+	return s.service.SearchProto(ctx, request)
 }
 
 func (s *memoryServer) List(ctx context.Context, request *runtimev1.MemoryServiceListRequest) (*runtimev1.MemoryServiceListResponse, error) {
@@ -122,18 +93,6 @@ func memoryInputFromProto(input *runtimev1.SessionMemoryInput) (memoryservice.In
 		Metadata: metadata,
 		TTLDays:  int(input.GetTtlDays()),
 	}, nil
-}
-
-func memoryMetadataToProto(metadata json.RawMessage) (*structpb.Struct, error) {
-	values := make(map[string]any)
-	if err := json.Unmarshal(metadata, &values); err != nil {
-		return nil, serviceerrors.NewInternal("failed to encode memory metadata", err)
-	}
-	result, err := structpb.NewStruct(values)
-	if err != nil {
-		return nil, serviceerrors.NewInternal("failed to encode memory metadata", err)
-	}
-	return result, nil
 }
 
 func memorySummaryToProto(memory *database.Memory) *runtimev1.MemorySummary {

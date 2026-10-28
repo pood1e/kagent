@@ -1,6 +1,6 @@
 {
   "$defs": {
-    "kagent.api.v1.ListSessionsInput.jsonschema.json": {
+    "kagent.api.v1.ListSessionsInput.schema.json": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
       "description": "ListSessionsInput is the input of the list_sessions MCP tool.",
@@ -28,7 +28,7 @@
       "type": "object"
     }
   },
-  "$id": "kagent.api.v1.ListSessionsInput.jsonschema.bundle.json",
-  "$ref": "#/$defs/kagent.api.v1.ListSessionsInput.jsonschema.json",
+  "$id": "kagent.api.v1.ListSessionsInput.schema.bundle.json",
+  "$ref": "#/$defs/kagent.api.v1.ListSessionsInput.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema"
 }

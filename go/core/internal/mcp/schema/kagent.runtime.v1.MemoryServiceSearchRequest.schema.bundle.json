@@ -1,0 +1,111 @@
+{
+  "$defs": {
+    "kagent.runtime.v1.MemoryScope.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^(agentName)$": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "^(teamNamespace)$": {
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+          "type": "string"
+        }
+      },
+      "properties": {
+        "agent_name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "team_namespace": {
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+          "type": "string"
+        }
+      },
+      "title": "Memory Scope",
+      "type": "object"
+    },
+    "kagent.runtime.v1.MemoryServiceSearchRequest.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^(minScore)$": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": -1,
+              "type": "number"
+            },
+            {
+              "pattern": "^-?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "properties": {
+        "limit": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "pattern": "^-?[0-9]+$",
+              "type": "string"
+            }
+          ]
+        },
+        "min_score": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": -1,
+              "type": "number"
+            },
+            {
+              "pattern": "^-?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ]
+        },
+        "query": {
+          "default": "",
+          "description": "Text queries are embedded by the control plane. Supply either query or vector.",
+          "maxLength": 32768,
+          "type": "string"
+        },
+        "scope": {
+          "$ref": "#/$defs/kagent.runtime.v1.MemoryScope.schema.json"
+        },
+        "vector": {
+          "items": {
+            "anyOf": [
+              {
+                "maximum": 3.4028234663852886e+38,
+                "minimum": -3.4028234663852886e+38,
+                "type": "number"
+              },
+              {
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+                "type": "string"
+              }
+            ]
+          },
+          "type": "array"
+        }
+      },
+      "title": "Memory Service Search Request",
+      "type": "object"
+    }
+  },
+  "$id": "kagent.runtime.v1.MemoryServiceSearchRequest.schema.bundle.json",
+  "$ref": "#/$defs/kagent.runtime.v1.MemoryServiceSearchRequest.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

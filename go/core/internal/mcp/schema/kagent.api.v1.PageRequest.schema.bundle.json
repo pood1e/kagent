@@ -1,0 +1,39 @@
+{
+  "$defs": {
+    "kagent.api.v1.PageRequest.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^(pageToken)$": {
+          "default": "",
+          "type": "string"
+        }
+      },
+      "properties": {
+        "limit": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "pattern": "^-?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "default": 0
+        },
+        "page_token": {
+          "default": "",
+          "type": "string"
+        }
+      },
+      "title": "Page Request",
+      "type": "object"
+    }
+  },
+  "$id": "kagent.api.v1.PageRequest.schema.bundle.json",
+  "$ref": "#/$defs/kagent.api.v1.PageRequest.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

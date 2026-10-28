@@ -35,14 +35,16 @@ class ListSessionsOutput(_message.Message):
     def __init__(self, sessions: _Optional[_Iterable[_Union[SessionSummary, _Mapping]]] = ..., next_page_token: _Optional[str] = ...) -> None: ...
 
 class InvokeSessionInput(_message.Message):
-    __slots__ = ("session_id", "message", "message_id")
+    __slots__ = ("session_id", "message", "message_id", "background")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_ID_FIELD_NUMBER: _ClassVar[int]
+    BACKGROUND_FIELD_NUMBER: _ClassVar[int]
     session_id: str
     message: str
     message_id: str
-    def __init__(self, session_id: _Optional[str] = ..., message: _Optional[str] = ..., message_id: _Optional[str] = ...) -> None: ...
+    background: bool
+    def __init__(self, session_id: _Optional[str] = ..., message: _Optional[str] = ..., message_id: _Optional[str] = ..., background: _Optional[bool] = ...) -> None: ...
 
 class InvokeSessionOutput(_message.Message):
     __slots__ = ("session_id", "task_id", "context_id", "state", "text")

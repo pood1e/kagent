@@ -1,6 +1,6 @@
 {
   "$defs": {
-    "kagent.api.v1.ListSessionsOutput.jsonschema.json": {
+    "kagent.api.v1.ListSessionsOutput.schema.json": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
       "properties": {
@@ -10,7 +10,7 @@
         },
         "sessions": {
           "items": {
-            "$ref": "#/$defs/kagent.api.v1.SessionSummary.jsonschema.json"
+            "$ref": "#/$defs/kagent.api.v1.SessionSummary.schema.json"
           },
           "type": "array"
         }
@@ -18,7 +18,7 @@
       "title": "List Sessions Output",
       "type": "object"
     },
-    "kagent.api.v1.SessionSummary.jsonschema.json": {
+    "kagent.api.v1.SessionSummary.schema.json": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
       "properties": {
@@ -39,7 +39,7 @@
       "type": "object"
     }
   },
-  "$id": "kagent.api.v1.ListSessionsOutput.jsonschema.bundle.json",
-  "$ref": "#/$defs/kagent.api.v1.ListSessionsOutput.jsonschema.json",
+  "$id": "kagent.api.v1.ListSessionsOutput.schema.bundle.json",
+  "$ref": "#/$defs/kagent.api.v1.ListSessionsOutput.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema"
 }

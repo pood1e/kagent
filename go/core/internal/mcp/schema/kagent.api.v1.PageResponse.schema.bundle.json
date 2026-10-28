@@ -1,0 +1,25 @@
+{
+  "$defs": {
+    "kagent.api.v1.PageResponse.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^(nextPageToken)$": {
+          "default": "",
+          "type": "string"
+        }
+      },
+      "properties": {
+        "next_page_token": {
+          "default": "",
+          "type": "string"
+        }
+      },
+      "title": "Page Response",
+      "type": "object"
+    }
+  },
+  "$id": "kagent.api.v1.PageResponse.schema.bundle.json",
+  "$ref": "#/$defs/kagent.api.v1.PageResponse.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

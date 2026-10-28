@@ -1,0 +1,168 @@
+{
+  "$defs": {
+    "google.protobuf.Struct.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "Struct",
+      "type": "object"
+    },
+    "google.protobuf.Timestamp.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "format": "date-time",
+      "title": "Timestamp",
+      "type": "string"
+    },
+    "kagent.api.v1.Agent.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^(builtinTools)$": {
+          "$ref": "#/$defs/kagent.api.v1.BuiltinToolCatalog.schema.json",
+          "description": "Runtime-observed tools of the effective revision. Absent until observed."
+        }
+      },
+      "properties": {
+        "builtin_tools": {
+          "$ref": "#/$defs/kagent.api.v1.BuiltinToolCatalog.schema.json",
+          "description": "Runtime-observed tools of the effective revision. Absent until observed."
+        },
+        "ref": {
+          "$ref": "#/$defs/kagent.api.v1.ResourceReference.schema.json"
+        },
+        "resource": {
+          "$ref": "#/$defs/kagent.api.v1.StructuredObject.schema.json",
+          "description": "Complete Agent CR, including its inline or referenced configuration and status."
+        }
+      },
+      "title": "Agent",
+      "type": "object"
+    },
+    "kagent.api.v1.BuiltinToolCatalog.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "description": "BuiltinToolCatalog contains SDK-registered tools, independently of MCP discovery.",
+      "patternProperties": {
+        "^(observedAt)$": {
+          "$ref": "#/$defs/google.protobuf.Timestamp.schema.json"
+        }
+      },
+      "properties": {
+        "observed_at": {
+          "$ref": "#/$defs/google.protobuf.Timestamp.schema.json"
+        },
+        "revision": {
+          "default": "",
+          "type": "string"
+        },
+        "tools": {
+          "items": {
+            "$ref": "#/$defs/kagent.api.v1.DiscoveredTool.schema.json"
+          },
+          "type": "array"
+        }
+      },
+      "title": "Builtin Tool Catalog",
+      "type": "object"
+    },
+    "kagent.api.v1.DiscoveredTool.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "default": "",
+          "type": "string"
+        },
+        "name": {
+          "default": "",
+          "type": "string"
+        }
+      },
+      "title": "Discovered Tool",
+      "type": "object"
+    },
+    "kagent.api.v1.ListAgentsResponse.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "agents": {
+          "items": {
+            "$ref": "#/$defs/kagent.api.v1.Agent.schema.json"
+          },
+          "type": "array"
+        },
+        "page": {
+          "$ref": "#/$defs/kagent.api.v1.PageResponse.schema.json"
+        }
+      },
+      "title": "List Agents Response",
+      "type": "object"
+    },
+    "kagent.api.v1.PageResponse.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^(nextPageToken)$": {
+          "default": "",
+          "type": "string"
+        }
+      },
+      "properties": {
+        "next_page_token": {
+          "default": "",
+          "type": "string"
+        }
+      },
+      "title": "Page Response",
+      "type": "object"
+    },
+    "kagent.api.v1.ResourceReference.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "default": "",
+          "maxLength": 253,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?([.][a-z0-9]([-a-z0-9]*[a-z0-9])?)*$",
+          "type": "string"
+        },
+        "namespace": {
+          "default": "",
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+          "type": "string"
+        }
+      },
+      "title": "Resource Reference",
+      "type": "object"
+    },
+    "kagent.api.v1.StructuredObject.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^(apiVersion)$": {
+          "default": "",
+          "type": "string"
+        }
+      },
+      "properties": {
+        "api_version": {
+          "default": "",
+          "type": "string"
+        },
+        "kind": {
+          "default": "",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/google.protobuf.Struct.schema.json"
+        }
+      },
+      "title": "Structured Object",
+      "type": "object"
+    }
+  },
+  "$id": "kagent.api.v1.ListAgentsResponse.schema.bundle.json",
+  "$ref": "#/$defs/kagent.api.v1.ListAgentsResponse.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

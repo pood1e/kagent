@@ -30,7 +30,7 @@ import (
 func TestSandboxToolsRegisteredAndValidateBeforeDispatch(t *testing.T) {
 	// A service without dependencies proves invalid input never reaches I/O.
 	handler, err := New(testSessionService(), testCheckpointService(),
-		&a2asrv.InterceptedHandler{Handler: &fakeGateway{}}, &sandbox.Service{}, nil)
+		&a2asrv.InterceptedHandler{Handler: &fakeGateway{}}, &sandbox.Service{}, nil, nil)
 	require.NoError(t, err)
 	server := httptest.NewServer(handler)
 	defer server.Close()
@@ -172,7 +172,7 @@ func TestSandboxTemplateToolFiltersAuthorizedTemplates(t *testing.T) {
 			).Build()
 			authorizer := &templateListAuthorizer{scope: test.scope, scopeErr: test.scopeErr}
 			templates := kubecrud.NewService(kube, authorizer, &v1alpha3.SandboxTemplate{}, &v1alpha3.SandboxTemplateList{}, v1alpha3.SandboxTemplateKind)
-			handler, err := New(testSessionService(), testCheckpointService(), &a2asrv.InterceptedHandler{Handler: &fakeGateway{}}, nil, templates)
+			handler, err := New(testSessionService(), testCheckpointService(), &a2asrv.InterceptedHandler{Handler: &fakeGateway{}}, nil, templates, nil)
 			require.NoError(t, err)
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				handler.ServeHTTP(w, r.WithContext(auth.AuthSessionTo(r.Context(), testSession{})))

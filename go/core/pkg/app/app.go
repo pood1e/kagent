@@ -427,7 +427,7 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 	if err := manager.Add(sandboxes); err != nil {
 		return err
 	}
-	mcpHandler, err := mcp.New(sessions, checkpoints, gateway, sandboxes, sandboxTemplates)
+	mcpHandler, err := mcp.New(sessions, checkpoints, gateway, sandboxes, sandboxTemplates, &mcp.Collaboration{Agents: agents, Inventory: inventory.NewService(store, authorizer), Memory: memory})
 	if err != nil {
 		return err
 	}

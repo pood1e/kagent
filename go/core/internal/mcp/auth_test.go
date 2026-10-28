@@ -54,7 +54,7 @@ func TestMCPActorListsOnlyItsSession(t *testing.T) {
 	require.NoError(t, err)
 	provider := runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL)
 	sessions := sessionsvc.NewService(store, runtimeauth.NewAuthorizer(auth.NoopAuthorizer{}, store), &fakeSessionWorkflow{})
-	handler, err := New(sessions, testCheckpointService(), &fakeGateway{}, nil, nil)
+	handler, err := New(sessions, testCheckpointService(), &fakeGateway{}, nil, nil, nil)
 	require.NoError(t, err)
 	server := httptest.NewServer(auth.AuthnMiddleware(provider)(handler))
 	t.Cleanup(server.Close)

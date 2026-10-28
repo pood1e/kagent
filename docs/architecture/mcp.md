@@ -6,8 +6,10 @@ semantics, not a private path to Actors.
 
 Current tools can:
 
-- list accessible Sessions;
-- invoke a Session;
+- list authorized Agents and accessible Sessions;
+- create a Session with a stable request ID;
+- invoke a Session synchronously or dispatch background work;
+- search personal or team Memory with control-plane embeddings;
 - create and list checkpoints;
 - fork a Session from a checkpoint;
 - discover SandboxTemplates and manage standalone Sandboxes; and
@@ -67,6 +69,17 @@ The proof must validate against the recorded Actor UID and belong to the
 already authenticated caller. It records origin without replacing that caller's
 Session authorization. Resume messages use stable `kagent-continuation-<UUID>`
 IDs and A2A `reference_task_ids` containing the parent and original child task.
+
+`create_session` reuses the public CreateSession request and response. Creation
+and retries pass through native Session authorization and lifecycle handling.
+`invoke_session` accepts `background: true` with a stable `message_id`; it returns
+the admitted A2A Task while work continues independently. Parent/root references
+and recursive cancellation use the same native execution tree as direct A2A.
+
+`list_agents` applies native collection authorization before pagination and
+includes runtime-observed tool catalogs when available. `search_memory` reuses
+the Memory API scope, text-query, and result contracts. The public API and MCP
+share scope authorization, server-side embeddings, and metadata projection.
 
 ## MCP Tasks
 

@@ -35,6 +35,7 @@ type Handler struct {
 	gateway       a2asrv.RequestHandler
 	http          http.Handler
 	continuations *sessionsvc.Continuations
+	collaboration *Collaboration
 }
 
 type ListSessionsInput = apiv1.ListSessionsInput
@@ -47,11 +48,11 @@ type InvokeSessionInput = apiv1.InvokeSessionInput
 
 type InvokeSessionOutput = apiv1.InvokeSessionOutput
 
-func New(sessions *sessionsvc.Service, checkpoints *checkpoint.Service, gateway a2asrv.RequestHandler, sandboxes *sandbox.Service, templates *kubecrud.Service[*v1alpha3.SandboxTemplate, *v1alpha3.SandboxTemplateList]) (*Handler, error) {
+func New(sessions *sessionsvc.Service, checkpoints *checkpoint.Service, gateway a2asrv.RequestHandler, sandboxes *sandbox.Service, templates *kubecrud.Service[*v1alpha3.SandboxTemplate, *v1alpha3.SandboxTemplateList], collaboration *Collaboration) (*Handler, error) {
 	if sessions == nil || checkpoints == nil || gateway == nil {
 		return nil, fmt.Errorf("session service, checkpoint service, and A2A gateway are required")
 	}
-	h := &Handler{sessions: sessions, checkpoints: checkpoints, gateway: gateway}
+	h := &Handler{sessions: sessions, checkpoints: checkpoints, gateway: gateway, collaboration: collaboration}
 	capabilities := &mcp.ServerCapabilities{}
 	capabilities.AddExtension(tasksExtension, nil)
 	instructions := "Use Sessions for agent conversations through A2A. Use checkpoint tools to save and fork Session state."
@@ -75,6 +76,9 @@ func New(sessions *sessionsvc.Service, checkpoints *checkpoint.Service, gateway 
 		return nil, err
 	}
 	h.registerCheckpointTools(server)
+	if err := h.registerCollaborationTools(server); err != nil {
+		return nil, err
+	}
 	registerSandboxTools(server, sandboxes, templates)
 	if sandboxes != nil {
 		registerSandboxPrompts(server)
@@ -124,11 +128,14 @@ func (h *Handler) listSessions(ctx context.Context, _ *mcp.CallToolRequest, inpu
 }
 
 func (h *Handler) invokeSession(ctx context.Context, _ *mcp.CallToolRequest, input *InvokeSessionInput) (*mcp.CallToolResult, *InvokeSessionOutput, error) {
-	task, err := h.invoke(ctx, input, false)
+	task, err := h.invoke(ctx, input, input.Background)
 	if err != nil {
 		return toolError(err), &InvokeSessionOutput{}, nil
 	}
 	result, output := invocationResult(input, task)
+	if input.Background {
+		result.Content = textContent("%s", output.TaskId)
+	}
 	return result, output, nil
 }
 
@@ -154,7 +161,7 @@ func (h *Handler) invoke(ctx context.Context, input *InvokeSessionInput, async b
 	tenant := session.GetAgent().GetNamespace() + "/" + session.GetAgent().GetName()
 	routed := interactionContext(ctx)
 	var taskID a2atype.TaskID
-	for event, err := range h.gateway.SendStreamingMessage(routed, &a2atype.SendMessageRequest{Tenant: tenant, Message: message}) {
+	for event, err := range h.gateway.SendStreamingMessage(routed, &a2atype.SendMessageRequest{Tenant: tenant, Message: message, Config: &a2atype.SendMessageConfig{ReturnImmediately: input.Background}}) {
 		if err != nil {
 			return nil, err
 		}
