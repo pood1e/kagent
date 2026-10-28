@@ -47,3 +47,10 @@ func (s *executionServer) RevokeDelegationCredential(ctx context.Context, _ *api
 	}
 	return &apiv1.RevokeDelegationCredentialResponse{}, nil
 }
+
+func (s *executionServer) GetDelegationCredentialStatus(ctx context.Context, _ *apiv1.GetDelegationCredentialStatusRequest) (*apiv1.GetDelegationCredentialStatusResponse, error) {
+	return s.service.CredentialStatus(ctx)
+}
+func (s *executionServer) IssueSessionCredential(ctx context.Context, request *apiv1.IssueSessionCredentialRequest) (*apiv1.IssueSessionCredentialResponse, error) {
+	return s.service.IssueSessionCredential(ctx, request)
+}

@@ -98,6 +98,21 @@ External automation can use an issuer-signed machine token with the API audience
 and explicitly assigned scopes. Projected Kubernetes credentials retain the
 separate `kagent-invocation` TokenReview boundary and their credential deadline.
 
+## Session-bound callers
+
+`GetDelegationCredentialStatus` reports whether the independently authenticated
+caller has a verified renewable source. `IssueSessionCredential` issues an opaque,
+authenticated-encrypted capability for an existing Session, with a requested TTL
+of at most one hour and an expiry bounded by the native grant. Its ceiling is
+fixed to the caller's current effective scopes. Credential refresh and grant
+revocation remain native checks on every use.
+
+Session credentials support Session reads, A2A input and cancellation, and access
+to the Session's Agent. They stay bound to that conversation. Channels such as
+voice can embed this capability in their own short-lived signed dispatch
+metadata while the initiator's access and refresh tokens remain in the native
+vault. The independent initiator owns credential issuance and revocation.
+
 ## Gateway authorization
 
 `POST /authorize/runtime?scope=<configured-scope>` checks the current native

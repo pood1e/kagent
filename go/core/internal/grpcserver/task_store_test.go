@@ -551,6 +551,12 @@ func TestRuntimeTaskStoreThroughGRPC(t *testing.T) {
 	require.NoError(t, err)
 	cancelID := working.GetTask().GetId()
 	require.NotEmpty(t, cancelID)
+	// The first frame is SUBMITTED. Observe persisted WORKING before testing
+	// active cancellation; the initial-save race is exercised separately below.
+	for working.GetTask().GetStatus().GetState() != a2apb.TaskState_TASK_STATE_WORKING && working.GetStatusUpdate().GetStatus().GetState() != a2apb.TaskState_TASK_STATE_WORKING {
+		working, err = cancelStream.Recv()
+		require.NoError(t, err)
+	}
 	result := make(chan error, 1)
 	go func() {
 		ctx, cancel := context.WithTimeout(publicCtx, 5*time.Second)

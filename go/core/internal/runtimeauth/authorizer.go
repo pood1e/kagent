@@ -42,6 +42,13 @@ func (a *Authorizer) Check(ctx context.Context, principal auth.Principal, verb a
 	}
 	if principal.RuntimeBinding == nil {
 		if principal.Execution != nil {
+			if a.authority == nil {
+				return fmt.Errorf("native execution authority is required")
+			}
+			target, err := a.authority.Session(ctx, principal.Execution.SessionId)
+			if err != nil || !sessionCredentialResource(target, verb, resource) {
+				return fmt.Errorf("session credential resource boundary denied")
+			}
 			resolved, err := a.authority.Resolve(ctx, principal.Execution.SessionId)
 			if err != nil {
 				return err
@@ -140,16 +147,11 @@ func runtimeResourceAllowed(session *apiv1.Session, verb auth.Verb, resource aut
 func (a *Authorizer) Scope(ctx context.Context, principal auth.Principal, verb auth.Verb, resourceType string) (authorization.AuthorizationScope, error) {
 	if principal.RuntimeBinding == nil {
 		if principal.Execution != nil {
-			resolved, err := a.authority.Resolve(ctx, principal.Execution.SessionId)
-			if err != nil {
-				return authorization.AuthorizationScope{}, err
-			}
-			narrowed := resolved.Principal()
-			narrowed.Scopes = scopeIntersection(narrowed.Scopes, principal.Scopes)
-			principal = narrowed
+			return authorization.AuthorizationScope{Kind: authorization.ScopeNone}, nil
 		}
 		return a.users.Scope(ctx, principal, verb, resourceType)
 	}
+
 	session, err := Session(ctx, a.store)
 	if err != nil {
 		return authorization.AuthorizationScope{}, err
@@ -209,4 +211,17 @@ func scopeIntersection(scopes, ceiling []string) []string {
 		}
 	}
 	return result
+}
+
+func sessionCredentialResource(session *apiv1.Session, verb auth.Verb, resource auth.Resource) bool {
+	if session == nil {
+		return false
+	}
+	switch resource.Type {
+	case "Session":
+		return resource.Name == session.Id && (verb == auth.VerbGet || verb == auth.VerbCreate || verb == auth.VerbUpdate)
+	case "Agent":
+		return verb == auth.VerbGet && resource.Namespace == session.GetAgent().GetNamespace() && resource.Name == session.GetAgent().GetName()
+	}
+	return false
 }

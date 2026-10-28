@@ -244,6 +244,9 @@ type Provider struct {
 var _ auth.AuthProvider = (*Provider)(nil)
 
 func (p *Provider) Authenticate(ctx context.Context, headers http.Header, query url.Values) (auth.Session, error) {
+	if credential, ok := sessionCredential(headers); ok {
+		return p.Authority.authenticateSessionCredential(ctx, credential)
+	}
 	session, err := p.Users.Authenticate(ctx, headers, query)
 	if err != nil || session == nil {
 		return nil, err

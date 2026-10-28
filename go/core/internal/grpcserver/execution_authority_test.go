@@ -19,6 +19,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	configv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/config/v1"
@@ -122,6 +123,33 @@ func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	_, err = client.CreateSession(withToken(limitedToken), &apiv1.CreateSessionRequest{Agent: root.Agent, RequestId: uuid.NewString()})
 	assertGRPCCode(t, err, codes.PermissionDenied)
 	other := create(user, "write")
+	credential, err := executionClient.IssueSessionCredential(user, &apiv1.IssueSessionCredentialRequest{SessionId: root.Id, Ttl: durationpb.New(5 * time.Minute)})
+	require.NoError(t, err)
+	require.NotContains(t, credential.Credential, userToken)
+	bound := withToken(credential.Credential)
+	_, err = client.GetSession(bound, &apiv1.GetSessionRequest{SessionId: root.Id})
+	require.NoError(t, err)
+	_, err = client.GetSession(bound, &apiv1.GetSessionRequest{SessionId: other.Id})
+	assertGRPCCode(t, err, codes.PermissionDenied)
+	_, err = client.CreateSession(bound, &apiv1.CreateSessionRequest{Agent: root.Agent, RequestId: uuid.NewString()})
+	assertGRPCCode(t, err, codes.PermissionDenied)
+	_, err = client.UpdateSessionName(bound, &apiv1.UpdateSessionNameRequest{SessionId: root.Id, Name: "voice task"})
+	require.NoError(t, err)
+	_, err = client.DeleteSession(bound, &apiv1.DeleteSessionRequest{SessionId: root.Id})
+	assertGRPCCode(t, err, codes.PermissionDenied)
+	_, err = executionClient.RevokeDelegationCredential(bound, &apiv1.RevokeDelegationCredentialRequest{})
+	assertGRPCCode(t, err, codes.PermissionDenied)
+	_, err = executionClient.IssueSessionCredential(bound, &apiv1.IssueSessionCredentialRequest{SessionId: root.Id, Ttl: durationpb.New(time.Minute)})
+	assertGRPCCode(t, err, codes.PermissionDenied)
+	_, err = executionClient.IssueSessionCredential(actor, &apiv1.IssueSessionCredentialRequest{SessionId: root.Id, Ttl: durationpb.New(time.Minute)})
+	assertGRPCCode(t, err, codes.PermissionDenied)
+	_, err = executionClient.IssueSessionCredential(user, &apiv1.IssueSessionCredentialRequest{SessionId: root.Id, Ttl: durationpb.New(2 * time.Hour)})
+	assertGRPCCode(t, err, codes.InvalidArgument)
+	_, err = client.GetSession(withToken(credential.Credential+"tampered"), &apiv1.GetSessionRequest{SessionId: root.Id})
+	assertGRPCCode(t, err, codes.Unauthenticated)
+	registered, err := executionClient.GetDelegationCredentialStatus(user, &apiv1.GetDelegationCredentialStatusRequest{})
+	require.NoError(t, err)
+	require.False(t, registered.Renewable)
 	_, err = client.GetSession(actor, &apiv1.GetSessionRequest{SessionId: other.Id})
 	assertGRPCCode(t, err, codes.PermissionDenied)
 	_, err = executionClient.GetRuntimeAuthority(user, &apiv1.GetRuntimeAuthorityRequest{})
@@ -184,6 +212,8 @@ func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	_, err = executionClient.GetRuntimeAuthority(actor, &apiv1.GetRuntimeAuthorityRequest{})
 	assertGRPCCode(t, err, codes.PermissionDenied)
 	checkScope(gatewayToken, "write", http.StatusForbidden)
+	_, err = client.GetSession(bound, &apiv1.GetSessionRequest{SessionId: root.Id})
+	assertGRPCCode(t, err, codes.Unauthenticated)
 	independent, err := executionClient.GetSessionAuthority(user, &apiv1.GetSessionAuthorityRequest{SessionId: other.Id})
 	require.NoError(t, err)
 	require.False(t, independent.Revoked)

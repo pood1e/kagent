@@ -5,8 +5,8 @@
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
-import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { Duration, Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_duration, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { PageRequest, PageResponse } from "./common_pb";
 import { file_kagent_api_v1_common } from "./common_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -15,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file kagent/api/v1/execution.proto.
  */
 export const file_kagent_api_v1_execution: GenFile = /*@__PURE__*/
-  fileDesc("Ch1rYWdlbnQvYXBpL3YxL2V4ZWN1dGlvbi5wcm90bxINa2FnZW50LmFwaS52MSI7CgxTY29wZUNlaWxpbmcSKwoGc2NvcGVzGAEgAygJQhu6SBiSARUQgAIYASIOcgwQARiAAjIFXlxTKyQisAEKEFNlc3Npb25BdXRob3JpdHkSEgoKc2Vzc2lvbl9pZBgBIAEoCRIUCgxpbml0aWF0b3JfaWQYAiABKAkSGQoRcGFyZW50X3Nlc3Npb25faWQYAyABKAkSFwoPcm9vdF9zZXNzaW9uX2lkGAQgASgJEg4KBnNjb3BlcxgFIAMoCRIuCgpleHBpcmVzX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCI6ChpHZXRTZXNzaW9uQXV0aG9yaXR5UmVxdWVzdBIcCgpzZXNzaW9uX2lkGAEgASgJQgi6SAVyA7ABASJiChtHZXRTZXNzaW9uQXV0aG9yaXR5UmVzcG9uc2USMgoJYXV0aG9yaXR5GAEgASgLMh8ua2FnZW50LmFwaS52MS5TZXNzaW9uQXV0aG9yaXR5Eg8KB3Jldm9rZWQYAiABKAgiPQodUmV2b2tlU2Vzc2lvbkF1dGhvcml0eVJlcXVlc3QSHAoKc2Vzc2lvbl9pZBgBIAEoCUIIukgFcgOwAQEiIAoeUmV2b2tlU2Vzc2lvbkF1dGhvcml0eVJlc3BvbnNlIhwKGkdldFJ1bnRpbWVBdXRob3JpdHlSZXF1ZXN0ImsKG0dldFJ1bnRpbWVBdXRob3JpdHlSZXNwb25zZRIyCglhdXRob3JpdHkYASABKAsyHy5rYWdlbnQuYXBpLnYxLlNlc3Npb25BdXRob3JpdHkSGAoQZWZmZWN0aXZlX3Njb3BlcxgCIAMoCSJJCiNSZWdpc3RlckRlbGVnYXRpb25DcmVkZW50aWFsUmVxdWVzdBIiCg1yZWZyZXNoX3Rva2VuGAEgASgJQgu6SAhyBhABGICAASImCiRSZWdpc3RlckRlbGVnYXRpb25DcmVkZW50aWFsUmVzcG9uc2UiIwohUmV2b2tlRGVsZWdhdGlvbkNyZWRlbnRpYWxSZXF1ZXN0IiQKIlJldm9rZURlbGVnYXRpb25DcmVkZW50aWFsUmVzcG9uc2UiSgoNVGFza1JlZmVyZW5jZRIcCgpzZXNzaW9uX2lkGAEgASgJQgi6SAVyA7ABARIbCgd0YXNrX2lkGAIgASgJQgq6SAdyBRABGIACItgBCg1UYXNrRXhlY3V0aW9uEioKBHRhc2sYASABKAsyHC5rYWdlbnQuYXBpLnYxLlRhc2tSZWZlcmVuY2USLAoGcGFyZW50GAIgASgLMhwua2FnZW50LmFwaS52MS5UYXNrUmVmZXJlbmNlEioKBHJvb3QYAyABKAsyHC5rYWdlbnQuYXBpLnYxLlRhc2tSZWZlcmVuY2USLQoIcmVsYXRpb24YBCABKA4yGy5rYWdlbnQuYXBpLnYxLlRhc2tSZWxhdGlvbhISCgpiYWNrZ3JvdW5kGAUgASgIIjYKF0dldFRhc2tFeGVjdXRpb25SZXF1ZXN0EhsKB3Rhc2tfaWQYASABKAlCCrpIB3IFEAEYgAIiSwoYR2V0VGFza0V4ZWN1dGlvblJlc3BvbnNlEi8KCWV4ZWN1dGlvbhgBIAEoCzIcLmthZ2VudC5hcGkudjEuVGFza0V4ZWN1dGlvbiJnChlMaXN0VGFza0V4ZWN1dGlvbnNSZXF1ZXN0EiAKDHJvb3RfdGFza19pZBgBIAEoCUIKukgHcgUQARiAAhIoCgRwYWdlGAIgASgLMhoua2FnZW50LmFwaS52MS5QYWdlUmVxdWVzdCJ5ChpMaXN0VGFza0V4ZWN1dGlvbnNSZXNwb25zZRIwCgpleGVjdXRpb25zGAEgAygLMhwua2FnZW50LmFwaS52MS5UYXNrRXhlY3V0aW9uEikKBHBhZ2UYAiABKAsyGy5rYWdlbnQuYXBpLnYxLlBhZ2VSZXNwb25zZSqDAQoMVGFza1JlbGF0aW9uEh0KGVRBU0tfUkVMQVRJT05fVU5TUEVDSUZJRUQQABIWChJUQVNLX1JFTEFUSU9OX1JPT1QQARIcChhUQVNLX1JFTEFUSU9OX0RFTEVHQVRJT04QAhIeChpUQVNLX1JFTEFUSU9OX0NPTlRJTlVBVElPThADMsMGChBFeGVjdXRpb25TZXJ2aWNlEmMKEEdldFRhc2tFeGVjdXRpb24SJi5rYWdlbnQuYXBpLnYxLkdldFRhc2tFeGVjdXRpb25SZXF1ZXN0Gicua2FnZW50LmFwaS52MS5HZXRUYXNrRXhlY3V0aW9uUmVzcG9uc2USaQoSTGlzdFRhc2tFeGVjdXRpb25zEigua2FnZW50LmFwaS52MS5MaXN0VGFza0V4ZWN1dGlvbnNSZXF1ZXN0Gikua2FnZW50LmFwaS52MS5MaXN0VGFza0V4ZWN1dGlvbnNSZXNwb25zZRJsChNHZXRTZXNzaW9uQXV0aG9yaXR5Eikua2FnZW50LmFwaS52MS5HZXRTZXNzaW9uQXV0aG9yaXR5UmVxdWVzdBoqLmthZ2VudC5hcGkudjEuR2V0U2Vzc2lvbkF1dGhvcml0eVJlc3BvbnNlEnUKFlJldm9rZVNlc3Npb25BdXRob3JpdHkSLC5rYWdlbnQuYXBpLnYxLlJldm9rZVNlc3Npb25BdXRob3JpdHlSZXF1ZXN0Gi0ua2FnZW50LmFwaS52MS5SZXZva2VTZXNzaW9uQXV0aG9yaXR5UmVzcG9uc2USbAoTR2V0UnVudGltZUF1dGhvcml0eRIpLmthZ2VudC5hcGkudjEuR2V0UnVudGltZUF1dGhvcml0eVJlcXVlc3QaKi5rYWdlbnQuYXBpLnYxLkdldFJ1bnRpbWVBdXRob3JpdHlSZXNwb25zZRKHAQocUmVnaXN0ZXJEZWxlZ2F0aW9uQ3JlZGVudGlhbBIyLmthZ2VudC5hcGkudjEuUmVnaXN0ZXJEZWxlZ2F0aW9uQ3JlZGVudGlhbFJlcXVlc3QaMy5rYWdlbnQuYXBpLnYxLlJlZ2lzdGVyRGVsZWdhdGlvbkNyZWRlbnRpYWxSZXNwb25zZRKBAQoaUmV2b2tlRGVsZWdhdGlvbkNyZWRlbnRpYWwSMC5rYWdlbnQuYXBpLnYxLlJldm9rZURlbGVnYXRpb25DcmVkZW50aWFsUmVxdWVzdBoxLmthZ2VudC5hcGkudjEuUmV2b2tlRGVsZWdhdGlvbkNyZWRlbnRpYWxSZXNwb25zZUI9WjtnaXRodWIuY29tL2thZ2VudC1kZXYva2FnZW50L2dvL2FwaS9nZW4va2FnZW50L2FwaS92MTthcGl2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp, file_kagent_api_v1_common]);
+  fileDesc("Ch1rYWdlbnQvYXBpL3YxL2V4ZWN1dGlvbi5wcm90bxINa2FnZW50LmFwaS52MSI7CgxTY29wZUNlaWxpbmcSKwoGc2NvcGVzGAEgAygJQhu6SBiSARUQgAIYASIOcgwQARiAAjIFXlxTKyQisAEKEFNlc3Npb25BdXRob3JpdHkSEgoKc2Vzc2lvbl9pZBgBIAEoCRIUCgxpbml0aWF0b3JfaWQYAiABKAkSGQoRcGFyZW50X3Nlc3Npb25faWQYAyABKAkSFwoPcm9vdF9zZXNzaW9uX2lkGAQgASgJEg4KBnNjb3BlcxgFIAMoCRIuCgpleHBpcmVzX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCI6ChpHZXRTZXNzaW9uQXV0aG9yaXR5UmVxdWVzdBIcCgpzZXNzaW9uX2lkGAEgASgJQgi6SAVyA7ABASJiChtHZXRTZXNzaW9uQXV0aG9yaXR5UmVzcG9uc2USMgoJYXV0aG9yaXR5GAEgASgLMh8ua2FnZW50LmFwaS52MS5TZXNzaW9uQXV0aG9yaXR5Eg8KB3Jldm9rZWQYAiABKAgiPQodUmV2b2tlU2Vzc2lvbkF1dGhvcml0eVJlcXVlc3QSHAoKc2Vzc2lvbl9pZBgBIAEoCUIIukgFcgOwAQEiIAoeUmV2b2tlU2Vzc2lvbkF1dGhvcml0eVJlc3BvbnNlIhwKGkdldFJ1bnRpbWVBdXRob3JpdHlSZXF1ZXN0ImsKG0dldFJ1bnRpbWVBdXRob3JpdHlSZXNwb25zZRIyCglhdXRob3JpdHkYASABKAsyHy5rYWdlbnQuYXBpLnYxLlNlc3Npb25BdXRob3JpdHkSGAoQZWZmZWN0aXZlX3Njb3BlcxgCIAMoCSJJCiNSZWdpc3RlckRlbGVnYXRpb25DcmVkZW50aWFsUmVxdWVzdBIiCg1yZWZyZXNoX3Rva2VuGAEgASgJQgu6SAhyBhABGICAASImCiRSZWdpc3RlckRlbGVnYXRpb25DcmVkZW50aWFsUmVzcG9uc2UiIwohUmV2b2tlRGVsZWdhdGlvbkNyZWRlbnRpYWxSZXF1ZXN0IiQKIlJldm9rZURlbGVnYXRpb25DcmVkZW50aWFsUmVzcG9uc2UiJgokR2V0RGVsZWdhdGlvbkNyZWRlbnRpYWxTdGF0dXNSZXF1ZXN0IjoKJUdldERlbGVnYXRpb25DcmVkZW50aWFsU3RhdHVzUmVzcG9uc2USEQoJcmVuZXdhYmxlGAEgASgIIncKHUlzc3VlU2Vzc2lvbkNyZWRlbnRpYWxSZXF1ZXN0EhwKCnNlc3Npb25faWQYASABKAlCCLpIBXIDsAEBEjgKA3R0bBgCIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbkIQukgNyAEBqgEHIgMIkBwqACJkCh5Jc3N1ZVNlc3Npb25DcmVkZW50aWFsUmVzcG9uc2USEgoKY3JlZGVudGlhbBgBIAEoCRIuCgpleHBpcmVzX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJKCg1UYXNrUmVmZXJlbmNlEhwKCnNlc3Npb25faWQYASABKAlCCLpIBXIDsAEBEhsKB3Rhc2tfaWQYAiABKAlCCrpIB3IFEAEYgAIi2AEKDVRhc2tFeGVjdXRpb24SKgoEdGFzaxgBIAEoCzIcLmthZ2VudC5hcGkudjEuVGFza1JlZmVyZW5jZRIsCgZwYXJlbnQYAiABKAsyHC5rYWdlbnQuYXBpLnYxLlRhc2tSZWZlcmVuY2USKgoEcm9vdBgDIAEoCzIcLmthZ2VudC5hcGkudjEuVGFza1JlZmVyZW5jZRItCghyZWxhdGlvbhgEIAEoDjIbLmthZ2VudC5hcGkudjEuVGFza1JlbGF0aW9uEhIKCmJhY2tncm91bmQYBSABKAgiNgoXR2V0VGFza0V4ZWN1dGlvblJlcXVlc3QSGwoHdGFza19pZBgBIAEoCUIKukgHcgUQARiAAiJLChhHZXRUYXNrRXhlY3V0aW9uUmVzcG9uc2USLwoJZXhlY3V0aW9uGAEgASgLMhwua2FnZW50LmFwaS52MS5UYXNrRXhlY3V0aW9uImcKGUxpc3RUYXNrRXhlY3V0aW9uc1JlcXVlc3QSIAoMcm9vdF90YXNrX2lkGAEgASgJQgq6SAdyBRABGIACEigKBHBhZ2UYAiABKAsyGi5rYWdlbnQuYXBpLnYxLlBhZ2VSZXF1ZXN0InkKGkxpc3RUYXNrRXhlY3V0aW9uc1Jlc3BvbnNlEjAKCmV4ZWN1dGlvbnMYASADKAsyHC5rYWdlbnQuYXBpLnYxLlRhc2tFeGVjdXRpb24SKQoEcGFnZRgCIAEoCzIbLmthZ2VudC5hcGkudjEuUGFnZVJlc3BvbnNlKoMBCgxUYXNrUmVsYXRpb24SHQoZVEFTS19SRUxBVElPTl9VTlNQRUNJRklFRBAAEhYKElRBU0tfUkVMQVRJT05fUk9PVBABEhwKGFRBU0tfUkVMQVRJT05fREVMRUdBVElPThACEh4KGlRBU0tfUkVMQVRJT05fQ09OVElOVUFUSU9OEAMyxwgKEEV4ZWN1dGlvblNlcnZpY2USYwoQR2V0VGFza0V4ZWN1dGlvbhImLmthZ2VudC5hcGkudjEuR2V0VGFza0V4ZWN1dGlvblJlcXVlc3QaJy5rYWdlbnQuYXBpLnYxLkdldFRhc2tFeGVjdXRpb25SZXNwb25zZRJpChJMaXN0VGFza0V4ZWN1dGlvbnMSKC5rYWdlbnQuYXBpLnYxLkxpc3RUYXNrRXhlY3V0aW9uc1JlcXVlc3QaKS5rYWdlbnQuYXBpLnYxLkxpc3RUYXNrRXhlY3V0aW9uc1Jlc3BvbnNlEmwKE0dldFNlc3Npb25BdXRob3JpdHkSKS5rYWdlbnQuYXBpLnYxLkdldFNlc3Npb25BdXRob3JpdHlSZXF1ZXN0Gioua2FnZW50LmFwaS52MS5HZXRTZXNzaW9uQXV0aG9yaXR5UmVzcG9uc2USdQoWUmV2b2tlU2Vzc2lvbkF1dGhvcml0eRIsLmthZ2VudC5hcGkudjEuUmV2b2tlU2Vzc2lvbkF1dGhvcml0eVJlcXVlc3QaLS5rYWdlbnQuYXBpLnYxLlJldm9rZVNlc3Npb25BdXRob3JpdHlSZXNwb25zZRJsChNHZXRSdW50aW1lQXV0aG9yaXR5Eikua2FnZW50LmFwaS52MS5HZXRSdW50aW1lQXV0aG9yaXR5UmVxdWVzdBoqLmthZ2VudC5hcGkudjEuR2V0UnVudGltZUF1dGhvcml0eVJlc3BvbnNlEocBChxSZWdpc3RlckRlbGVnYXRpb25DcmVkZW50aWFsEjIua2FnZW50LmFwaS52MS5SZWdpc3RlckRlbGVnYXRpb25DcmVkZW50aWFsUmVxdWVzdBozLmthZ2VudC5hcGkudjEuUmVnaXN0ZXJEZWxlZ2F0aW9uQ3JlZGVudGlhbFJlc3BvbnNlEoEBChpSZXZva2VEZWxlZ2F0aW9uQ3JlZGVudGlhbBIwLmthZ2VudC5hcGkudjEuUmV2b2tlRGVsZWdhdGlvbkNyZWRlbnRpYWxSZXF1ZXN0GjEua2FnZW50LmFwaS52MS5SZXZva2VEZWxlZ2F0aW9uQ3JlZGVudGlhbFJlc3BvbnNlEooBCh1HZXREZWxlZ2F0aW9uQ3JlZGVudGlhbFN0YXR1cxIzLmthZ2VudC5hcGkudjEuR2V0RGVsZWdhdGlvbkNyZWRlbnRpYWxTdGF0dXNSZXF1ZXN0GjQua2FnZW50LmFwaS52MS5HZXREZWxlZ2F0aW9uQ3JlZGVudGlhbFN0YXR1c1Jlc3BvbnNlEnUKFklzc3VlU2Vzc2lvbkNyZWRlbnRpYWwSLC5rYWdlbnQuYXBpLnYxLklzc3VlU2Vzc2lvbkNyZWRlbnRpYWxSZXF1ZXN0Gi0ua2FnZW50LmFwaS52MS5Jc3N1ZVNlc3Npb25DcmVkZW50aWFsUmVzcG9uc2VCPVo7Z2l0aHViLmNvbS9rYWdlbnQtZGV2L2thZ2VudC9nby9hcGkvZ2VuL2thZ2VudC9hcGkvdjE7YXBpdjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_duration, file_google_protobuf_timestamp, file_kagent_api_v1_common]);
 
 /**
  * ScopeCeiling is an immutable upper bound. Absent means inherit; present and
@@ -245,6 +245,80 @@ export const RevokeDelegationCredentialResponseSchema: GenMessage<RevokeDelegati
   messageDesc(file_kagent_api_v1_execution, 11);
 
 /**
+ * @generated from message kagent.api.v1.GetDelegationCredentialStatusRequest
+ */
+export type GetDelegationCredentialStatusRequest = Message<"kagent.api.v1.GetDelegationCredentialStatusRequest"> & {
+};
+
+/**
+ * Describes the message kagent.api.v1.GetDelegationCredentialStatusRequest.
+ * Use `create(GetDelegationCredentialStatusRequestSchema)` to create a new message.
+ */
+export const GetDelegationCredentialStatusRequestSchema: GenMessage<GetDelegationCredentialStatusRequest> = /*@__PURE__*/
+  messageDesc(file_kagent_api_v1_execution, 12);
+
+/**
+ * @generated from message kagent.api.v1.GetDelegationCredentialStatusResponse
+ */
+export type GetDelegationCredentialStatusResponse = Message<"kagent.api.v1.GetDelegationCredentialStatusResponse"> & {
+  /**
+   * @generated from field: bool renewable = 1;
+   */
+  renewable: boolean;
+};
+
+/**
+ * Describes the message kagent.api.v1.GetDelegationCredentialStatusResponse.
+ * Use `create(GetDelegationCredentialStatusResponseSchema)` to create a new message.
+ */
+export const GetDelegationCredentialStatusResponseSchema: GenMessage<GetDelegationCredentialStatusResponse> = /*@__PURE__*/
+  messageDesc(file_kagent_api_v1_execution, 13);
+
+/**
+ * @generated from message kagent.api.v1.IssueSessionCredentialRequest
+ */
+export type IssueSessionCredentialRequest = Message<"kagent.api.v1.IssueSessionCredentialRequest"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: google.protobuf.Duration ttl = 2;
+   */
+  ttl?: Duration | undefined;
+};
+
+/**
+ * Describes the message kagent.api.v1.IssueSessionCredentialRequest.
+ * Use `create(IssueSessionCredentialRequestSchema)` to create a new message.
+ */
+export const IssueSessionCredentialRequestSchema: GenMessage<IssueSessionCredentialRequest> = /*@__PURE__*/
+  messageDesc(file_kagent_api_v1_execution, 14);
+
+/**
+ * @generated from message kagent.api.v1.IssueSessionCredentialResponse
+ */
+export type IssueSessionCredentialResponse = Message<"kagent.api.v1.IssueSessionCredentialResponse"> & {
+  /**
+   * @generated from field: string credential = 1;
+   */
+  credential: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp expires_at = 2;
+   */
+  expiresAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message kagent.api.v1.IssueSessionCredentialResponse.
+ * Use `create(IssueSessionCredentialResponseSchema)` to create a new message.
+ */
+export const IssueSessionCredentialResponseSchema: GenMessage<IssueSessionCredentialResponse> = /*@__PURE__*/
+  messageDesc(file_kagent_api_v1_execution, 15);
+
+/**
  * @generated from message kagent.api.v1.TaskReference
  */
 export type TaskReference = Message<"kagent.api.v1.TaskReference"> & {
@@ -264,7 +338,7 @@ export type TaskReference = Message<"kagent.api.v1.TaskReference"> & {
  * Use `create(TaskReferenceSchema)` to create a new message.
  */
 export const TaskReferenceSchema: GenMessage<TaskReference> = /*@__PURE__*/
-  messageDesc(file_kagent_api_v1_execution, 12);
+  messageDesc(file_kagent_api_v1_execution, 16);
 
 /**
  * TaskExecution is immutable. Message metadata and reference_task_ids never
@@ -304,7 +378,7 @@ export type TaskExecution = Message<"kagent.api.v1.TaskExecution"> & {
  * Use `create(TaskExecutionSchema)` to create a new message.
  */
 export const TaskExecutionSchema: GenMessage<TaskExecution> = /*@__PURE__*/
-  messageDesc(file_kagent_api_v1_execution, 13);
+  messageDesc(file_kagent_api_v1_execution, 17);
 
 /**
  * @generated from message kagent.api.v1.GetTaskExecutionRequest
@@ -321,7 +395,7 @@ export type GetTaskExecutionRequest = Message<"kagent.api.v1.GetTaskExecutionReq
  * Use `create(GetTaskExecutionRequestSchema)` to create a new message.
  */
 export const GetTaskExecutionRequestSchema: GenMessage<GetTaskExecutionRequest> = /*@__PURE__*/
-  messageDesc(file_kagent_api_v1_execution, 14);
+  messageDesc(file_kagent_api_v1_execution, 18);
 
 /**
  * @generated from message kagent.api.v1.GetTaskExecutionResponse
@@ -338,7 +412,7 @@ export type GetTaskExecutionResponse = Message<"kagent.api.v1.GetTaskExecutionRe
  * Use `create(GetTaskExecutionResponseSchema)` to create a new message.
  */
 export const GetTaskExecutionResponseSchema: GenMessage<GetTaskExecutionResponse> = /*@__PURE__*/
-  messageDesc(file_kagent_api_v1_execution, 15);
+  messageDesc(file_kagent_api_v1_execution, 19);
 
 /**
  * @generated from message kagent.api.v1.ListTaskExecutionsRequest
@@ -360,7 +434,7 @@ export type ListTaskExecutionsRequest = Message<"kagent.api.v1.ListTaskExecution
  * Use `create(ListTaskExecutionsRequestSchema)` to create a new message.
  */
 export const ListTaskExecutionsRequestSchema: GenMessage<ListTaskExecutionsRequest> = /*@__PURE__*/
-  messageDesc(file_kagent_api_v1_execution, 16);
+  messageDesc(file_kagent_api_v1_execution, 20);
 
 /**
  * @generated from message kagent.api.v1.ListTaskExecutionsResponse
@@ -382,7 +456,7 @@ export type ListTaskExecutionsResponse = Message<"kagent.api.v1.ListTaskExecutio
  * Use `create(ListTaskExecutionsResponseSchema)` to create a new message.
  */
 export const ListTaskExecutionsResponseSchema: GenMessage<ListTaskExecutionsResponse> = /*@__PURE__*/
-  messageDesc(file_kagent_api_v1_execution, 17);
+  messageDesc(file_kagent_api_v1_execution, 21);
 
 /**
  * @generated from enum kagent.api.v1.TaskRelation
@@ -480,6 +554,24 @@ export const ExecutionService: GenService<{
     methodKind: "unary";
     input: typeof RevokeDelegationCredentialRequestSchema;
     output: typeof RevokeDelegationCredentialResponseSchema;
+  },
+  /**
+   * @generated from rpc kagent.api.v1.ExecutionService.GetDelegationCredentialStatus
+   */
+  getDelegationCredentialStatus: {
+    methodKind: "unary";
+    input: typeof GetDelegationCredentialStatusRequestSchema;
+    output: typeof GetDelegationCredentialStatusResponseSchema;
+  },
+  /**
+   * Issues a short-lived credential for this Session's A2A and read surface.
+   *
+   * @generated from rpc kagent.api.v1.ExecutionService.IssueSessionCredential
+   */
+  issueSessionCredential: {
+    methodKind: "unary";
+    input: typeof IssueSessionCredentialRequestSchema;
+    output: typeof IssueSessionCredentialResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_kagent_api_v1_execution, 0);
