@@ -52,6 +52,7 @@ import (
 	remotemcpcontroller "github.com/kagent-dev/kagent/go/core/internal/controller/remotemcpserver"
 	scheduledruncontroller "github.com/kagent-dev/kagent/go/core/internal/controller/scheduledrun"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
+	"github.com/kagent-dev/kagent/go/core/internal/executionauth"
 	"github.com/kagent-dev/kagent/go/core/internal/grpcserver"
 	authimpl "github.com/kagent-dev/kagent/go/core/internal/httpserver/auth"
 	"github.com/kagent-dev/kagent/go/core/internal/mcp"
@@ -91,8 +92,7 @@ import (
 // every service that takes one — so a library consumer cannot narrow where
 // its own policy applies.
 type Options struct {
-	// Authenticator identifies the caller. Nil selects InsecureAuthenticator,
-	// which admits every request.
+	// Authenticator identifies the caller. Nil selects server.auth configuration.
 	Authenticator auth.AuthProvider
 	// Authorizer decides what an identified caller may do and which collection
 	// entries it may see. Nil selects NoopAuthorizer, which permits every action.
@@ -341,6 +341,12 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 		return fmt.Errorf("set up RemoteMCPServer discovery: %w", err)
 	}
 
+	if opts.Authenticator == nil {
+		opts.Authenticator, err = authimpl.NewAuthenticator(ctx, cfg.GetServer().GetAuth())
+		if err != nil {
+			return fmt.Errorf("configure user authentication: %w", err)
+		}
+	}
 	authenticator, authorizer := opts.resolve()
 	if machine := cfg.GetServer().GetAuth().GetServiceAccount(); machine != nil {
 		reviewer, err := typedauth.NewForConfig(kubeConfig)
@@ -349,8 +355,14 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 		}
 		authenticator = authimpl.NewServiceAccountProvider(authenticator, reviewer.TokenReviews(), machine.GetAuthority())
 	}
-	authenticator = runtimeauth.NewProvider(authenticator, actorVerifier, store, cfg.GetSubstrate().GetActorJwtIssuer())
-	authorizer = runtimeauth.NewAuthorizer(authorizer, store)
+	executionAuthority, err := executionauth.NewService(store, authenticator, cfg.GetExecutionAuthorization(), cfg.GetServer().GetAuth().GetMode() == "insecure")
+	if err != nil {
+		return fmt.Errorf("configure execution authority: %w", err)
+	}
+	authenticator = &executionauth.Provider{Users: authenticator, Authority: executionAuthority}
+	userAuthenticator := authenticator
+	authenticator = runtimeauth.NewProvider(authenticator, actorVerifier, store, cfg.GetSubstrate().GetActorJwtIssuer(), executionAuthority)
+	authorizer = runtimeauth.NewAuthorizer(&executionauth.Policy{Base: authorizer, Config: cfg.GetExecutionAuthorization()}, store, executionAuthority)
 	resourceNamespace := cfg.GetKubernetes().GetNamespace()
 	admission := admission.NewService(manager.GetClient(), cfg.GetRuntimeDefaults(), cfg.GetHarnessImages())
 	models := modelservice.NewService(manager.GetClient(), authorizer, resourceNamespace, modelservice.WithAdmission(admission))
@@ -373,8 +385,8 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 		return fmt.Errorf("register session expiration worker: %w", err)
 	}
 	shareMaxTTL := cfg.GetSessions().GetShareMaxTtl().AsDuration()
-	sessions := sessionsvc.NewService(store, authorizer, sessionWorkflow, sessionsvc.WithShareMaxTTL(shareMaxTTL))
-	checkpoints := checkpoint.NewService(store, authorizer, actors, sessionWorkflow)
+	sessions := sessionsvc.NewService(store, authorizer, sessionWorkflow, sessionsvc.WithShareMaxTTL(shareMaxTTL), sessionsvc.WithExecutionAuthority(executionAuthority))
+	checkpoints := checkpoint.NewService(store, authorizer, actors, sessionWorkflow, executionAuthority)
 	gatewayDialer, err := a2agateway.NewRuntimeDialer(
 		cfg.GetSubstrate(),
 		authenticator,
@@ -452,6 +464,7 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 	if err != nil {
 		return err
 	}
+	executions := execution.NewService(store, sessions, executionAuthority)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -460,6 +473,14 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 		mux.Handle("GET /.well-known/jwks.json", pushSigner)
 	} else {
 		mux.HandleFunc("GET /.well-known/jwks.json", http.NotFound)
+	}
+	if audience := cfg.GetExecutionAuthorization().GetGatewayAudience(); audience != "" {
+		verifier, err := substrate.NewGatewayActorJWTVerifier(ctx, cfg.GetSubstrate().GetActorJwtIssuer(), cfg.GetSubstrate().GetCaFile(), audience)
+		if err != nil {
+			return fmt.Errorf("configure runtime gateway authorization: %w", err)
+		}
+		gatewayAuthenticator := runtimeauth.NewProvider(userAuthenticator, verifier, store, cfg.GetSubstrate().GetActorJwtIssuer(), executionAuthority)
+		mux.Handle("POST /authorize/runtime", auth.AuthnMiddleware(gatewayAuthenticator)(http.HandlerFunc(executions.RuntimeAuthorization)))
 	}
 	mux.Handle("/mcp", otelhttp.NewHandler(auth.AuthnMiddleware(authenticator)(mcpHandler), "/mcp"))
 	mux.Handle(a2agateway.HTTPPathPrefix, otelhttp.NewHandler(a2agateway.NewHTTPHandler(gateway, authenticator, store), a2agateway.HTTPPathPrefix))
@@ -476,7 +497,7 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 		SystemService:         system,
 		MemoryService:         memory,
 		InventoryService:      inventory.NewService(store, authorizer),
-		ExecutionService:      execution.NewService(store, sessions),
+		ExecutionService:      executions,
 		TaskStoreService:      runtimeTasks,
 		SessionService:        sessions,
 		ScheduledRunService:   schedules,

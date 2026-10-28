@@ -5,14 +5,14 @@ sign-in, session cookies, and token refresh. It forwards a bearer token to
 upstream services; the React UI reads the browser session through the proxy's
 userinfo endpoint.
 
-Browser sign-in and controller authentication are separate boundaries. Set
-`config.server.auth.mode: trusted-proxy` alongside oauth2-proxy to activate both.
-The shipped [controller entrypoint](../../go/core/cmd/controller/main.go) reads
-`server.auth.mode` and `server.auth.userIdClaim` from the config file and supplies the authenticator
-through [app.Options](../../go/core/pkg/app/app.go). Unsupported modes fail
-startup. The default remains `insecure`; enabling oauth2-proxy alone does not
-change it. Authorization still defaults to `NoopAuthorizer`; library consumers
-can supply their own authentication and authorization through `app.Options`.
+Browser sign-in and controller authentication are separate boundaries. The
+controller reads `server.auth` from its Proto configuration. `oidc` mode verifies
+JWT signature, issuer, API audience, and expiry in the controller. Use this mode
+with [native execution authority](execution-authority.md) and Actor-accessible
+control-plane endpoints. `trusted-proxy` mode consumes a credential verified by
+an isolated upstream boundary. The default `insecure` mode supports explicit
+local OSS installations. Library consumers can supply authentication and
+resource authorization through `app.Options`.
 
 ## Browser session flow
 
@@ -84,6 +84,12 @@ Token refresh remains the proxy's responsibility. The chart does not configure
 configure refresh according to their identity provider's requirements.
 
 ## Controller identity
+
+The [OIDCAuthenticator](../../go/core/internal/httpserver/auth/oidc.go) uses
+provider discovery, verified HTTPS, and the provider's signing-key set. Its
+opaque principal ID combines issuer and subject. Display attributes remain in
+the authenticated claims. Set `server.auth.oidc.issuer`, `audience`, and an
+optional `caFile` for the installation's API audience.
 
 The [ProxyAuthenticator](../../go/core/internal/httpserver/auth/proxy_authn.go)
 implementation parses bearer JWT claims without verifying signatures. It rejects

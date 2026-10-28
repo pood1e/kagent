@@ -35,7 +35,7 @@ func TestExecutionPaginationFiltersBeforeSlicing(t *testing.T) {
 		{Task: &apiv1.TaskReference{TaskId: "b", SessionId: "denied"}, Root: root},
 		{Task: &apiv1.TaskReference{TaskId: "c", SessionId: "allowed"}, Root: root},
 	}}
-	service := NewService(fixture, fixture)
+	service := NewService(fixture, fixture, nil)
 	page, err := service.List(t.Context(), &apiv1.ListTaskExecutionsRequest{RootTaskId: "a", Page: &apiv1.PageRequest{Limit: 1}})
 	require.NoError(t, err)
 	require.Len(t, page.Executions, 1)
@@ -55,3 +55,5 @@ func TestExecutionPaginationFiltersBeforeSlicing(t *testing.T) {
 		require.Equal(t, serviceerrors.CodeInvalidArgument, serviceerrors.CodeOf(err))
 	}
 }
+
+func (*executionFixture) RevokeExecutionAuthority(context.Context, string) error { return nil }

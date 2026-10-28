@@ -66,9 +66,9 @@ func TestMCPActorObservesConfiguredPolicyRevocation(t *testing.T) {
 	issuer := jwttest.New(t)
 	verifier, err := substrate.NewActorJWTVerifier(t.Context(), issuer.URL, issuer.CAFile, substrate.RuntimeJWTAudience)
 	require.NoError(t, err)
-	provider := runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL)
+	provider := runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL, nil)
 	configured := &mcpActorPolicy{}
-	sessions := sessionsvc.NewService(store, runtimeauth.NewAuthorizer(configured, store), &fakeSessionWorkflow{})
+	sessions := sessionsvc.NewService(store, runtimeauth.NewAuthorizer(configured, store, nil), &fakeSessionWorkflow{})
 	gateway := &fakeGateway{}
 	handler, err := New(Config{Agents: testAgentService(t), Sessions: sessions, Checkpoints: testCheckpointService(), Gateway: gateway})
 	require.NoError(t, err)

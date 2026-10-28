@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"time"
 )
 
 // PrincipalID namespaces a provider's subject without exposing its syntax to
@@ -18,6 +19,12 @@ func PrincipalID(authority, subject string) string {
 // different source. Implementations must not expose credentials through errors.
 type TokenSource interface {
 	Token(context.Context) (string, error)
+}
+
+// ExpiringTokenSource exposes the validity of a nonrenewable credential.
+type ExpiringTokenSource interface {
+	TokenSource
+	Expiry() time.Time
 }
 
 type credentialSession struct {
@@ -41,6 +48,13 @@ func (s *credentialSession) Token(ctx context.Context) (string, error) {
 		return "", nil
 	}
 	return s.source.Token(ctx)
+}
+
+func (s *credentialSession) Expiry() time.Time {
+	if source, ok := s.source.(ExpiringTokenSource); ok {
+		return source.Expiry()
+	}
+	return time.Time{}
 }
 
 // ForwardCredential applies a caller's current credential to an authorized

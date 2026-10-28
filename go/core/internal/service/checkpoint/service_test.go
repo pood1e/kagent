@@ -144,7 +144,7 @@ func (s *testStore) UpdateCheckpointName(_ context.Context, _, _, name string) (
 	return s.prepared, nil
 }
 
-func (s *testStore) ForkSession(_ context.Context, _ string, userID, _ string, sessionID string) (*apiv1.Session, bool, error) {
+func (s *testStore) ForkSession(_ context.Context, _ string, userID, _ string, sessionID string, _ *apiv1.SessionAuthority) (*apiv1.Session, bool, error) {
 	if s.forked == nil {
 		s.forked = &apiv1.Session{
 			Id: sessionID, Creator: userID,
@@ -248,7 +248,7 @@ func TestCreatePreservesStoreConflictReason(t *testing.T) {
 	for _, cause := range []error{database.ErrConflict, database.ErrFailedPrecondition} {
 		t.Run(cause.Error(), func(t *testing.T) {
 			storeErr := fmt.Errorf("Session cannot checkpoint in its current state: %w", cause)
-			service := NewService(&testStore{reserveErr: storeErr}, testAuthorizer{}, nil, nil)
+			service := NewService(&testStore{reserveErr: storeErr}, testAuthorizer{}, nil, nil, nil)
 			ctx := auth.AuthSessionTo(t.Context(), testSession{userID: "alice"})
 			_, err := service.Create(ctx, "018f47a2-4efb-7c21-a848-123456789abc", "request-1", "task-1")
 			require.Equal(t, serviceerrors.CodeFailedPrecondition, serviceerrors.CodeOf(err))
@@ -266,7 +266,7 @@ func TestCreateDistinguishesPendingSnapshotFromAdvancedConversation(t *testing.T
 		{database.ErrSnapshotPending, "KAGENT_CHECKPOINT_SNAPSHOT_PENDING"},
 		{database.ErrCheckpointAdvanced, "KAGENT_CHECKPOINT_CONVERSATION_ADVANCED"},
 	} {
-		service := NewService(&testStore{reserveErr: test.err}, testAuthorizer{}, &testTags{}, &testWorkflow{})
+		service := NewService(&testStore{reserveErr: test.err}, testAuthorizer{}, &testTags{}, &testWorkflow{}, nil)
 		ctx := auth.AuthSessionTo(t.Context(), testSession{userID: "alice"})
 		_, err := service.Create(ctx, "018f47a2-4efb-7c21-a848-123456789abc", "request", "task-a")
 		require.Equal(t, codes.FailedPrecondition, status.Code(err))
@@ -280,7 +280,7 @@ func TestCreateDistinguishesPendingSnapshotFromAdvancedConversation(t *testing.T
 
 func TestRenameValidatesBeforeReachingTheStore(t *testing.T) {
 	store := &testStore{}
-	service := NewService(store, testAuthorizer{}, nil, nil)
+	service := NewService(store, testAuthorizer{}, nil, nil, nil)
 	ctx := auth.AuthSessionTo(t.Context(), testSession{userID: "alice"})
 	const checkpointID = "018f47a2-4efb-7c21-a848-123456789abc"
 
@@ -299,7 +299,7 @@ func TestRenameValidatesBeforeReachingTheStore(t *testing.T) {
 func TestCreateTagsRecordedSnapshotBoundary(t *testing.T) {
 	store := &testStore{forkSourceErr: fmt.Errorf("creation must use the reserved snapshot")}
 	tags := &testTags{snapshotURI: "s3://snapshots/snapshot-1"}
-	service := NewService(store, &restrictiveAuthorizer{resource: "Session", verb: auth.VerbCreate}, tags, nil)
+	service := NewService(store, &restrictiveAuthorizer{resource: "Session", verb: auth.VerbCreate}, tags, nil, nil)
 	ctx := auth.AuthSessionTo(context.Background(), testSession{userID: "alice"})
 
 	checkpoint, err := service.Create(ctx, "018f47a2-4efb-7c21-a848-123456789abc", "request-1", "task-1")
@@ -327,7 +327,7 @@ func TestCreateCleansTagBeforeFailing(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			store := &testStore{}
 			tags := &testTags{snapshotURI: "s3://snapshots/snapshot-1", snapshotURIAfterCreate: test.snapshotURIAfterCreate, actorUIDAfterCreate: test.actorUIDAfterCreate}
-			service := NewService(store, testAuthorizer{}, tags, nil)
+			service := NewService(store, testAuthorizer{}, tags, nil, nil)
 			ctx := auth.AuthSessionTo(t.Context(), testSession{userID: "alice"})
 
 			_, err := service.Create(ctx, "018f47a2-4efb-7c21-a848-123456789abc", "request-1", "task-1")
@@ -345,7 +345,7 @@ func TestDeleteHidesCheckpointBeforeDeletingTag(t *testing.T) {
 		Metadata: &ateapipb.ResourceMetadata{Atespace: "team-a", Name: tagName(checkpoint.GetId()), Uid: "tag-uid"},
 		Status:   &ateapipb.TagStatus{Snapshot: &ateapipb.Snapshot{Generation: 1, Fidelity: ateapipb.SnapshotFidelity_SNAPSHOT_FIDELITY_VOLUMES, ActorTemplateUid: "template-uid", DurableSnapshot: &ateapipb.SnapshotStorage{State: ateapipb.SnapshotStorageState_SNAPSHOT_STORAGE_STATE_COMPLETED, Object: &ateapipb.ObjectSnapshot{SnapshotUri: "s3://snapshots/snapshot-1"}}}},
 	}}
-	service := NewService(store, testAuthorizer{}, tags, nil)
+	service := NewService(store, testAuthorizer{}, tags, nil, nil)
 	ctx := auth.AuthSessionTo(context.Background(), testSession{userID: "alice"})
 
 	store.forkSourceErr = fmt.Errorf("deletion must use the snapshot returned by BeginDelete")
@@ -376,7 +376,7 @@ func TestDeleteFailedCheckpointWithMissingTag(t *testing.T) {
 	// Creation either never made a tag or already compensated it. Once absence is
 	// established, deletion must not issue another unverified delete by name.
 	tags := &testTags{deleteErr: errors.New("unexpected tag deletion")}
-	service := NewService(store, testAuthorizer{}, tags, nil)
+	service := NewService(store, testAuthorizer{}, tags, nil, nil)
 	ctx := auth.AuthSessionTo(t.Context(), testSession{userID: "alice"})
 
 	tags.getErr = status.Error(codes.Unavailable, "tag lookup unavailable")
@@ -387,7 +387,7 @@ func TestDeleteFailedCheckpointWithMissingTag(t *testing.T) {
 
 	// Retry through a new service instance after the backend recovers.
 	tags.getErr = nil
-	service = NewService(store, testAuthorizer{}, tags, nil)
+	service = NewService(store, testAuthorizer{}, tags, nil, nil)
 	require.NoError(t, service.Delete(ctx, checkpoint.GetId()))
 	require.True(t, store.deleted)
 	require.Zero(t, tags.deleteCalls)
@@ -413,7 +413,7 @@ func TestDeleteRejectsUnverifiedTag(t *testing.T) {
 				Metadata: &ateapipb.ResourceMetadata{Atespace: snapshot.Atespace, Name: tagName(checkpoint.GetId()), Uid: tc.actualUID},
 				Status:   &ateapipb.TagStatus{Snapshot: &ateapipb.Snapshot{DurableSnapshot: &ateapipb.SnapshotStorage{State: ateapipb.SnapshotStorageState_SNAPSHOT_STORAGE_STATE_COMPLETED, Object: &ateapipb.ObjectSnapshot{SnapshotUri: snapshot.URI}}}},
 			}}
-			service := NewService(store, testAuthorizer{}, tags, nil)
+			service := NewService(store, testAuthorizer{}, tags, nil, nil)
 			ctx := auth.AuthSessionTo(t.Context(), testSession{userID: "alice"})
 			require.Equal(t, serviceerrors.CodeFailedPrecondition, serviceerrors.CodeOf(service.Delete(ctx, checkpoint.GetId())))
 			require.False(t, store.deleted)
@@ -428,7 +428,7 @@ func TestForkCreatesSessionFromRetainedCheckpointAfterSourceDeletion(t *testing.
 	workflow := &testWorkflow{}
 	store.tagUID = "tag-uid"
 	tags := &testTags{created: &ateapipb.Tag{Metadata: &ateapipb.ResourceMetadata{Atespace: "team-a", Name: tagName(checkpoint.Id), Uid: store.tagUID}, Status: &ateapipb.TagStatus{Snapshot: &ateapipb.Snapshot{Generation: 1, Fidelity: ateapipb.SnapshotFidelity_SNAPSHOT_FIDELITY_VOLUMES, ActorTemplateUid: "template-uid", DurableSnapshot: &ateapipb.SnapshotStorage{State: ateapipb.SnapshotStorageState_SNAPSHOT_STORAGE_STATE_COMPLETED, Object: &ateapipb.ObjectSnapshot{SnapshotUri: store.snapshot.URI}}}}}, actorErr: errors.New("source Actor was deleted")}
-	service := NewService(store, &restrictiveAuthorizer{resource: "Checkpoint", verb: auth.VerbCreate}, tags, workflow)
+	service := NewService(store, &restrictiveAuthorizer{resource: "Checkpoint", verb: auth.VerbCreate}, tags, workflow, nil)
 	ctx := auth.AuthSessionTo(context.Background(), testSession{userID: "alice"})
 
 	session, err := service.Fork(ctx, checkpoint.GetId(), "fork-request")
@@ -448,7 +448,7 @@ func TestForkCreatesSessionFromRetainedCheckpointAfterSourceDeletion(t *testing.
 func TestCreateRetriesRetainedTagAfterPublishFailure(t *testing.T) {
 	store := &testStore{finalizeErr: errors.New("database unavailable")}
 	tags := &testTags{snapshotURI: "s3://snapshots/snapshot-1", createErr: status.Error(codes.DeadlineExceeded, "response lost")}
-	service := NewService(store, testAuthorizer{}, tags, nil)
+	service := NewService(store, testAuthorizer{}, tags, nil, nil)
 	ctx := auth.AuthSessionTo(t.Context(), testSession{userID: "alice"})
 	_, err := service.Create(ctx, "018f47a2-4efb-7c21-a848-123456789abc", "request-1", "task-1")
 	require.Error(t, err)
@@ -483,7 +483,7 @@ func TestCreateRejectsInvalidTagAndKeepsCleanupRetryable(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			store := &testStore{}
 			tags := &testTags{snapshotURI: "s3://snapshots/snapshot-1", mutateTag: tc.mutate, deleteErr: errors.New("cleanup unavailable")}
-			service := NewService(store, testAuthorizer{}, tags, nil)
+			service := NewService(store, testAuthorizer{}, tags, nil, nil)
 			ctx := auth.AuthSessionTo(t.Context(), testSession{userID: "alice"})
 			_, err := service.Create(ctx, "018f47a2-4efb-7c21-a848-123456789abc", "request-1", "task-1")
 			require.Error(t, err)
@@ -510,7 +510,7 @@ func TestForkRejectsReplacedTag(t *testing.T) {
 				Metadata: &ateapipb.ResourceMetadata{Atespace: snapshot.Atespace, Name: tagName(checkpoint.Id), Uid: tc.uid},
 				Status:   &ateapipb.TagStatus{Snapshot: &ateapipb.Snapshot{Generation: 1, Fidelity: ateapipb.SnapshotFidelity_SNAPSHOT_FIDELITY_VOLUMES, ActorTemplateUid: "template-uid", DurableSnapshot: &ateapipb.SnapshotStorage{State: ateapipb.SnapshotStorageState_SNAPSHOT_STORAGE_STATE_COMPLETED, Object: &ateapipb.ObjectSnapshot{SnapshotUri: tc.uri}}}},
 			}}
-			service := NewService(store, testAuthorizer{}, tags, &testWorkflow{})
+			service := NewService(store, testAuthorizer{}, tags, &testWorkflow{}, nil)
 			ctx := auth.AuthSessionTo(t.Context(), testSession{userID: "alice"})
 			_, err := service.Fork(ctx, checkpoint.Id, "fork-request")
 			require.Error(t, err)
@@ -522,7 +522,7 @@ func TestForkRejectsReplacedTag(t *testing.T) {
 func TestConcurrentCreateRetainsOneTag(t *testing.T) {
 	store := &testStore{}
 	tags := &testTags{snapshotURI: "s3://snapshots/snapshot-1", mutateTag: func(*ateapipb.Tag) { runtime.Gosched() }}
-	service := NewService(store, testAuthorizer{}, tags, nil)
+	service := NewService(store, testAuthorizer{}, tags, nil, nil)
 	ctx := auth.AuthSessionTo(t.Context(), testSession{userID: "alice"})
 	start := make(chan struct{})
 	results := make(chan error, 32)
@@ -550,7 +550,7 @@ func TestDeletePreservesTagReplacedAfterLookup(t *testing.T) {
 		Status:   &ateapipb.TagStatus{Snapshot: &ateapipb.Snapshot{DurableSnapshot: &ateapipb.SnapshotStorage{State: ateapipb.SnapshotStorageState_SNAPSHOT_STORAGE_STATE_COMPLETED, Object: &ateapipb.ObjectSnapshot{SnapshotUri: store.snapshot.URI}}}},
 	}}
 	tags.beforeDelete = func() { tags.created.Metadata.Uid = "replacement-uid" }
-	service := NewService(store, testAuthorizer{}, tags, nil)
+	service := NewService(store, testAuthorizer{}, tags, nil, nil)
 	ctx := auth.AuthSessionTo(t.Context(), testSession{userID: "alice"})
 
 	require.Error(t, service.Delete(ctx, checkpoint.GetId()))
@@ -614,7 +614,7 @@ func TestCheckpointComposesPermissionsBeforeEffects(t *testing.T) {
 				}
 			}
 			policy := &restrictiveAuthorizer{resource: test.resource, verb: test.verb}
-			service := NewService(store, policy, nil, nil)
+			service := NewService(store, policy, nil, nil, nil)
 			ctx := auth.AuthSessionTo(t.Context(), testSession{userID: "alice"})
 			var err error
 			if test.operation == "create" {
@@ -691,7 +691,7 @@ func TestCheckpointSharesAndCategoryDenialsProtectEveryOperation(t *testing.T) {
 					ctx = auth.ShareContextTo(ctx, &auth.ShareContext{SessionID: id, UserID: "alice"})
 					policy.resource = ""
 				}
-				require.True(t, serviceerrors.IsCode(operation.call(ctx, NewService(nil, policy, nil, nil)), serviceerrors.CodePermissionDenied))
+				require.True(t, serviceerrors.IsCode(operation.call(ctx, NewService(nil, policy, nil, nil, nil)), serviceerrors.CodePermissionDenied))
 			})
 		}
 	}
@@ -701,7 +701,7 @@ func TestCreateRetriesReadyCheckpointAfterSourceDeletion(t *testing.T) {
 	store := &testStore{}
 	tags := &testTags{snapshotURI: "s3://snapshots/snapshot-1"}
 	policy := &restrictiveAuthorizer{}
-	svc := NewService(store, policy, tags, nil)
+	svc := NewService(store, policy, tags, nil, nil)
 	ctx := auth.AuthSessionTo(t.Context(), testSession{userID: "alice"})
 	first, err := svc.Create(ctx, "018f47a2-4efb-7c21-a848-123456789abc", "request-1", "task-1")
 	require.NoError(t, err)
@@ -738,7 +738,7 @@ func TestForkAuthorizesResolvedTargetNamespaceBeforeTagRead(t *testing.T) {
 			tagErr := errors.New("tag boundary reached")
 			store := &testStore{prepared: checkpoint, checkpointOwner: "alice", sourceErr: database.ErrNotFound, snapshot: &database.SessionTaskSnapshot{Fidelity: "SNAPSHOT_FIDELITY_VOLUMES"}}
 			tags := &testTags{getErr: tagErr}
-			svc := NewService(store, forkNamespacePolicy{namespace: namespace}, tags, nil)
+			svc := NewService(store, forkNamespacePolicy{namespace: namespace}, tags, nil, nil)
 			_, err := svc.Fork(auth.AuthSessionTo(t.Context(), testSession{userID: "alice"}), checkpoint.Id, "request")
 			if namespace == "team-a" {
 				require.ErrorIs(t, err, tagErr, "resolved namespace should pass authorization")
@@ -777,7 +777,7 @@ func TestCheckpointCanonicalIdentityDenialsCannotBeBypassed(t *testing.T) {
 					resource.Type = "Session"
 				}
 				policy := &exactIdentityPolicy{denied: resource}
-				svc := NewService(nil, policy, nil, nil)
+				svc := NewService(nil, policy, nil, nil, nil)
 				ctx := auth.AuthSessionTo(t.Context(), testSession{userID: "alice"})
 				var err error
 				switch op {
@@ -825,7 +825,7 @@ func TestCheckpointCanonicalIdentityReachesStorageAndRetries(t *testing.T) {
 	const canonical = "018f47a2-4efb-7c21-a848-123456789abc"
 	const checkpointID = "018f47a2-4efb-7c21-a848-abcdefabcdef"
 	store := &canonicalCheckpointStore{testStore: &testStore{prepared: &apiv1.Checkpoint{Id: checkpointID, SessionId: canonical, State: apiv1.CheckpointState_CHECKPOINT_STATE_READY}}}
-	svc := NewService(store, testAuthorizer{}, nil, nil)
+	svc := NewService(store, testAuthorizer{}, nil, nil, nil)
 	ctx := auth.AuthSessionTo(t.Context(), testSession{userID: "alice"})
 	for _, id := range []string{canonical, strings.ToUpper(canonical)} {
 		got, err := svc.Create(ctx, id, "same-request", "head")
@@ -846,7 +846,7 @@ func TestForkCanonicalizesSavedSourceIdentity(t *testing.T) {
 	const source = "018f47a2-4efb-7c21-a848-123456789abc"
 	store := &testStore{prepared: &apiv1.Checkpoint{Id: "22222222-2222-4222-8222-222222222222", SessionId: strings.ToUpper(source)}}
 	policy := &exactIdentityPolicy{denied: auth.Resource{Type: "Session", Name: source}}
-	svc := NewService(store, policy, nil, nil)
+	svc := NewService(store, policy, nil, nil, nil)
 	_, err := svc.Fork(auth.AuthSessionTo(t.Context(), testSession{userID: "alice"}), store.prepared.Id, "request")
 	require.True(t, serviceerrors.IsCode(err, serviceerrors.CodePermissionDenied))
 	require.Equal(t, policy.denied, policy.calls[len(policy.calls)-1])

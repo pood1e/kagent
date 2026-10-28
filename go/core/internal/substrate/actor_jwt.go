@@ -134,6 +134,15 @@ func (a ActorIdentity) SessionID() (string, error) {
 	return id, nil
 }
 
+// NewGatewayActorJWTVerifier verifies gateway credentials only for ext-authz.
+// This verifier remains separate from the control-plane runtime audience.
+func NewGatewayActorJWTVerifier(ctx context.Context, issuer, caFile, audience string) (*ActorJWTVerifier, error) {
+	if err := validateIssuerURL(audience); err != nil {
+		return nil, fmt.Errorf("invalid gateway Actor JWT audience: %w", err)
+	}
+	return NewActorJWTVerifier(ctx, issuer, caFile, audience)
+}
+
 func validateIssuerURL(raw string) error {
 	u, err := url.Parse(raw)
 	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.ForceQuery || strings.Contains(raw, "#") {

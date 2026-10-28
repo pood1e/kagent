@@ -158,15 +158,15 @@ func TestRuntimeTaskStoreThroughGRPC(t *testing.T) {
 	runtimeToken := "Bearer " + issuer.Token(t, issuer.Claims("team-a", substrate.ActorName(id), "actor-uid"))
 	memories := &runtimeMemoryStore{Client: store.Client}
 	configuredPolicy := &runtimeTaskPolicy{}
-	policy := runtimeauth.NewAuthorizer(configuredPolicy, store)
+	policy := runtimeauth.NewAuthorizer(configuredPolicy, store, nil)
 	tasks := taskstore.NewService(store, policy, nil, pushWake)
 	server, err := New(Config{
 		Listener: listener, SystemService: testSystemService(),
-		Authenticator:    runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL),
+		Authenticator:    runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL, nil),
 		TaskStoreService: tasks,
 		MemoryService:    memoryservice.NewService(memories, policy),
 		SessionService:   sessionsvc.NewService(store, policy, nil),
-		ExecutionService: executionservice.NewService(store, sessionsvc.NewService(store, policy, nil)),
+		ExecutionService: executionservice.NewService(store, sessionsvc.NewService(store, policy, nil), nil),
 	})
 	require.NoError(t, err)
 	serverCtx, stopServer := context.WithCancel(t.Context())

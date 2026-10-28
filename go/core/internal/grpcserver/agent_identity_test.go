@@ -52,7 +52,7 @@ func TestAgentIdentityGeneratedClient(t *testing.T) {
 	verifier, err := substrate.NewActorJWTVerifier(t.Context(), issuer.URL, issuer.CAFile, substrate.RuntimeJWTAudience)
 	require.NoError(t, err)
 	connection := newConfigurationConnection(t, kube, func(config *Config) {
-		config.Authenticator = runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL)
+		config.Authenticator = runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, store, issuer.URL, nil)
 		config.AgentIdentityService = agentidentity.NewService(verifier, store, kube)
 	})
 	client := apiv1.NewAgentIdentityServiceClient(connection)

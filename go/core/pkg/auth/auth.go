@@ -6,6 +6,7 @@ import (
 	"net/url"
 
 	"github.com/kagent-dev/kagent/go/api/authorization"
+	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 )
 
 type Verb string
@@ -36,6 +37,8 @@ type RuntimeBinding struct {
 // destination. RuntimeBinding is present only for a verified runtime caller.
 type Principal struct {
 	// ID is an opaque, provider-normalized identity, independent of credentials.
+	Scopes         []string
+	Execution      *apiv1.SessionAuthority
 	ID             string
 	RuntimeBinding *RuntimeBinding
 	Claims         map[string]any // Authenticated provider attributes, such as JWT claims.
