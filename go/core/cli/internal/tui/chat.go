@@ -14,6 +14,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/reflow/wordwrap"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	kagenta2a "github.com/kagent-dev/kagent/go/api/a2a"
 	clia2a "github.com/kagent-dev/kagent/go/core/cli/internal/a2a"
@@ -496,7 +498,13 @@ func indentJSON(value any) string {
 	if value == nil {
 		return ""
 	}
-	encoded, err := json.MarshalIndent(value, "", "  ")
+	var encoded []byte
+	var err error
+	if message, ok := value.(proto.Message); ok {
+		encoded, err = (protojson.MarshalOptions{Indent: "  "}).Marshal(message)
+	} else {
+		encoded, err = json.MarshalIndent(value, "", "  ")
+	}
 	if err != nil {
 		return fmt.Sprintf("%v", value)
 	}
