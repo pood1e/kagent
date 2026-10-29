@@ -12,10 +12,12 @@ import (
 
 	"github.com/a2aproject/a2a-go/v2/a2a"
 	"github.com/a2aproject/a2a-go/v2/a2apb/v1/pbconv"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 
+	apia2a "github.com/kagent-dev/kagent/go/api/a2a"
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	runtimev1 "github.com/kagent-dev/kagent/go/api/gen/kagent/runtime/v1"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
@@ -194,6 +196,13 @@ func storageError(err error) error {
 		return status.Error(codes.AlreadyExists, "task ID already exists with another creation")
 	case errors.Is(err, database.ErrConflict):
 		return status.Error(codes.Aborted, "task changed or the session cannot accept this update")
+	case errors.Is(err, database.ErrAuthorityUnavailable):
+		failure, detailErr := status.New(codes.FailedPrecondition, "execution authority revoked or expired").WithDetails(
+			&errdetails.ErrorInfo{Domain: "kagent.dev", Reason: apia2a.AuthorityUnavailableReason})
+		if detailErr != nil {
+			return detailErr
+		}
+		return failure.Err()
 	case errors.Is(err, database.ErrFailedPrecondition):
 		return status.Error(codes.FailedPrecondition, "task state does not allow this operation")
 	default:

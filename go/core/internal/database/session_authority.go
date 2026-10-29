@@ -2,7 +2,6 @@ package database
 
 import (
 	"context"
-	"fmt"
 	"slices"
 	"time"
 
@@ -108,7 +107,7 @@ func requireActiveAuthority(ctx context.Context, tx pgx.Tx, id string) error {
 		return err
 	}
 	if !authorityActive(rows) {
-		return fmt.Errorf("execution authority revoked or expired: %w", ErrFailedPrecondition)
+		return ErrAuthorityUnavailable
 	}
 	return nil
 }
@@ -135,6 +134,10 @@ func insertSessionAuthority(ctx context.Context, tx pgx.Tx, session *apiv1.Sessi
 		parent := chain[0]
 		if !authorityActive(chain) || len(chain) >= 32 || grant.RootSessionId != parent.RootSessionID.String() || grant.InitiatorId != parent.InitiatorID {
 			return ErrFailedPrecondition
+		}
+		if (parent.ExpiresAt == nil) != (grant.ExpiresAt == nil) ||
+			parent.ExpiresAt != nil && !grant.ExpiresAt.AsTime().Equal(*parent.ExpiresAt) {
+			return ErrConflict
 		}
 		for _, ancestor := range chain {
 			if !allScopesWithin(grant.ScopeCeiling.Scopes, ancestor.Scopes) {

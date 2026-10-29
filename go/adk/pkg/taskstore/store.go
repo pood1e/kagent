@@ -13,11 +13,13 @@ import (
 	"github.com/a2aproject/a2a-go/v2/a2apb/v1/pbconv"
 	sdktaskstore "github.com/a2aproject/a2a-go/v2/a2asrv/taskstore"
 	"github.com/google/uuid"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	"github.com/kagent-dev/kagent/go/adk/pkg/controllerclient"
+	apia2a "github.com/kagent-dev/kagent/go/api/a2a"
 	runtimev1 "github.com/kagent-dev/kagent/go/api/gen/kagent/runtime/v1"
 )
 
@@ -96,6 +98,13 @@ func (s *Store) Update(ctx context.Context, update *sdktaskstore.UpdateRequest) 
 	if executionFailed(ctx) {
 		return 0, fmt.Errorf("previous task persistence failed")
 	}
+	// The SDK reuses a rejected event when it commits the resulting FAILED task.
+	if state, ok := ctx.Value(executionKey{}).(*execution); ok && state.rejected.Load() && update.Task.Status.State == a2a.TaskStateFailed {
+		if state.authorityUnavailable.Load() {
+			update.Task.Status.Message = a2a.NewMessageForTask(a2a.MessageRoleAgent, update.Task, a2a.NewTextPart("Execution authorization expired or was revoked."))
+		}
+		update.Event = &a2a.TaskStatusUpdateEvent{TaskID: update.Task.ID, ContextID: update.Task.ContextID, Status: update.Task.Status}
+	}
 	task, err := pbconv.ToProtoTask(update.Task)
 	if err != nil {
 		return 0, err
@@ -119,8 +128,25 @@ func (s *Store) Update(ctx context.Context, update *sdktaskstore.UpdateRequest) 
 		return err
 	})
 	if err != nil {
-		recordSaveFailure(ctx)
+		// A nonterminal save may lose its grant deadline. The SDK must still be
+		// able to commit the resulting FAILED boundary at the stored version.
+		if status.Code(err) == codes.FailedPrecondition {
+			if state, ok := ctx.Value(executionKey{}).(*execution); ok {
+				state.rejected.Store(true)
+				for _, detail := range status.Convert(err).Details() {
+					if info, ok := detail.(*errdetails.ErrorInfo); ok && info.Domain == "kagent.dev" && info.Reason == apia2a.AuthorityUnavailableReason {
+						state.authorityUnavailable.Store(true)
+					}
+				}
+			}
+		} else {
+			recordSaveFailure(ctx)
+		}
 		return 0, sdkError(err)
+	}
+	if state, ok := ctx.Value(executionKey{}).(*execution); ok {
+		state.rejected.Store(false)
+		state.authorityUnavailable.Store(false)
 	}
 	recordSave(ctx, update.Task, response.Version)
 	return sdktaskstore.TaskVersion(response.Version), nil

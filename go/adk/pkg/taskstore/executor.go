@@ -86,14 +86,16 @@ func (e *settledExecutor) release(state *execution) {
 
 type executionKey struct{}
 type execution struct {
-	dispatchID *string
-	ready      chan struct{}
-	failed     atomic.Bool
-	canceled   atomic.Bool
-	superseded atomic.Bool // abandoned before Execute while another send held the slot
-	boundary   atomic.Int64
-	cleaned    bool // guarded by settledExecutor.mu
-	abandoned  bool // guarded by settledExecutor.mu; its call ended before Execute
+	dispatchID           *string
+	ready                chan struct{}
+	failed               atomic.Bool
+	rejected             atomic.Bool
+	authorityUnavailable atomic.Bool
+	canceled             atomic.Bool
+	superseded           atomic.Bool // abandoned before Execute while another send held the slot
+	boundary             atomic.Int64
+	cleaned              bool // guarded by settledExecutor.mu
+	abandoned            bool // guarded by settledExecutor.mu; its call ended before Execute
 }
 
 func executionFailed(ctx context.Context) bool {

@@ -32,7 +32,7 @@ type Store interface {
 	RevokeSessionAuthority(context.Context, string) error
 	GetDelegationCredential(context.Context, string) (*database.DelegationCredential, error)
 	SaveDelegationCredential(context.Context, string, []byte) error
-	CaptureDelegationCredential(context.Context, string, int64, []byte) (bool, error)
+	CaptureDelegationCredential(context.Context, string, int64, []byte, time.Time) (bool, error)
 	ClaimDelegationCredential(context.Context, string, int64, uuid.UUID) (bool, error)
 	FinishDelegationCredential(context.Context, string, int64, uuid.UUID, []byte) (bool, error)
 	InvalidateDelegationCredential(context.Context, string, int64, uuid.UUID) error
@@ -169,7 +169,7 @@ func (s *Service) Bind(ctx context.Context, id, creator string, ceiling *apiv1.S
 		}
 		grant.ExpiresAt = authority.ExpiresAt
 	} else if s.config != nil {
-		renewable, expiry, err := s.capture(ctx, caller)
+		renewable, expiry, err := s.capture(ctx, caller, true)
 		if err != nil {
 			return nil, err
 		}
@@ -181,6 +181,20 @@ func (s *Service) Bind(ctx context.Context, id, creator string, ceiling *apiv1.S
 		grant.ScopeCeiling.Scopes = intersect(grant.ScopeCeiling.Scopes, ceiling.Scopes)
 	}
 	return grant, nil
+}
+
+// Renew captures a newer verified bearer for an existing initiator. It never
+// recreates a revoked credential or widens an immutable scope ceiling.
+func (s *Service) Renew(ctx context.Context) error {
+	if s.config == nil {
+		return nil
+	}
+	if _, err := credentialOwner(ctx); err != nil {
+		return err
+	}
+	caller, _ := auth.AuthSessionFrom(ctx)
+	_, _, err := s.capture(ctx, caller, false)
+	return err
 }
 
 // Resolve reconstructs a narrowed initiator and live TokenSource after restarts.

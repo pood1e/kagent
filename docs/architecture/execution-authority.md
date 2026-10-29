@@ -64,8 +64,8 @@ when execution authorization is omitted.
 
 `CreateSession.scope_ceiling` restricts the initiating principal's current scopes.
 An omitted ceiling inherits them; a present empty ceiling grants an empty set.
-The returned `Session.authority` records immutable initiator, parent, root,
-ceiling, and credential deadline. Parentage comes from a verified live Actor
+The returned `Session.authority` records initiator, parent, root, immutable
+ceiling, and initial credential deadline. Parentage comes from a verified live Actor
 binding or the independently verified originating-Actor proof.
 
 A child inherits the intersection of every ancestor's ceiling and deadline.
@@ -90,7 +90,14 @@ AES-256-GCM and principal-bound authenticated data. The encryption key is exactl
 32 random bytes supplied through a Secret file.
 
 Unregistered callers capture their verified access token and inherit its bounded
-expiry. Registered refresh credentials support background work and controller
+expiry. An independently authenticated Session read, including A2A `GetTask`,
+rotates a newer bearer for the same initiator and atomically extends active
+Session deadlines. `GetSessionAuthority` reports the current deadline; the
+Session record retains the authority snapshot captured at creation. Revoked
+grants remain revoked. Expired authority still permits the owning Actor to
+persist a terminal FAILED task with a safe authorization reason after an
+intermediate save is rejected.
+Registered refresh credentials support background work and controller
 restart. Refresh uses the official `golang.org/x/oauth2` client, a bounded HTTP
 request, current client-secret contents, and verified TLS. A versioned database
 lease serializes refresh across controller replicas; network calls run outside
