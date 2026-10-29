@@ -6,6 +6,11 @@ initiator authority are separate values.
 
 ## Identity and scopes
 
+`SessionAuthority.scope_ceiling` carries presence: absent inherits, an empty
+message denies all scopes, and a populated message bounds authority. Native
+Session creation materializes a ceiling from the authenticated initiator and
+parent before persistence; runtime grants always retain that explicit bound.
+
 `server.auth.mode: oidc` verifies the provider signature, issuer, API audience,
 and expiry through the maintained `coreos/go-oidc` verifier. Principal IDs combine
 the configured issuer and verified subject into an opaque identifier. Browser

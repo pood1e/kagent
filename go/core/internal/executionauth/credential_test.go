@@ -69,7 +69,7 @@ func newCredentialFixture(t *testing.T) *credentialFixture {
 	users, err := authimpl.NewOIDCAuthenticator(t.Context(), &configv1.OIDCAuthentication{Issuer: identity.URL, Audience: "kagent", CaFile: identity.CAFile})
 	require.NoError(t, err)
 	principal := auth.PrincipalID("oidc:"+identity.URL, "alice")
-	fixture := &credentialFixture{identity: identity, users: users, store: &credentialStore{Client: database.NewClient(pool, "public"), grant: &apiv1.SessionAuthority{SessionId: uuid.NewString(), InitiatorId: principal, RootSessionId: uuid.NewString(), Scopes: []string{"read", "write"}}, active: true}}
+	fixture := &credentialFixture{identity: identity, users: users, store: &credentialStore{Client: database.NewClient(pool, "public"), grant: &apiv1.SessionAuthority{SessionId: uuid.NewString(), InitiatorId: principal, RootSessionId: uuid.NewString(), ScopeCeiling: &apiv1.ScopeCeiling{Scopes: []string{"read", "write"}}}, active: true}}
 	fixture.store.grant.RootSessionId = fixture.store.grant.SessionId
 	fixture.roles.Store([]string{"read", "write", "admin"})
 	fixture.clientSecret.Store("client-secret-1")
@@ -229,7 +229,7 @@ func TestNonrenewableSourceHasBoundedAuthorityAndNoFallback(t *testing.T) {
 	f := newCredentialFixture(t)
 	grant, err := f.service.Bind(f.caller, uuid.NewString(), f.store.grant.InitiatorId, &apiv1.ScopeCeiling{Scopes: []string{"read", "admin"}})
 	require.NoError(t, err)
-	require.Equal(t, []string{"read"}, grant.Scopes)
+	require.Equal(t, []string{"read"}, grant.ScopeCeiling.Scopes)
 	require.NotNil(t, grant.ExpiresAt)
 	f.store.grant = grant
 	resolved, err := f.service.Resolve(t.Context(), grant.SessionId)

@@ -57,3 +57,15 @@ func TestSessionCredentialExpiryIsolationAndLiveSource(t *testing.T) {
 	_, err = provider.Authenticate(t.Context(), headers, nil)
 	require.Error(t, err)
 }
+
+func TestSessionCredentialRequiresExplicitScopeCeiling(t *testing.T) {
+	f := newCredentialFixture(t)
+	grant := proto.CloneOf(f.store.grant)
+	grant.ScopeCeiling = nil
+	grant.ExpiresAt = timestamppb.New(time.Now().Add(time.Minute))
+	payload, err := proto.Marshal(grant)
+	require.NoError(t, err)
+	sealed := f.service.cipher.Seal(nil, nil, payload, sessionCredentialPurpose)
+	_, err = f.service.authenticateSessionCredential(t.Context(), base64.RawURLEncoding.EncodeToString(sealed))
+	require.Error(t, err)
+}

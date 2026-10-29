@@ -16,7 +16,7 @@ import (
 func authoritySession(t *testing.T, client *Client, parent *apiv1.Session, scopes []string) *apiv1.Session {
 	t.Helper()
 	request := newSessionRequest(uuid.NewString(), "assistant", "kagent", "")
-	grant := &apiv1.SessionAuthority{SessionId: request.Id, InitiatorId: request.Creator, RootSessionId: request.Id, Scopes: scopes, ExpiresAt: timestamppb.New(time.Now().Add(time.Hour))}
+	grant := &apiv1.SessionAuthority{SessionId: request.Id, InitiatorId: request.Creator, RootSessionId: request.Id, ScopeCeiling: &apiv1.ScopeCeiling{Scopes: scopes}, ExpiresAt: timestamppb.New(time.Now().Add(time.Hour))}
 	if parent != nil {
 		prior, _, err := client.GetSessionAuthority(t.Context(), parent.Id)
 		require.NoError(t, err)
@@ -40,11 +40,12 @@ func TestAuthorityCeilingAndRevocationAreDurable(t *testing.T) {
 	grant, active, err := client.GetSessionAuthority(t.Context(), leaf.Id)
 	require.NoError(t, err)
 	require.True(t, active)
-	require.Empty(t, grant.Scopes)
+	require.NotNil(t, grant.ScopeCeiling)
+	require.Empty(t, grant.ScopeCeiling.Scopes)
 	require.Equal(t, root.Id, grant.RootSessionId)
 	require.Equal(t, child.Id, grant.ParentSessionId)
 	request := newSessionRequest(uuid.NewString(), "assistant", "kagent", "")
-	request.Authority = &apiv1.SessionAuthority{SessionId: request.Id, InitiatorId: root.Creator, ParentSessionId: child.Id, RootSessionId: root.Id, Scopes: []string{"write"}, ExpiresAt: grant.ExpiresAt}
+	request.Authority = &apiv1.SessionAuthority{SessionId: request.Id, InitiatorId: root.Creator, ParentSessionId: child.Id, RootSessionId: root.Id, ScopeCeiling: &apiv1.ScopeCeiling{Scopes: []string{"write"}}, ExpiresAt: grant.ExpiresAt}
 	_, _, err = client.CreateSession(t.Context(), request, "escalation")
 	require.ErrorIs(t, err, ErrFailedPrecondition)
 	_, err = client.GetSessionByID(t.Context(), request.Id)
@@ -117,7 +118,7 @@ func TestAuthorityDepthBoundAndCredentialRevocation(t *testing.T) {
 	grant, _, err := client.GetSessionAuthority(t.Context(), parent.Id)
 	require.NoError(t, err)
 	request := newSessionRequest(uuid.NewString(), "assistant", "kagent", "")
-	request.Authority = &apiv1.SessionAuthority{SessionId: request.Id, InitiatorId: root.Creator, ParentSessionId: parent.Id, RootSessionId: root.Id, Scopes: []string{"read"}, ExpiresAt: grant.ExpiresAt}
+	request.Authority = &apiv1.SessionAuthority{SessionId: request.Id, InitiatorId: root.Creator, ParentSessionId: parent.Id, RootSessionId: root.Id, ScopeCeiling: &apiv1.ScopeCeiling{Scopes: []string{"read"}}, ExpiresAt: grant.ExpiresAt}
 	_, _, err = client.CreateSession(t.Context(), request, "too deep")
 	require.ErrorIs(t, err, ErrFailedPrecondition)
 	require.NoError(t, client.SaveDelegationCredential(t.Context(), root.Creator, make([]byte, 64)))
@@ -126,5 +127,16 @@ func TestAuthorityDepthBoundAndCredentialRevocation(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, active)
 	_, err = client.GetDelegationCredential(t.Context(), root.Creator)
+	require.ErrorIs(t, err, ErrNotFound)
+}
+
+func TestNativeAuthorityRequiresMaterializedCeiling(t *testing.T) {
+	client := NewClient(setupTestDB(t), "public")
+	sessionFixture(t, client, t.Context(), "team-a", "revision", "assistant", "kagent")
+	request := newSessionRequest(uuid.NewString(), "assistant", "kagent", "")
+	request.Authority = &apiv1.SessionAuthority{SessionId: request.Id, InitiatorId: request.Creator, RootSessionId: request.Id}
+	_, _, err := client.CreateSession(t.Context(), request, uuid.NewString())
+	require.ErrorIs(t, err, ErrFailedPrecondition)
+	_, err = client.GetSessionByID(t.Context(), request.Id)
 	require.ErrorIs(t, err, ErrNotFound)
 }

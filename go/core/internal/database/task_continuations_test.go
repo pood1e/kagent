@@ -19,7 +19,7 @@ func continuationSession(t *testing.T, client *Client, parent ...*apiv1.Session)
 	if len(parent) > 0 {
 		grant, _, err := client.GetSessionAuthority(t.Context(), parent[0].Id)
 		require.NoError(t, err)
-		request.Authority = &apiv1.SessionAuthority{SessionId: request.Id, InitiatorId: grant.InitiatorId, ParentSessionId: parent[0].Id, RootSessionId: grant.RootSessionId, Scopes: grant.Scopes, ExpiresAt: grant.ExpiresAt}
+		request.Authority = &apiv1.SessionAuthority{SessionId: request.Id, InitiatorId: grant.InitiatorId, ParentSessionId: parent[0].Id, RootSessionId: grant.RootSessionId, ScopeCeiling: grant.ScopeCeiling, ExpiresAt: grant.ExpiresAt}
 	}
 	session, _, err := client.CreateSession(t.Context(), request, uuid.NewString())
 	require.NoError(t, err)
@@ -286,4 +286,3 @@ func TestTaskContinuationRetryBudget(t *testing.T) {
 		})
 	}
 }
-
