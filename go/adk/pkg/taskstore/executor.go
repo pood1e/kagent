@@ -11,6 +11,7 @@ import (
 	"github.com/a2aproject/a2a-go/v2/a2a"
 	"github.com/a2aproject/a2a-go/v2/a2asrv"
 	sdktaskstore "github.com/a2aproject/a2a-go/v2/a2asrv/taskstore"
+	"go.opentelemetry.io/otel"
 
 	apia2a "github.com/kagent-dev/kagent/go/api/a2a"
 	runtimev1 "github.com/kagent-dev/kagent/go/api/gen/kagent/runtime/v1"
@@ -162,7 +163,7 @@ func (e *settledExecutor) Execute(ctx context.Context, input *a2asrv.ExecutorCon
 				result.Disposition = tracing.DispositionAbandoned
 			}
 			if _, err := invocation.End(ctx, result); err != nil {
-				logging.FromContext(ctx).ErrorContext(ctx, "export runtime invocation traces", "task_id", input.TaskID, "error", err)
+				otel.Handle(err)
 			}
 		}()
 		// The SDK persists events asynchronously. Establish an active task before
@@ -271,11 +272,11 @@ func (e *settledExecutor) Cleanup(ctx context.Context, input *a2asrv.ExecutorCon
 	// RPC's own span is flushed afterwards, but suspension can race that flush.
 	if e.flush != nil {
 		if err := e.flush(finish); err != nil {
-			logging.FromContext(finish).ErrorContext(finish, "flush telemetry before task settlement", "task_id", input.TaskID, "error", err)
+			otel.Handle(err)
 		}
 		defer func() {
 			if err := e.flush(finish); err != nil {
-				logging.FromContext(finish).ErrorContext(finish, "flush telemetry after task settlement", "task_id", input.TaskID, "error", err)
+				otel.Handle(err)
 			}
 		}()
 	}
