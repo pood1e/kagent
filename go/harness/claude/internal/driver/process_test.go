@@ -296,6 +296,13 @@ func TestToolCallSplitsTheMCPName(t *testing.T) {
 			if call := sink.calls[0]; call.Name != tc.name || call.MCPServer != tc.server || call.MCPTool != tc.tool {
 				t.Errorf("call = %+v, want server %q and tool %q", call, tc.server, tc.tool)
 			}
+			if _, err := emitEvent(Event{Kind: EventToolActivity, ToolID: "toolu_1", ToolName: tc.name, ToolPhase: "completed", ToolResult: false}, sink, false); err != nil {
+				t.Fatal(err)
+			}
+			require.Len(t, sink.results, 1)
+			require.Equal(t, tc.server, sink.results[0].MCPServer)
+			require.Equal(t, tc.tool, sink.results[0].MCPTool)
+			require.Equal(t, false, sink.results[0].Result)
 		})
 	}
 }
