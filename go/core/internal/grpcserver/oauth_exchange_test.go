@@ -48,11 +48,12 @@ func TestNativeAuthorityRFC8693RefreshRecoveryAndRevocation(t *testing.T) {
 	revision, err := store.GetRuntimeRevision(t.Context(), "revision-1")
 	require.NoError(t, err)
 	revision.Revision, revision.ActorTemplateName = "oauth-targets", "oauth-targets"
-	revision.MCPTools = []v1alpha3.MCPToolBinding{{Server: corev1.TypedLocalObjectReference{Kind: "RemoteMCPServer", Name: "environment"}, Tools: []string{"read_nodes", "delete_nodes"}}}
+	revision.MCPTools = []v1alpha3.MCPToolBinding{{Server: corev1.TypedObjectReference{Kind: "RemoteMCPServer", Name: "environment"}, Tools: []string{"read_nodes", "delete_nodes"}}}
 	require.NoError(t, store.UpsertAgentDefinition(t.Context(), database.AgentDefinition{Namespace: revision.Namespace, AgentName: revision.AgentName, AgentUID: revision.AgentUID, DesiredRevision: revision.Revision}))
-	require.NoError(t, store.RecordRuntimeRevision(t.Context(), *revision, database.RecordRevisionOptions{Ready: true}))
+	_, err = store.RecordRuntimeRevision(t.Context(), *revision, database.RecordRevisionOptions{Ready: true})
+	require.NoError(t, err)
 	f, actors := newAuthorityOAuthIssuer(t), jwttest.New(t)
-	controlVerifier, err := substrate.NewActorJWTVerifier(t.Context(), actors.URL, actors.CAFile)
+	controlVerifier, err := substrate.NewActorJWTVerifier(t.Context(), actors.URL, actors.CAFile, substrate.RuntimeJWTAudience)
 	require.NoError(t, err)
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
