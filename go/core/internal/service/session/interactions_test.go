@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -259,5 +260,35 @@ func TestInteractionsRequireAgentForUnfilteredTaskList(t *testing.T) {
 		if !errors.Is(err, a2atype.ErrInvalidRequest) {
 			t.Fatalf("ListTasks(%v) = %v, want invalid Agent before storage", agent, err)
 		}
+	}
+}
+
+func TestPrepareSendRequiresNativeContinuationOrigin(t *testing.T) {
+	for _, native := range []bool{false, true} {
+		t.Run(fmt.Sprintf("native=%t", native), func(t *testing.T) {
+			id := uuid.NewString()
+			continuation := uuid.New()
+			agent := types.NamespacedName{Namespace: "team-a", Name: "assistant"}
+			stored := &apiv1.Session{Id: id, ContextId: id, State: apiv1.RuntimeState_RUNTIME_STATE_READY,
+				Operation: apiv1.RuntimeOperation_RUNTIME_OPERATION_NONE,
+				Agent:     &apiv1.ResourceReference{Namespace: agent.Namespace, Name: agent.Name}}
+			service := NewInteractionService(&interactionTestStore{}, nil, NewService(&serviceTestStore{getResult: stored}, serviceTestAuthorizer{}, nil), false)
+			ctx := serviceTestContext("alice")
+			if native {
+				ctx = context.WithValue(ctx, continuationContextKey{}, continuation)
+			}
+			message := a2atype.NewMessage(a2atype.MessageRoleUser, a2atype.NewTextPart("Continue"))
+			message.ID, message.ContextID = "kagent-continuation-"+continuation.String(), id
+			prepared, err := service.PrepareSend(ctx, agent, &a2atype.SendMessageRequest{Message: message})
+			if !native {
+				if !errors.Is(err, a2atype.ErrInvalidRequest) {
+					t.Fatalf("untrusted continuation error = %v", err)
+				}
+				return
+			}
+			if err != nil || prepared.DispatchID == uuid.Nil {
+				t.Fatalf("native continuation was not admitted: %v", err)
+			}
+		})
 	}
 }

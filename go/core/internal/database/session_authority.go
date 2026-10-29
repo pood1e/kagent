@@ -24,7 +24,7 @@ type authorityRow struct {
 }
 
 func (a authorityRow) authority() *apiv1.SessionAuthority {
-	result := &apiv1.SessionAuthority{SessionId: a.SessionID.String(), InitiatorId: a.InitiatorID, RootSessionId: a.RootSessionID.String(), Scopes: a.Scopes}
+	result := &apiv1.SessionAuthority{SessionId: a.SessionID.String(), InitiatorId: a.InitiatorID, RootSessionId: a.RootSessionID.String(), ScopeCeiling: &apiv1.ScopeCeiling{Scopes: a.Scopes}}
 	if a.ParentSessionID != nil {
 		result.ParentSessionId = a.ParentSessionID.String()
 	}
@@ -84,7 +84,7 @@ func (c *Client) GetSessionAuthority(ctx context.Context, id string) (*apiv1.Ses
 	}
 	result := rows[0].authority()
 	for _, row := range rows[1:] {
-		result.Scopes = slices.DeleteFunc(result.Scopes, func(scope string) bool { return !slices.Contains(row.Scopes, scope) })
+		result.ScopeCeiling.Scopes = slices.DeleteFunc(result.ScopeCeiling.Scopes, func(scope string) bool { return !slices.Contains(row.Scopes, scope) })
 		if row.ExpiresAt != nil && (result.ExpiresAt == nil || row.ExpiresAt.Before(result.ExpiresAt.AsTime())) {
 			result.ExpiresAt = timestamppb.New(*row.ExpiresAt)
 		}
@@ -119,9 +119,9 @@ func requireActiveAuthority(ctx context.Context, tx pgx.Tx, id string) error {
 func insertSessionAuthority(ctx context.Context, tx pgx.Tx, session *apiv1.Session) error {
 	grant := session.Authority
 	if grant == nil {
-		grant = &apiv1.SessionAuthority{SessionId: session.Id, InitiatorId: session.Creator, RootSessionId: session.Id}
+		grant = &apiv1.SessionAuthority{SessionId: session.Id, InitiatorId: session.Creator, RootSessionId: session.Id, ScopeCeiling: &apiv1.ScopeCeiling{}}
 	}
-	if grant.SessionId != session.Id || grant.InitiatorId == "" || grant.RootSessionId == "" {
+	if grant.ScopeCeiling == nil || grant.SessionId != session.Id || grant.InitiatorId == "" || grant.RootSessionId == "" {
 		return ErrFailedPrecondition
 	}
 	if grant.ParentSessionId != "" {
@@ -137,7 +137,7 @@ func insertSessionAuthority(ctx context.Context, tx pgx.Tx, session *apiv1.Sessi
 			return ErrFailedPrecondition
 		}
 		for _, ancestor := range chain {
-			if !allScopesWithin(grant.Scopes, ancestor.Scopes) {
+			if !allScopesWithin(grant.ScopeCeiling.Scopes, ancestor.Scopes) {
 				return ErrFailedPrecondition
 			}
 			if ancestor.ExpiresAt != nil && (grant.ExpiresAt == nil || grant.ExpiresAt.AsTime().After(*ancestor.ExpiresAt)) {
@@ -158,7 +158,7 @@ func insertSessionAuthority(ctx context.Context, tx pgx.Tx, session *apiv1.Sessi
 	if grant.ExpiresAt != nil {
 		expiry = new(grant.ExpiresAt.AsTime())
 	}
-	scopes := slices.Clone(grant.Scopes)
+	scopes := slices.Clone(grant.ScopeCeiling.Scopes)
 	if scopes == nil {
 		scopes = []string{}
 	}

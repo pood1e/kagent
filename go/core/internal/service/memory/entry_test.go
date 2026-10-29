@@ -37,6 +37,7 @@ func TestManagedMemoryUsesAuthenticatedOwner(t *testing.T) {
 	require.Equal(t, input.Scope.GetAgentName(), store.readAgent)
 	require.Equal(t, "owner", store.readUser)
 	require.NoError(t, service.DeleteEntry(ctx, input.Scope, "selected"))
+	require.Equal(t, input.Scope.GetAgentName(), store.deletedAgent)
 	require.Equal(t, "owner", store.deletedUser)
 	store.err = database.ErrNotFound
 	require.True(t, serviceerrors.IsCode(service.DeleteEntry(ctx, input.Scope, "foreign"), serviceerrors.CodeNotFound))

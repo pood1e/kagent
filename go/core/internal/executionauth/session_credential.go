@@ -75,7 +75,7 @@ func (s *Service) IssueSessionCredential(ctx context.Context, request *apiv1.Iss
 		}
 	}
 	grant := proto.CloneOf(resolved.Principal().Execution)
-	grant.Scopes = slices.Clone(resolved.Principal().Scopes)
+	grant.ScopeCeiling = &apiv1.ScopeCeiling{Scopes: slices.Clone(resolved.Principal().Scopes)}
 	expires := time.Now().Add(request.Ttl.AsDuration())
 	if grant.ExpiresAt != nil && grant.ExpiresAt.AsTime().Before(expires) {
 		expires = grant.ExpiresAt.AsTime()
@@ -118,7 +118,7 @@ func (s *Service) authenticateSessionCredential(ctx context.Context, raw string)
 	}
 	defer clear(payload)
 	grant := &apiv1.SessionAuthority{}
-	if err := proto.Unmarshal(payload, grant); err != nil || grant.ExpiresAt == nil || grant.ExpiresAt.CheckValid() != nil || !time.Now().Before(grant.ExpiresAt.AsTime()) {
+	if err := proto.Unmarshal(payload, grant); err != nil || grant.ScopeCeiling == nil || grant.ExpiresAt == nil || grant.ExpiresAt.CheckValid() != nil || !time.Now().Before(grant.ExpiresAt.AsTime()) {
 		return nil, denied
 	}
 	resolved, err := s.Resolve(ctx, grant.SessionId)
@@ -126,7 +126,7 @@ func (s *Service) authenticateSessionCredential(ctx context.Context, raw string)
 		return nil, denied
 	}
 	principal := resolved.Principal()
-	principal.Scopes = intersect(principal.Scopes, grant.Scopes)
+	principal.Scopes = intersect(principal.Scopes, grant.ScopeCeiling.Scopes)
 	principal.Claims[s.config.ScopeClaim] = slices.Clone(principal.Scopes)
 	source, _ := resolved.(auth.TokenSource)
 	return auth.NewCredentialSession(principal, boundedSource{source: source, expires: grant.ExpiresAt.AsTime()}), nil
