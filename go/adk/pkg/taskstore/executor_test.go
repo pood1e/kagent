@@ -23,12 +23,14 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 
 	"github.com/kagent-dev/kagent/go/adk/pkg/controllerclient"
+	apia2a "github.com/kagent-dev/kagent/go/api/a2a"
 	runtimev1 "github.com/kagent-dev/kagent/go/api/gen/kagent/runtime/v1"
 	"github.com/kagent-dev/kagent/go/pkg/tracing"
 )
@@ -164,7 +166,9 @@ type settlementServer struct {
 	fail              bool
 	settled           atomic.Bool
 	rejectNonterminal codes.Code
+	authorityReason   bool
 	calls             atomic.Int32
+	saved             atomic.Pointer[a2a.Task]
 }
 
 func (s *settlementServer) UpdateTask(_ context.Context, input *runtimev1.TaskStoreServiceUpdateTaskRequest) (*runtimev1.TaskStoreServiceUpdateTaskResponse, error) {
@@ -175,8 +179,24 @@ func (s *settlementServer) UpdateTask(_ context.Context, input *runtimev1.TaskSt
 			return nil, err
 		}
 		if !task.Status.State.Terminal() {
+			if s.authorityReason {
+				failure, err := status.New(s.rejectNonterminal, "execution authority revoked or expired").WithDetails(
+					&errdetails.ErrorInfo{Domain: "kagent.dev", Reason: apia2a.AuthorityUnavailableReason})
+				if err != nil {
+					return nil, err
+				}
+				return nil, failure.Err()
+			}
 			return nil, status.Error(s.rejectNonterminal, "execution authority expired")
 		}
+		event, err := pbconv.FromProtoStreamResponse(input.Event)
+		if err != nil {
+			return nil, err
+		}
+		if update, ok := event.(*a2a.TaskStatusUpdateEvent); !ok || update.Status.State != a2a.TaskStateFailed {
+			return nil, status.Error(codes.InvalidArgument, "FAILED task needs a FAILED status event")
+		}
+		s.saved.Store(task)
 	}
 	return &runtimev1.TaskStoreServiceUpdateTaskResponse{Version: 2}, nil
 }
@@ -185,13 +205,15 @@ func TestRejectedIntermediateSaveStillAllowsFailedBoundary(t *testing.T) {
 	for _, test := range []struct {
 		name        string
 		code        codes.Code
+		authority   bool
 		wantRecover bool
 	}{
-		{name: "expired authority", code: codes.FailedPrecondition, wantRecover: true},
+		{name: "expired authority", code: codes.FailedPrecondition, authority: true, wantRecover: true},
+		{name: "other precondition", code: codes.FailedPrecondition, wantRecover: true},
 		{name: "conflicting version", code: codes.Aborted},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			api := &settlementServer{rejectNonterminal: test.code}
+			api := &settlementServer{rejectNonterminal: test.code, authorityReason: test.authority}
 			listener := bufconn.Listen(1 << 20)
 			server := grpc.NewServer()
 			runtimev1.RegisterTaskStoreServiceServer(server, api)
@@ -211,15 +233,23 @@ func TestRejectedIntermediateSaveStillAllowsFailedBoundary(t *testing.T) {
 			ctx := context.WithValue(t.Context(), executionKey{}, state)
 			input := &a2asrv.ExecutorContext{TaskID: "task", ContextID: uuid.NewString()}
 			task := &a2a.Task{ID: input.TaskID, ContextID: input.ContextID, Status: a2a.TaskStatus{State: a2a.TaskStateWorking}}
-			_, err = store.Update(ctx, &sdktaskstore.UpdateRequest{Task: task, PrevVersion: 1, Event: a2a.NewStatusUpdateEvent(input, a2a.TaskStateWorking, nil)})
+			working := a2a.NewStatusUpdateEvent(input, a2a.TaskStateWorking, nil)
+			_, err = store.Update(ctx, &sdktaskstore.UpdateRequest{Task: task, PrevVersion: 1, Event: working})
 			require.Error(t, err)
 			task.Status.State = a2a.TaskStateFailed
-			version, err := store.Update(ctx, &sdktaskstore.UpdateRequest{Task: task, PrevVersion: 1, Event: a2a.NewStatusUpdateEvent(input, a2a.TaskStateFailed, nil)})
+			version, err := store.Update(ctx, &sdktaskstore.UpdateRequest{Task: task, PrevVersion: 1, Event: working})
 			if test.wantRecover {
 				require.NoError(t, err)
 				require.Equal(t, sdktaskstore.TaskVersion(2), version)
 				require.Equal(t, int64(2), state.boundary.Load())
 				require.Equal(t, int32(2), api.calls.Load())
+				if test.authority {
+					message := api.saved.Load().Status.Message
+					require.NotNil(t, message)
+					require.Equal(t, a2a.Text("Execution authorization expired or was revoked."), message.Parts[0].Content)
+				} else {
+					require.Nil(t, api.saved.Load().Status.Message)
+				}
 			} else {
 				require.ErrorContains(t, err, "previous task persistence failed")
 				require.Equal(t, int32(1), api.calls.Load())
