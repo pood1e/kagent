@@ -143,7 +143,6 @@ rbac:
   # -- Allow controller tool discovery to request ServiceAccount tokens for
   # RemoteMCPServer discoveryAuth.
   discoveryServiceAccountTokens: false
-  {}
 
 # ==============================================================================
 # APPLICATION CONFIGURATION

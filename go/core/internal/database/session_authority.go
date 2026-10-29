@@ -2,7 +2,6 @@ package database
 
 import (
 	"context"
-	"fmt"
 	"slices"
 	"time"
 
@@ -108,7 +107,7 @@ func requireActiveAuthority(ctx context.Context, tx pgx.Tx, id string) error {
 		return err
 	}
 	if !authorityActive(rows) {
-		return fmt.Errorf("execution authority revoked or expired: %w", ErrFailedPrecondition)
+		return ErrAuthorityUnavailable
 	}
 	return nil
 }

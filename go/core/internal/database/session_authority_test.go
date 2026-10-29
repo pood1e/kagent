@@ -200,10 +200,13 @@ func TestExpiredAuthorityStillPersistsFailedTaskBoundary(t *testing.T) {
 	_, err = client.UpdateSessionTask(t.Context(), root.Id, version, taskMutationHash("working"), task, task, dispatch.String())
 	require.ErrorIs(t, err, ErrFailedPrecondition)
 	task.Status.State = a2a.TaskStateFailed
-	version, err = client.UpdateSessionTask(t.Context(), root.Id, version, taskMutationHash("failed"), task, task, dispatch.String())
+	task.Status.Message = a2a.NewMessageForTask(a2a.MessageRoleAgent, task, a2a.NewTextPart("Execution authorization expired or was revoked."))
+	event := &a2a.TaskStatusUpdateEvent{TaskID: task.ID, ContextID: task.ContextID, Status: task.Status}
+	version, err = client.UpdateSessionTask(t.Context(), root.Id, version, taskMutationHash("failed"), task, event, dispatch.String())
 	require.NoError(t, err)
 	require.NoError(t, client.SettleSessionTask(t.Context(), root.Id, string(task.ID), version))
 	stored, err := client.GetSessionTask(t.Context(), root.Id, string(task.ID), nil)
 	require.NoError(t, err)
 	require.Equal(t, a2a.TaskStateFailed, stored.Status.State)
+	require.Equal(t, task.Status.Message, stored.Status.Message)
 }

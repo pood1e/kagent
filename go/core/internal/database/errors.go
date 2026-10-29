@@ -14,6 +14,8 @@ var (
 	ErrConflict = errors.New("resource conflict")
 	// ErrFailedPrecondition reports an unmet requirement for an operation.
 	ErrFailedPrecondition = errors.New("precondition failed")
+	// ErrAuthorityUnavailable marks an expired or revoked execution grant.
+	ErrAuthorityUnavailable = fmt.Errorf("execution authority unavailable: %w", ErrFailedPrecondition)
 	// ErrIdempotencyConflict is distinct because clients must use a new request ID.
 	ErrIdempotencyConflict = errors.New("request id was already used with different parameters")
 )

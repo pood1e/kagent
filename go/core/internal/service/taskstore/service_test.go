@@ -7,9 +7,11 @@ import (
 	"testing/synctest"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	apia2a "github.com/kagent-dev/kagent/go/api/a2a"
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	runtimev1 "github.com/kagent-dev/kagent/go/api/gen/kagent/runtime/v1"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
@@ -26,6 +28,17 @@ type settlementStore struct {
 }
 
 var _ Store = (*settlementStore)(nil)
+
+func TestAuthorityRejectionHasStableReason(t *testing.T) {
+	err := storageError(database.ErrAuthorityUnavailable)
+	require.Equal(t, codes.FailedPrecondition, status.Code(err))
+	details := status.Convert(err).Details()
+	require.Len(t, details, 1)
+	info, ok := details[0].(*errdetails.ErrorInfo)
+	require.True(t, ok)
+	require.Equal(t, "kagent.dev", info.Domain)
+	require.Equal(t, apia2a.AuthorityUnavailableReason, info.Reason)
+}
 
 func (s *settlementStore) GetSessionForRuntime(_ context.Context, id, _ string) (*apiv1.Session, error) {
 	return &apiv1.Session{Id: id, A2AAuthority: substrate.ActorHost("team-a", substrate.ActorName(id), "")}, nil
