@@ -186,6 +186,7 @@ This reference covers user-configurable settings for the controller, CLI, standa
 | `KAGENT_E2E_UPGRADE_FROM_VERSION` | String | `(none)` | Required previous release version for upgrade tests; supplied by make from UPGRADE_FROM_VERSION. |
 | `KAGENT_E2E_VERSION` | String | `(none)` | Required current image tag for upgrade tests; supplied by make from VERSION. |
 | `KAGENT_TEST_LLM_PORT` | String | `8090` | Port for the mock LLM server. |
+| `KAGENT_TEST_POSTGRES_URL` | String | `(none)` | External PostgreSQL server for isolated test databases. |
 | `KAGENT_TEST_PYTHON` | String | `(none)` | Python executable enabling the Python TaskStore/PostgreSQL interoperability test. That subtest is not run when unset. |
 | `KAGENT_TEST_STS_PORT` | String | `8091` | Port for the mock STS (Security Token Service) server. |
 | `KAGENT_TEST_UPDATE_GOLDEN` | Boolean | `false` | When true, update golden test files instead of comparing. |
