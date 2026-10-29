@@ -143,26 +143,34 @@ func (s *Service) current(ctx context.Context, principal string) (*oauth2.Token,
 	}
 }
 
-// capture preserves a registered renewable credential. Nonrenewable requests
-// store their bounded access token for background recovery after restart.
-func (s *Service) capture(ctx context.Context, caller auth.Session) (bool, time.Time, error) {
+// capture preserves a registered renewable credential. A newer independently
+// verified bearer rotates a nonrenewable source and extends its bounded grants.
+func (s *Service) capture(ctx context.Context, caller auth.Session, create bool) (bool, time.Time, error) {
 	principal := caller.Principal().ID
 	for {
 		row, err := s.store.GetDelegationCredential(ctx, principal)
 		var version int64
+		var existing *oauth2.Token
 		if err == nil {
-			existing, err := s.open(principal, row.Ciphertext)
+			existing, err = s.open(principal, row.Ciphertext)
 			if err != nil {
 				return false, time.Time{}, err
 			}
 			if existing.RefreshToken != "" {
+				if !create {
+					return true, time.Time{}, nil
+				}
 				if _, _, err := s.current(ctx, principal); err != nil {
 					return false, time.Time{}, err
 				}
 				return true, time.Time{}, nil
 			}
 			version = row.Version
-		} else if !errors.Is(err, database.ErrNotFound) {
+		} else if errors.Is(err, database.ErrNotFound) {
+			if !create {
+				return false, time.Time{}, nil
+			}
+		} else {
 			return false, time.Time{}, fmt.Errorf("execution credential unavailable")
 		}
 		source, ok := caller.(auth.ExpiringTokenSource)
@@ -173,6 +181,9 @@ func (s *Service) capture(ctx context.Context, caller auth.Session) (bool, time.
 		if err != nil || raw == "" {
 			return false, time.Time{}, fmt.Errorf("execution bearer credential is required")
 		}
+		if existing != nil && existing.Valid() && !source.Expiry().After(existing.Expiry) {
+			return false, existing.Expiry, nil
+		}
 		token := &oauth2.Token{AccessToken: raw, TokenType: "Bearer", Expiry: source.Expiry()}
 		if _, err := s.authenticateToken(ctx, token, principal); err != nil {
 			return false, time.Time{}, err
@@ -181,7 +192,7 @@ func (s *Service) capture(ctx context.Context, caller auth.Session) (bool, time.
 		if err != nil {
 			return false, time.Time{}, err
 		}
-		saved, err := s.store.CaptureDelegationCredential(ctx, principal, version, ciphertext)
+		saved, err := s.store.CaptureDelegationCredential(ctx, principal, version, ciphertext, token.Expiry)
 		if err != nil {
 			return false, time.Time{}, fmt.Errorf("persist execution credential failed")
 		}

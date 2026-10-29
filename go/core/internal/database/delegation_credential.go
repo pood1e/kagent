@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -20,13 +21,26 @@ func (c *Client) GetDelegationCredential(ctx context.Context, principal string) 
 	return row, notFoundOr(err)
 }
 
-// SaveDelegationCredential replaces a self-service credential and fences any
-// refresh already in flight. Empty ciphertext is rejected by the schema.
+// SaveDelegationCredential registers a renewable credential and removes the
+// prior access-token deadline from nonrevoked grants in one transaction.
 func (c *Client) SaveDelegationCredential(ctx context.Context, principal string, ciphertext []byte) error {
-	return execSQL(ctx, c.db, `
+	return c.withTx(ctx, func(tx pgx.Tx) error {
+		if err := execSQL(ctx, tx, `
  INSERT INTO delegation_credential (principal_id, ciphertext) VALUES ($1, $2)
  ON CONFLICT (principal_id) DO UPDATE SET ciphertext = EXCLUDED.ciphertext, version = delegation_credential.version + 1, refresh_lease = NULL, refresh_expires_at = NULL
- `, principal, ciphertext)
+ `, principal, ciphertext); err != nil {
+			return err
+		}
+		roots, err := lockInitiatorRoots(ctx, tx, principal)
+		if err != nil || len(roots) == 0 {
+			return err
+		}
+		return execSQL(ctx, tx, `
+ UPDATE session_authority SET expires_at = NULL
+ WHERE initiator_id = $1 AND expires_at IS NOT NULL AND NOT revoked
+   AND root_session_id IN (SELECT session_id FROM session_authority WHERE initiator_id = $1 AND parent_session_id IS NULL AND NOT revoked)
+ `, principal)
+	})
 }
 
 // ClaimDelegationCredential leases a single version for a bounded refresh.
@@ -91,16 +105,55 @@ func revokeInitiatorAuthority(ctx context.Context, tx pgx.Tx, principal string) 
 	return nil
 }
 
-// CaptureDelegationCredential replaces only the observed version, preserving
-// concurrent renewable registration and refresh results.
-func (c *Client) CaptureDelegationCredential(ctx context.Context, principal string, expected int64, ciphertext []byte) (bool, error) {
+// CaptureDelegationCredential replaces only the observed version and extends
+// that initiator's nonrevoked grants atomically. A concurrent registration or
+// revocation wins through the version fence.
+func (c *Client) CaptureDelegationCredential(ctx context.Context, principal string, expected int64, ciphertext []byte, expiry time.Time) (bool, error) {
 	if expected == 0 {
 		tag, err := c.db.Exec(ctx, `INSERT INTO delegation_credential (principal_id, ciphertext) VALUES ($1, $2) ON CONFLICT (principal_id) DO NOTHING`, principal, ciphertext)
 		return tag.RowsAffected() == 1, err
 	}
-	tag, err := c.db.Exec(ctx, `
+	var saved bool
+	err := c.withTx(ctx, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, `
  UPDATE delegation_credential SET ciphertext = $3, version = version + 1, refresh_lease = NULL, refresh_expires_at = NULL
  WHERE principal_id = $1 AND version = $2
  `, principal, expected, ciphertext)
-	return tag.RowsAffected() == 1, err
+		if err != nil || tag.RowsAffected() == 0 {
+			return err
+		}
+		saved = true
+		return extendInitiatorAuthority(ctx, tx, principal, expiry)
+	})
+	return saved && err == nil, err
+}
+
+// extendInitiatorAuthority serializes credential rotation with child creation
+// and revocation. It never reactivates a revoked root or narrows a later grant.
+func extendInitiatorAuthority(ctx context.Context, tx pgx.Tx, principal string, expiry time.Time) error {
+	roots, err := lockInitiatorRoots(ctx, tx, principal)
+	if err != nil {
+		return err
+	}
+	if len(roots) == 0 {
+		return nil
+	}
+	return execSQL(ctx, tx, `
+ UPDATE session_authority SET expires_at = $2
+ WHERE initiator_id = $1 AND expires_at IS NOT NULL AND expires_at < $2 AND NOT revoked
+   AND root_session_id IN (SELECT session_id FROM session_authority WHERE initiator_id = $1 AND parent_session_id IS NULL AND NOT revoked)
+ `, principal, expiry)
+}
+
+func lockInitiatorRoots(ctx context.Context, tx pgx.Tx, principal string) ([]string, error) {
+	roots, err := queryMany(ctx, tx, `SELECT session_id::text FROM session_authority WHERE initiator_id = $1 AND parent_session_id IS NULL AND NOT revoked ORDER BY session_id`, pgx.RowTo[string], principal)
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range roots {
+		if err := lockSessionAuthority(ctx, tx, id); err != nil {
+			return nil, err
+		}
+	}
+	return roots, nil
 }
