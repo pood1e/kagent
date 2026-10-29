@@ -147,7 +147,7 @@ func (s *Service) Bind(ctx context.Context, id, creator string, ceiling *apiv1.S
 	if err != nil {
 		return nil, err
 	}
-	grant := &apiv1.SessionAuthority{SessionId: id, InitiatorId: principal.ID, RootSessionId: id, Scopes: slices.Clone(principal.Scopes)}
+	grant := &apiv1.SessionAuthority{SessionId: id, InitiatorId: principal.ID, RootSessionId: id, ScopeCeiling: &apiv1.ScopeCeiling{Scopes: slices.Clone(principal.Scopes)}}
 	if binding := principal.RuntimeBinding; binding != nil {
 		parent, err := s.Resolve(ctx, binding.SessionID)
 		if err != nil {
@@ -162,10 +162,10 @@ func (s *Service) Bind(ctx context.Context, id, creator string, ceiling *apiv1.S
 			return nil, fmt.Errorf("execution storage owner mismatch")
 		}
 		grant.InitiatorId, grant.ParentSessionId, grant.RootSessionId = authority.InitiatorId, binding.SessionID, authority.RootSessionId
-		grant.Scopes = slices.Clone(parent.Principal().Scopes)
+		grant.ScopeCeiling.Scopes = slices.Clone(parent.Principal().Scopes)
 		// A forwarded human credential may narrow its originating runtime further.
 		if principal.ID == authority.InitiatorId {
-			grant.Scopes = intersect(grant.Scopes, principal.Scopes)
+			grant.ScopeCeiling.Scopes = intersect(grant.ScopeCeiling.Scopes, principal.Scopes)
 		}
 		grant.ExpiresAt = authority.ExpiresAt
 	} else if s.config != nil {
@@ -178,7 +178,7 @@ func (s *Service) Bind(ctx context.Context, id, creator string, ceiling *apiv1.S
 		}
 	}
 	if ceiling != nil {
-		grant.Scopes = intersect(grant.Scopes, ceiling.Scopes)
+		grant.ScopeCeiling.Scopes = intersect(grant.ScopeCeiling.Scopes, ceiling.Scopes)
 	}
 	return grant, nil
 }
@@ -190,10 +190,10 @@ func (s *Service) Resolve(ctx context.Context, id string) (auth.Session, error) 
 	if err != nil {
 		return nil, err
 	}
-	if !active {
-		return nil, fmt.Errorf("execution authority revoked or expired")
+	if !active || grant.ScopeCeiling == nil {
+		return nil, fmt.Errorf("execution authority revoked, expired, or unbounded")
 	}
-	principal := auth.Principal{ID: grant.InitiatorId, Scopes: slices.Clone(grant.Scopes), Execution: grant}
+	principal := auth.Principal{ID: grant.InitiatorId, Scopes: slices.Clone(grant.ScopeCeiling.Scopes), Execution: grant}
 	if s.config == nil {
 		if !s.insecure {
 			return nil, fmt.Errorf("durable execution credentials are not configured")
