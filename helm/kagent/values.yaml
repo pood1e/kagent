@@ -140,6 +140,9 @@ rbac:
   # declared default [] would make every install look explicitly cluster-scoped,
   # and the global fallback would be unreachable.
   # namespaces: []
+  # -- Allow controller tool discovery to request ServiceAccount tokens for
+  # RemoteMCPServer discoveryAuth.
+  discoveryServiceAccountTokens: false
   {}
 
 # ==============================================================================

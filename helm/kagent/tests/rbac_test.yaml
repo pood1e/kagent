@@ -75,6 +75,18 @@ tests:
           path: rules[?(@.apiGroups[0] == "")].verbs[*]
           pattern: '^(get|list|watch)$'
 
+  - it: should grant discovery ServiceAccount token requests only when enabled
+    template: rbac/reconciliation-role.yaml
+    set:
+      rbac.discoveryServiceAccountTokens: true
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups: [""]
+            resources: [serviceaccounts/token]
+            verbs: [create]
+
   - it: management permissions should only grant API writes
     template: rbac/management-role.yaml
     asserts:
@@ -245,7 +257,8 @@ tests:
             resources: [secrets, configmaps, services]
             verbs: [get, list, watch]
 
-  - it: should authorize sandbox template catalog access
+  - it: should authorize native service account token requests
+    template: rbac/writer-role.yaml
     asserts:
       - contains:
           path: rules[0].resources

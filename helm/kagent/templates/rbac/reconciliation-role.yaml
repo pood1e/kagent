@@ -1,9 +1,11 @@
 {{- define "kagent.reconciliation.rules" -}}
 # Shared reads for reconciliation and management API requests.
-# Tool discovery mints audience-bound ServiceAccount tokens for discoveryAuth.
+{{- if .Values.rbac.discoveryServiceAccountTokens }}
+# RemoteMCPServer discoveryAuth mints audience-bound ServiceAccount tokens.
 - apiGroups: [""]
   resources: [serviceaccounts/token]
   verbs: [create]
+{{- end }}
 - apiGroups:
   - api.kagent.dev
   resources:
