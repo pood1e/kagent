@@ -294,6 +294,7 @@ func TestCustomSchemaUsesConfiguredVectorSchema(t *testing.T) {
 func TestCustomSchemaMustBeAccessible(t *testing.T) {
 	dsn, _ := startTestDB(t)
 	execSQL(t, dsn, `CREATE SCHEMA locked; REVOKE ALL ON SCHEMA locked FROM PUBLIC; CREATE ROLE blocked NOLOGIN`)
+	t.Cleanup(func() { execSQL(t, dsn, "DROP ROLE blocked") })
 	source := testSource(twoMigrationFS)
 	source.Schema = "locked"
 	if err := RunUp(t.Context(), testConfig(t, dsn, "blocked"), []Source{source}); err == nil || !strings.Contains(err.Error(), `migration schema "locked" is not accessible`) {
