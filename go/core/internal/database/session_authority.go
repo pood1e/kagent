@@ -136,6 +136,10 @@ func insertSessionAuthority(ctx context.Context, tx pgx.Tx, session *apiv1.Sessi
 		if !authorityActive(chain) || len(chain) >= 32 || grant.RootSessionId != parent.RootSessionID.String() || grant.InitiatorId != parent.InitiatorID {
 			return ErrFailedPrecondition
 		}
+		if (parent.ExpiresAt == nil) != (grant.ExpiresAt == nil) ||
+			parent.ExpiresAt != nil && !grant.ExpiresAt.AsTime().Equal(*parent.ExpiresAt) {
+			return ErrConflict
+		}
 		for _, ancestor := range chain {
 			if !allScopesWithin(grant.ScopeCeiling.Scopes, ancestor.Scopes) {
 				return ErrFailedPrecondition

@@ -185,6 +185,14 @@ func (s *Service) getAuthorized(ctx context.Context, id string, verb auth.Verb) 
 	if err != nil {
 		return nil, serviceerrors.NewInternal("Failed to get Session", err)
 	}
+	if s.authority != nil && session.GetAuthority().GetExpiresAt() != nil &&
+		session.GetAuthority().GetInitiatorId() == creator && !shared {
+		if principal := authPrincipal(ctx); principal.RuntimeBinding == nil && principal.Execution == nil {
+			if err := s.authority.Renew(ctx); err != nil {
+				return nil, serviceerrors.NewPermissionDenied("Cannot renew execution credential", err)
+			}
+		}
+	}
 	return session, nil
 }
 

@@ -119,7 +119,11 @@ func (s *Store) Update(ctx context.Context, update *sdktaskstore.UpdateRequest) 
 		return err
 	})
 	if err != nil {
-		recordSaveFailure(ctx)
+		// A nonterminal save may lose its grant deadline. The SDK must still be
+		// able to commit the resulting FAILED boundary at the stored version.
+		if status.Code(err) != codes.FailedPrecondition {
+			recordSaveFailure(ctx)
+		}
 		return 0, sdkError(err)
 	}
 	recordSave(ctx, update.Task, response.Version)

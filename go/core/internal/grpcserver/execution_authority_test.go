@@ -240,6 +240,20 @@ func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	require.NoError(t, json.NewDecoder(original.Body).Decode(&binding))
 	require.Equal(t, []string{"read_nodes"}, binding.Tools)
 	afterRevoke := authorityGatewayProof(t, callback.URL, gatewayToken, actorToken, userToken)
+	_, err = db.Exec(t.Context(), `UPDATE session_authority SET expires_at = $1 WHERE root_session_id = $2`, time.Now().Add(-time.Minute), root.Id)
+	require.NoError(t, err)
+	checkScope(gatewayToken, "write", http.StatusForbidden)
+	rotated := users.Token(t, jwt.MapClaims{"iss": users.URL, "aud": "kagent-api", "sub": "alice", "roles": []string{"read", "write", "admin"}, "exp": time.Now().Add(2 * time.Hour).Unix()})
+	_, err = client.GetSession(withToken(rotated), &apiv1.GetSessionRequest{SessionId: root.Id})
+	require.NoError(t, err)
+	for _, id := range []string{root.Id, child.Id} {
+		grant, err := executionClient.GetSessionAuthority(user, &apiv1.GetSessionAuthorityRequest{SessionId: id})
+		require.NoError(t, err)
+		require.False(t, grant.Revoked)
+		require.True(t, grant.Authority.ExpiresAt.AsTime().After(root.Authority.ExpiresAt.AsTime()))
+	}
+	selected = checkTarget("scope=write&server=team-a/native&credential=subject_token", http.StatusOK)
+	require.Equal(t, "Bearer "+rotated, selected.Header.Get("Authorization"))
 
 	mcpHandler, err := nativemcp.New(sessions, checkpoint.NewService(store, policy, nil, nil, authority), &struct{ a2asrv.RequestHandler }{}, nil, nil, nil)
 	require.NoError(t, err)

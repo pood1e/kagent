@@ -1,6 +1,7 @@
 package database
 
 import (
+	"bytes"
 	"sync"
 	"testing"
 	"time"
@@ -139,4 +140,70 @@ func TestNativeAuthorityRequiresMaterializedCeiling(t *testing.T) {
 	require.ErrorIs(t, err, ErrFailedPrecondition)
 	_, err = client.GetSessionByID(t.Context(), request.Id)
 	require.ErrorIs(t, err, ErrNotFound)
+}
+
+func TestRotatedBearerRenewsExpiredAncestryWithoutRevivingRevocation(t *testing.T) {
+	client := NewClient(setupTestDB(t), "public")
+	sessionFixture(t, client, t.Context(), "team-a", "revision", "assistant", "kagent")
+	root := authoritySession(t, client, nil, []string{"read"})
+	child := authoritySession(t, client, root, []string{"read"})
+	revoked := authoritySession(t, client, nil, []string{"read"})
+	require.NoError(t, client.RevokeSessionAuthority(t.Context(), revoked.Id))
+	past := time.Now().Add(-time.Minute)
+	_, err := client.db.Exec(t.Context(), `UPDATE session_authority SET expires_at = $1 WHERE initiator_id = $2`, past, root.Creator)
+	require.NoError(t, err)
+	initial, err := client.CaptureDelegationCredential(t.Context(), root.Creator, 0, bytes.Repeat([]byte{1}, 64), past)
+	require.NoError(t, err)
+	require.True(t, initial)
+	_, active, err := client.GetSessionAuthority(t.Context(), child.Id)
+	require.NoError(t, err)
+	require.False(t, active)
+	future := time.Now().Add(time.Hour)
+	saved, err := client.CaptureDelegationCredential(t.Context(), root.Creator, 1, bytes.Repeat([]byte{2}, 64), future)
+	require.NoError(t, err)
+	require.True(t, saved)
+	for _, id := range []string{root.Id, child.Id} {
+		grant, active, err := client.GetSessionAuthority(t.Context(), id)
+		require.NoError(t, err)
+		require.True(t, active)
+		require.WithinDuration(t, future, grant.ExpiresAt.AsTime(), time.Microsecond)
+	}
+	_, active, err = client.GetSessionAuthority(t.Context(), revoked.Id)
+	require.NoError(t, err)
+	require.False(t, active)
+	saved, err = client.CaptureDelegationCredential(t.Context(), root.Creator, 1, bytes.Repeat([]byte{3}, 64), future.Add(time.Hour))
+	require.NoError(t, err)
+	require.False(t, saved)
+	grant, _, err := client.GetSessionAuthority(t.Context(), root.Id)
+	require.NoError(t, err)
+	require.WithinDuration(t, future, grant.ExpiresAt.AsTime(), time.Microsecond)
+	require.NoError(t, client.SaveDelegationCredential(t.Context(), root.Creator, bytes.Repeat([]byte{4}, 64)))
+	grant, active, err = client.GetSessionAuthority(t.Context(), child.Id)
+	require.NoError(t, err)
+	require.True(t, active)
+	require.Nil(t, grant.ExpiresAt)
+}
+
+func TestExpiredAuthorityStillPersistsFailedTaskBoundary(t *testing.T) {
+	client := NewClient(setupTestDB(t), "public")
+	sessionFixture(t, client, t.Context(), "team-a", "revision", "assistant", "kagent")
+	root := authoritySession(t, client, nil, []string{"read"})
+	dispatch := uuid.New()
+	require.NoError(t, client.ReserveSessionDispatch(t.Context(), root.Id, dispatch, "input", nil))
+	task := newSessionTask(uuid.NewString(), "input")
+	task.ContextID = root.Id
+	version, err := client.CreateRuntimeTask(t.Context(), root.Id, taskMutationHash("initial"), task, dispatch.String())
+	require.NoError(t, err)
+	_, err = client.db.Exec(t.Context(), `UPDATE session_authority SET expires_at = $1 WHERE session_id = $2`, time.Now().Add(-time.Minute), root.Id)
+	require.NoError(t, err)
+	task.Status.State = a2a.TaskStateWorking
+	_, err = client.UpdateSessionTask(t.Context(), root.Id, version, taskMutationHash("working"), task, task, dispatch.String())
+	require.ErrorIs(t, err, ErrFailedPrecondition)
+	task.Status.State = a2a.TaskStateFailed
+	version, err = client.UpdateSessionTask(t.Context(), root.Id, version, taskMutationHash("failed"), task, task, dispatch.String())
+	require.NoError(t, err)
+	require.NoError(t, client.SettleSessionTask(t.Context(), root.Id, string(task.ID), version))
+	stored, err := client.GetSessionTask(t.Context(), root.Id, string(task.ID), nil)
+	require.NoError(t, err)
+	require.Equal(t, a2a.TaskStateFailed, stored.Status.State)
 }

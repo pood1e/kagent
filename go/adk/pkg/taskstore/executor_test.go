@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/a2aproject/a2a-go/v2/a2a"
+	"github.com/a2aproject/a2a-go/v2/a2apb/v1/pbconv"
 	"github.com/a2aproject/a2a-go/v2/a2asrv"
 	sdktaskstore "github.com/a2aproject/a2a-go/v2/a2asrv/taskstore"
 	"github.com/google/uuid"
@@ -159,13 +160,72 @@ func TestInvocationOwnershipWhenNativeNeverStarts(t *testing.T) {
 
 type settlementServer struct {
 	runtimev1.UnimplementedTaskStoreServiceServer
-	exporter *tracetest.InMemoryExporter
-	fail     bool
-	settled  atomic.Bool
+	exporter          *tracetest.InMemoryExporter
+	fail              bool
+	settled           atomic.Bool
+	rejectNonterminal codes.Code
+	calls             atomic.Int32
 }
 
-func (*settlementServer) UpdateTask(context.Context, *runtimev1.TaskStoreServiceUpdateTaskRequest) (*runtimev1.TaskStoreServiceUpdateTaskResponse, error) {
+func (s *settlementServer) UpdateTask(_ context.Context, input *runtimev1.TaskStoreServiceUpdateTaskRequest) (*runtimev1.TaskStoreServiceUpdateTaskResponse, error) {
+	s.calls.Add(1)
+	if s.rejectNonterminal != codes.OK {
+		task, err := pbconv.FromProtoTask(input.Task)
+		if err != nil {
+			return nil, err
+		}
+		if !task.Status.State.Terminal() {
+			return nil, status.Error(s.rejectNonterminal, "execution authority expired")
+		}
+	}
 	return &runtimev1.TaskStoreServiceUpdateTaskResponse{Version: 2}, nil
+}
+
+func TestRejectedIntermediateSaveStillAllowsFailedBoundary(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		code        codes.Code
+		wantRecover bool
+	}{
+		{name: "expired authority", code: codes.FailedPrecondition, wantRecover: true},
+		{name: "conflicting version", code: codes.Aborted},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			api := &settlementServer{rejectNonterminal: test.code}
+			listener := bufconn.Listen(1 << 20)
+			server := grpc.NewServer()
+			runtimev1.RegisterTaskStoreServiceServer(server, api)
+			go func() { _ = server.Serve(listener) }()
+			t.Cleanup(server.Stop)
+			client, err := controllerclient.New(controllerclient.Config{
+				APIURL: "http://api.test", DialOptions: []grpc.DialOption{
+					grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) { return listener.Dial() }),
+				},
+			})
+			require.NoError(t, err)
+			t.Cleanup(func() { require.NoError(t, client.Close()) })
+			name := filepath.Join(t.TempDir(), "name")
+			require.NoError(t, os.WriteFile(name, []byte("session-"+uuid.NewString()), 0o600))
+			store := New(client, name)
+			state := &execution{ready: make(chan struct{})}
+			ctx := context.WithValue(t.Context(), executionKey{}, state)
+			input := &a2asrv.ExecutorContext{TaskID: "task", ContextID: uuid.NewString()}
+			task := &a2a.Task{ID: input.TaskID, ContextID: input.ContextID, Status: a2a.TaskStatus{State: a2a.TaskStateWorking}}
+			_, err = store.Update(ctx, &sdktaskstore.UpdateRequest{Task: task, PrevVersion: 1, Event: a2a.NewStatusUpdateEvent(input, a2a.TaskStateWorking, nil)})
+			require.Error(t, err)
+			task.Status.State = a2a.TaskStateFailed
+			version, err := store.Update(ctx, &sdktaskstore.UpdateRequest{Task: task, PrevVersion: 1, Event: a2a.NewStatusUpdateEvent(input, a2a.TaskStateFailed, nil)})
+			if test.wantRecover {
+				require.NoError(t, err)
+				require.Equal(t, sdktaskstore.TaskVersion(2), version)
+				require.Equal(t, int64(2), state.boundary.Load())
+				require.Equal(t, int32(2), api.calls.Load())
+			} else {
+				require.ErrorContains(t, err, "previous task persistence failed")
+				require.Equal(t, int32(1), api.calls.Load())
+			}
+		})
+	}
 }
 
 func (s *settlementServer) SettleTask(context.Context, *runtimev1.TaskStoreServiceSettleTaskRequest) (*runtimev1.TaskStoreServiceSettleTaskResponse, error) {
