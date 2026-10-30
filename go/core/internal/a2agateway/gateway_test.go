@@ -178,6 +178,10 @@ type gatewayTestAuthorizer struct {
 }
 
 func (a *gatewayTestAuthorizer) Check(_ context.Context, principal auth.Principal, verb auth.Verb, resource auth.Resource) error {
+	// Gateway callers own their conversations; none holds an all-creators read grant.
+	if resource.Type == "SessionAllCreators" {
+		return errors.New("all-creators reads are not granted")
+	}
 	a.principal, a.verb, a.resource = principal, verb, resource
 	return a.err
 }

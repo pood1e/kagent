@@ -19,12 +19,16 @@ routing do not depend on which transport carried the request.
 `Session.id` is the public A2A `contextId`. A send with no context or task ID
 creates a conversation from that Agent. A context ID continues the corresponding
 session. A task ID alone resolves its session; if both IDs are present they must
-agree. Every operation verifies that the session belongs to the endpoint's Agent
-and that the caller owns it or holds an appropriate session share. A share cannot
-create conversations. Task-only get, cancel, and subscribe use globally unique task
-IDs. ListTasks without a context lists only authorized conversations of that Agent;
-a share restricts the list to its own conversation. Authorization precedes totals
-and pagination. Card discovery does not create a session.
+agree. Every operation verifies that the session belongs to the endpoint's Agent.
+The owner, an appropriate share holder, or an independently authenticated caller
+with `SessionAllCreators` get permission can read its history. Mutation and Session
+credential issuance retain initiator ownership.
+A share cannot create conversations. Task-only get, cancel, and subscribe use
+globally unique task IDs. ListTasks without a context remains owner-scoped;
+an administrator discovers foreign contexts with ListSessions(allCreators) and
+then reads each context. A share restricts the list to its own conversation.
+Authorization precedes totals and pagination. Card discovery does not create a
+session.
 
 The gateway resolves the transport's Agent route and owns actor communication:
 send, cancel, live subscription, connection cleanup, and response recovery. The
