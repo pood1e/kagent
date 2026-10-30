@@ -136,7 +136,7 @@ func applyWorkflow(result *Result, workflow *translator.ResolvedWorkflow) error 
 			config.Models = make(map[string]*configv1.ADKModelConfig, len(workflow.Models))
 		}
 		config.Models[name] = model.Model
-		if !slices.ContainsFunc(result.Models, func(m *translator.ResolvedModelConfig) bool { return m.Config.Name == name }) {
+		if !slices.ContainsFunc(result.Models, func(m *translator.ResolvedModelConfig) bool { return m.Config.Name == model.Resolved.Config.Name }) {
 			result.Models = append(result.Models, model.Resolved)
 		}
 		result.Environment = append(result.Environment, model.Environment...)

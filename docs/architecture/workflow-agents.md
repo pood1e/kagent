@@ -335,13 +335,16 @@ The kagent Go runtime has no Go registry; it builds a document from the
 revision alone, and the controller validates the document against the names
 that runtime registers:
 
-- `model` names a same-namespace ModelConfig. The controller resolves every
-  model the document names and delivers it in `agent.workflow.models`; its
-  credentials, egress and provenance join the revision, and the gateway admits
-  it for the Session like the agent model.
+- `model` names a same-namespace ModelConfig, or `template:model` for the
+  template's own. The controller resolves every model the document names and
+  delivers it in `agent.workflow.models`; its credentials, egress and
+  provenance join the revision, and the gateway admits it for the Session like
+  the agent model.
 - An MCP server is a RemoteMCPServer bound in the template's `tools`. LLM
   `tools` and `tool` nodes name it by the RemoteMCPServer name; the bindings of
   one server form one toolset with their tool selections and credentials.
+  `template:tools` offers every bound server as one toolset, so a document
+  stays valid when a platform binds servers under deployment-specific names.
   `mcp_servers` is for BYO images.
 - Function, dynamic and registered-tool nodes and Hook functions need Go code
   and are rejected. So are `hitl` nodes and bindings that require approval,

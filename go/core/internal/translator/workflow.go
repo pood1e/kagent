@@ -11,6 +11,7 @@ import (
 	"google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/tool"
 
+	runtimeconfig "github.com/kagent-dev/kagent/go/adk/pkg/config"
 	"github.com/kagent-dev/kagent/go/adk/pkg/declarative"
 	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 )
@@ -31,7 +32,8 @@ type ResolvedWorkflow struct {
 	// Spec is the validated document with its prompt sources inlined.
 	Spec *declarative.Spec
 	// Models are the ModelConfigs a document for the kagent runtime names,
-	// keyed by name. A BYO image resolves model names itself.
+	// keyed by the name the document uses. A BYO image resolves model names
+	// itself.
 	Models map[string]*ResolvedModelConfig
 }
 
@@ -94,9 +96,10 @@ func (c *Compiler) resolveWorkflow(_ context.Context, template *TemplateConfigur
 // resolveKagentWorkflow checks that the kagent Go runtime can build the
 // document from the revision alone and resolves the ModelConfigs it names.
 // That runtime has no Go registry: a document names models by ModelConfig and
-// MCP servers by the RemoteMCPServer of a template binding. The runtime cannot
-// pause a workflow, so hitl nodes and bindings that require approval are
-// refused.
+// MCP servers by the RemoteMCPServer of a template binding, or uses the
+// template's own model and tools under their reserved names. The runtime
+// cannot pause a workflow, so hitl nodes and bindings that require approval
+// are refused.
 func (c *Compiler) resolveKagentWorkflow(workflow *ResolvedWorkflow, root *AgentInput, outputSchema *ResolvedOutputSchema) error {
 	template := root.Template
 	switch {
@@ -115,6 +118,9 @@ func (c *Compiler) resolveKagentWorkflow(workflow *ResolvedWorkflow, root *Agent
 		}
 	}
 	vocabulary := declarative.NewRegistry()
+	if err := vocabulary.RegisterToolset(boundServer(runtimeconfig.WorkflowTemplateTools)); err != nil {
+		return NewValidationError("invalid workflow: %v", err)
+	}
 	bound := map[string]bool{}
 	for _, binding := range root.MCPTools {
 		name := binding.Server.Name
@@ -131,9 +137,14 @@ func (c *Compiler) resolveKagentWorkflow(workflow *ResolvedWorkflow, root *Agent
 	}
 	models := make(map[string]*ResolvedModelConfig)
 	for _, name := range workflow.Spec.Models() {
-		resolved, err := c.resolveModelConfig(template.Namespace, name)
-		if err != nil {
-			return err
+		resolved := root.ResolvedModelConfig
+		if name != runtimeconfig.WorkflowTemplateModel {
+			var err error
+			if resolved, err = c.resolveModelConfig(template.Namespace, name); err != nil {
+				return err
+			}
+		} else if resolved == nil {
+			return NewValidationError("invalid workflow: model %q requires the AgentTemplate's modelConfig", name)
 		}
 		if err := vocabulary.RegisterModel(name, declarative.NewStubModel(name)); err != nil {
 			return NewValidationError("invalid workflow: %v", err)
