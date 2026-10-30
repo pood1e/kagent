@@ -130,7 +130,7 @@ func TestIsolatedSubAgentRunsAsAToolInASessionOfItsOwn(t *testing.T) {
 	models := &scriptedModels{parentCalls: []string{"task one", "task two", "task three"}}
 	server := models.serve(t)
 
-	root, err := CreateGoogleADKAgent(t.Context(), isolationConfig(server.URL, configv1.ADKAgentIsolation_ADK_AGENT_ISOLATION_SESSION), "parent", nil)
+	root, err := CreateGoogleADKAgent(t.Context(), isolationConfig(server.URL, configv1.ADKAgentIsolation_ADK_AGENT_ISOLATION_SESSION), "parent", nil, nil)
 	require.NoError(t, err)
 	require.Empty(t, root.SubAgents(), "an isolated subagent is a tool, not a transfer target")
 
@@ -161,7 +161,7 @@ func TestSharedSubAgentStaysATransferTarget(t *testing.T) {
 		configv1.ADKAgentIsolation_ADK_AGENT_ISOLATION_SHARED,
 	} {
 		t.Run(isolation.String(), func(t *testing.T) {
-			root, err := CreateGoogleADKAgent(t.Context(), isolationConfig(server.URL, isolation), "parent", nil)
+			root, err := CreateGoogleADKAgent(t.Context(), isolationConfig(server.URL, isolation), "parent", nil, nil)
 			require.NoError(t, err)
 			require.Len(t, root.SubAgents(), 1)
 			require.Equal(t, "reviewer", root.SubAgents()[0].Name())
@@ -203,7 +203,7 @@ func TestIsolationIsRejectedWhereItCannotWork(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config := isolationConfig(url, configv1.ADKAgentIsolation_ADK_AGENT_ISOLATION_SESSION)
 			tt.mutate(config)
-			_, err := CreateGoogleADKAgent(t.Context(), config, "parent", nil)
+			_, err := CreateGoogleADKAgent(t.Context(), config, "parent", nil, nil)
 			require.ErrorContains(t, err, tt.want)
 		})
 	}
@@ -212,6 +212,6 @@ func TestIsolationIsRejectedWhereItCannotWork(t *testing.T) {
 func TestUndefinedIsolationValueIsInvalid(t *testing.T) {
 	t.Setenv("OPENAI_API_KEY", "test-key")
 	config := isolationConfig("http://127.0.0.1:1", configv1.ADKAgentIsolation(99))
-	_, err := CreateGoogleADKAgent(t.Context(), config, "parent", nil)
+	_, err := CreateGoogleADKAgent(t.Context(), config, "parent", nil, nil)
 	require.Error(t, err, "protovalidate rejects a value the enum does not define")
 }

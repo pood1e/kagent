@@ -16,6 +16,7 @@ import (
 	runtimeconfig "github.com/kagent-dev/kagent/go/adk/pkg/config"
 	"github.com/kagent-dev/kagent/go/adk/pkg/controllerclient"
 	kagentmemory "github.com/kagent-dev/kagent/go/adk/pkg/memory"
+	"github.com/kagent-dev/kagent/go/adk/pkg/nativeagent"
 	"github.com/kagent-dev/kagent/go/adk/pkg/sts"
 	configv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/config/v1"
 	"github.com/kagent-dev/kagent/go/pkg/logging"
@@ -28,8 +29,7 @@ func agentNameFromAppName(appName string) string {
 	return appName
 }
 
-// CreateRunnerConfig builds a runner.Config and subagent session IDs for A2A
-// stamping (from remote agent wiring in the agent builder).
+// CreateRunnerConfig wires native runtime services into the ADK runner.
 func CreateRunnerConfig(
 	ctx context.Context,
 	config *configv1.ADKConfig,
@@ -54,7 +54,7 @@ func CreateRunnerConfig(
 		return runner.Config{}, err
 	}
 
-	adkAgent, err := agent.CreateGoogleADKAgent(ctx, config, agentNameFromAppName(appName), stsPlugin, extraTools...)
+	adkAgent, err := agent.CreateGoogleADKAgent(ctx, config, agentNameFromAppName(appName), stsPlugin, nativeagent.NewRunner(controllerClient), extraTools...)
 	if err != nil {
 		return runner.Config{}, fmt.Errorf("failed to create agent: %w", err)
 	}

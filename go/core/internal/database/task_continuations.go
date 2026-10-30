@@ -6,6 +6,8 @@ import (
 	"github.com/a2aproject/a2a-go/v2/a2a"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+
+	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 )
 
 const taskContinuationMaxAttempts = 8
@@ -226,16 +228,33 @@ func (c *Client) CompleteTaskContinuation(ctx context.Context, value TaskContinu
 
 // LatestContinuationTask follows only the delegated task's native resumes.
 func (c *Client) LatestContinuationTask(ctx context.Context, sessionID, taskID string) (*a2a.Task, error) {
-	id, err := queryOne(ctx, c.db, `
+	latest, _, err := c.GetTaskContinuationState(ctx, sessionID, taskID)
+	if err != nil {
+		return nil, err
+	}
+	return c.GetSessionTask(ctx, sessionID, latest.TaskId, nil)
+}
+
+// GetTaskContinuationState atomically observes the latest native resume and its
+// pending dependencies. Callers authorize the anchor task's owning Session.
+func (c *Client) GetTaskContinuationState(ctx context.Context, sessionID, taskID string) (*apiv1.TaskReference, bool, error) {
+	type state struct {
+		TaskID  string
+		Pending bool
+	}
+	current, err := queryOne(ctx, c.db, `
    WITH RECURSIVE chain(id) AS (
      SELECT $2::text UNION
      SELECT d.resume_task_id FROM task_continuation d JOIN chain previous ON d.parent_task_id = previous.id
        WHERE d.parent_session_id = $1 AND d.delivered AND d.resume_task_id IS NOT NULL
-   ) SELECT t.id FROM session_task t JOIN session_record s ON s.history_id = t.history_id
+   ) SELECT t.id AS task_id, EXISTS (
+     SELECT 1 FROM task_continuation d WHERE d.parent_session_id = $1
+       AND d.parent_task_id IN (SELECT id FROM chain) AND NOT d.delivered AND NOT d.abandoned
+   ) AS pending FROM session_task t JOIN session_record s ON s.history_id = t.history_id
    WHERE s.id = $1 AND t.id IN (SELECT id FROM chain) ORDER BY t.position DESC LIMIT 1
- `, pgx.RowTo[string], sessionID, taskID)
+ `, pgx.RowToStructByName[state], sessionID, taskID)
 	if err != nil {
-		return nil, notFoundOr(err)
+		return nil, false, notFoundOr(err)
 	}
-	return c.GetSessionTask(ctx, sessionID, id, nil)
+	return &apiv1.TaskReference{SessionId: sessionID, TaskId: current.TaskID}, current.Pending, nil
 }

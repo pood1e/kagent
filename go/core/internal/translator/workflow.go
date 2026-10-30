@@ -9,10 +9,12 @@ import (
 	"fmt"
 
 	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/session"
 	"google.golang.org/adk/v2/tool"
 
 	runtimeconfig "github.com/kagent-dev/kagent/go/adk/pkg/config"
 	"github.com/kagent-dev/kagent/go/adk/pkg/declarative"
+	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 )
 
@@ -82,11 +84,20 @@ func (c *Compiler) resolveWorkflow(_ context.Context, template *TemplateConfigur
 		prompts = append(prompts, prompt)
 		return string(text), nil, nil
 	}
-	spec, canonical, err := validateWorkflow(raw, resolve)
+	spec, _, err := validateWorkflow(raw, resolve)
 	if err != nil {
 		if _, ok := errors.AsType[*promptReferenceError](err); ok {
 			return nil, fmt.Errorf("workflow: %w", err)
 		}
+		return nil, NewValidationError("invalid workflow: %v", err)
+	}
+	for _, node := range spec.Nodes() {
+		if node.AgentRef != nil && node.AgentRef.Namespace == "" {
+			node.AgentRef.Namespace = template.Namespace
+		}
+	}
+	canonical, err := canonicalWorkflow(spec)
+	if err != nil {
 		return nil, NewValidationError("invalid workflow: %v", err)
 	}
 	digest := sha256.Sum256(canonical)
@@ -118,6 +129,9 @@ func (c *Compiler) resolveKagentWorkflow(workflow *ResolvedWorkflow, root *Agent
 		}
 	}
 	vocabulary := declarative.NewRegistry()
+	vocabulary.SetNativeAgentRunner(func(agent.Context, *apiv1.ResourceReference, any, func(*session.Event) error) (any, error) {
+		return nil, fmt.Errorf("compile-only native Agent runner")
+	})
 	if err := vocabulary.RegisterToolset(boundServer(runtimeconfig.WorkflowTemplateTools)); err != nil {
 		return NewValidationError("invalid workflow: %v", err)
 	}
@@ -197,12 +211,17 @@ func validateWorkflow(raw []byte, resolve declarative.PromptResolver) (*declarat
 	if err := declarative.ResolvePrompts(spec, resolve); err != nil {
 		return nil, nil, err
 	}
+	canonical, err := canonicalWorkflow(spec)
+	return spec, canonical, err
+}
+
+func canonicalWorkflow(spec *declarative.Spec) ([]byte, error) {
 	canonical, err := json.Marshal(spec)
 	if err != nil {
-		return nil, nil, fmt.Errorf("canonicalize document: %w", err)
+		return nil, fmt.Errorf("canonicalize document: %w", err)
 	}
 	if len(canonical) > maxWorkflowBytes {
-		return nil, nil, fmt.Errorf("canonical document exceeds %d bytes", maxWorkflowBytes)
+		return nil, fmt.Errorf("canonical document exceeds %d bytes", maxWorkflowBytes)
 	}
-	return spec, canonical, nil
+	return canonical, nil
 }

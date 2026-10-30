@@ -13,11 +13,7 @@ type executionServer struct {
 }
 
 func (s *executionServer) GetTaskExecution(ctx context.Context, request *apiv1.GetTaskExecutionRequest) (*apiv1.GetTaskExecutionResponse, error) {
-	result, err := s.service.Get(ctx, request.TaskId)
-	if err != nil {
-		return nil, err
-	}
-	return &apiv1.GetTaskExecutionResponse{Execution: result}, nil
+	return s.service.Inspect(ctx, request.TaskId)
 }
 func (s *executionServer) ListTaskExecutions(ctx context.Context, request *apiv1.ListTaskExecutionsRequest) (*apiv1.ListTaskExecutionsResponse, error) {
 	return s.service.List(ctx, request)

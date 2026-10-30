@@ -29,26 +29,50 @@ func (c *Client) RequestTaskCancellation(ctx context.Context, sessionID, taskID 
 		if err := lockExecutionRoot(ctx, tx, root); err != nil {
 			return err
 		}
-		if err := execSQL(ctx, tx, `
+		return queueTaskCancellations(ctx, tx, []string{taskID})
+	})
+}
+
+// queueTaskCancellations fences complete subtrees and abandons their resumptions.
+// Callers hold the execution-root lock and commit it with the owning transition.
+func queueTaskCancellations(ctx context.Context, tx pgx.Tx, roots []string) error {
+	if err := execSQL(ctx, tx, `
  WITH RECURSIVE descendants AS (
-   SELECT task_id FROM task_execution WHERE task_id = $1
+   SELECT task_id FROM task_execution WHERE task_id = ANY($1::text[])
    UNION ALL SELECT e.task_id FROM task_execution e JOIN descendants d ON e.parent_task_id = d.task_id
  ) INSERT INTO task_cancellation (task_id, completed)
  SELECT d.task_id, t.state IN ('TASK_STATE_COMPLETED','TASK_STATE_FAILED','TASK_STATE_REJECTED','TASK_STATE_CANCELED')
  FROM descendants d JOIN session_task t ON t.id = d.task_id ON CONFLICT (task_id) DO NOTHING
- `, taskID); err != nil {
-			return err
-		}
-		return execSQL(ctx, tx, `
+ `, roots); err != nil {
+		return err
+	}
+	return execSQL(ctx, tx, `
  WITH RECURSIVE descendants AS (
-   SELECT task_id FROM task_execution WHERE task_id = $1
+   SELECT task_id FROM task_execution WHERE task_id = ANY($1::text[])
    UNION ALL SELECT e.task_id FROM task_execution e JOIN descendants d ON e.parent_task_id = d.task_id
  ) UPDATE task_continuation SET abandoned = TRUE, claim_token = NULL, lease_until = NULL
  WHERE NOT delivered AND NOT abandoned AND (
    parent_task_id IN (SELECT task_id FROM descendants)
    OR child_task_id IN (SELECT task_id FROM descendants))
- `, taskID)
-	})
+ `, roots)
+}
+
+// cancelUnfinishedDelegations releases foreground work when its owner settles.
+// Completed synchronous MCP calls retain their registered native continuation.
+// A failed owner abandons those dependencies along with the unfinished subtree.
+func cancelUnfinishedDelegations(ctx context.Context, tx pgx.Tx, parentID, state string) error {
+	roots, err := queryMany(ctx, tx, `
+ SELECT e.task_id FROM task_execution e JOIN session_task t ON t.id = e.task_id
+ WHERE e.parent_task_id = $1 AND e.relation = 'TASK_RELATION_DELEGATION' AND NOT e.background
+   AND ($2 <> 'TASK_STATE_COMPLETED' OR t.state NOT IN ('TASK_STATE_COMPLETED','TASK_STATE_FAILED','TASK_STATE_REJECTED','TASK_STATE_CANCELED'))
+   AND ($2 <> 'TASK_STATE_COMPLETED' OR NOT EXISTS (
+     SELECT 1 FROM task_continuation d WHERE d.parent_task_id = $1 AND d.child_task_id = e.task_id
+       AND NOT d.delivered AND NOT d.abandoned))
+ `, pgx.RowTo[string], parentID, state)
+	if err != nil || len(roots) == 0 {
+		return err
+	}
+	return queueTaskCancellations(ctx, tx, roots)
 }
 
 // ClaimTaskCancellations claims bounded cleanup work without retaining a

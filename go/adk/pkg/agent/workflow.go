@@ -21,9 +21,10 @@ import (
 // the controller resolved, and its MCP servers are the template's
 // RemoteMCPServer bindings, registered under the server name and together as
 // the template's tools.
-func createWorkflowAgent(ctx context.Context, agentConfig *configv1.ADKAgentConfig, stsPlugin *sts.TokenPropagationPlugin, runtime *configv1.ADKRuntimeConfig) (agent.Agent, error) {
+func createWorkflowAgent(ctx context.Context, agentConfig *configv1.ADKAgentConfig, stsPlugin *sts.TokenPropagationPlugin, runtime *configv1.ADKRuntimeConfig, nativeRunner declarative.NativeAgentRunner) (agent.Agent, error) {
 	workflow := agentConfig.GetWorkflow()
 	reg := declarative.NewRegistry()
+	reg.SetNativeAgentRunner(nativeRunner)
 	models := workflow.GetModels()
 	for _, name := range slices.Sorted(maps.Keys(models)) {
 		llm, err := CreateLLM(ctx, models[name])

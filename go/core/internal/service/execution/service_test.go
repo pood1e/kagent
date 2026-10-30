@@ -18,6 +18,9 @@ type executionFixture struct{ executions []*apiv1.TaskExecution }
 func (f *executionFixture) GetTaskExecution(_ context.Context, _ string) (*apiv1.TaskExecution, error) {
 	return f.executions[0], nil
 }
+func (*executionFixture) GetTaskContinuationState(_ context.Context, sessionID, taskID string) (*apiv1.TaskReference, bool, error) {
+	return &apiv1.TaskReference{SessionId: sessionID, TaskId: taskID}, false, nil
+}
 func (f *executionFixture) ListTaskExecutions(_ context.Context, _ string, after string, limit int) ([]*apiv1.TaskExecution, error) {
 	items := slices.DeleteFunc(slices.Clone(f.executions), func(item *apiv1.TaskExecution) bool { return item.Task.TaskId <= after })
 	return items[:min(len(items), limit)], nil
@@ -61,4 +64,20 @@ func (*executionFixture) RevokeExecutionAuthority(context.Context, string) error
 
 func (*executionFixture) GetRuntimeRevision(context.Context, string) (*database.RuntimeRevision, error) {
 	return &database.RuntimeRevision{}, nil
+}
+
+func TestExecutionInspectionAuthorizesTheAnchorSession(t *testing.T) {
+	for _, id := range []string{"allowed", "denied"} {
+		t.Run(id, func(t *testing.T) {
+			fixture := &executionFixture{executions: []*apiv1.TaskExecution{{Task: &apiv1.TaskReference{SessionId: id, TaskId: "anchor"}}}}
+			result, err := NewService(fixture, fixture, nil).Inspect(t.Context(), "anchor")
+			if id == "denied" {
+				require.Equal(t, serviceerrors.CodePermissionDenied, serviceerrors.CodeOf(err))
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, result.Execution.Task, result.LatestTask)
+			require.False(t, result.ContinuationPending)
+		})
+	}
 }

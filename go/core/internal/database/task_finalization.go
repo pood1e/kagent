@@ -16,6 +16,9 @@ import (
 // runtime authority; a missing or deleted session returns ErrNotFound.
 func (c *Client) SettleSessionTask(ctx context.Context, sessionID, taskID string, version int64) error {
 	return c.withTx(ctx, func(tx pgx.Tx) error {
+		if err := runtimeExecutionLock(ctx, tx, taskID, ""); err != nil {
+			return err
+		}
 		session, err := lockSession(ctx, tx, sessionID)
 		if err != nil {
 			return notFoundOr(err)
@@ -69,6 +72,11 @@ func (c *Client) SettleSessionTask(ctx context.Context, sessionID, taskID string
 		}
 		if err := bindTaskContinuations(ctx, tx, sessionID, session.HistoryID, taskID, task.Status.State); err != nil {
 			return err
+		}
+		if task.Status.State.Terminal() {
+			if err := cancelUnfinishedDelegations(ctx, tx, taskID, string(task.Status.State)); err != nil {
+				return err
+			}
 		}
 		return publishPushBoundary(ctx, tx, session.HistoryID, taskID, version, task)
 	})

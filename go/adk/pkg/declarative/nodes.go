@@ -41,6 +41,9 @@ func (b *builder) node(bc *BuildContext, sc *scope, n *NodeSpec, render bool) (w
 		}
 		return b.toolNode(n.ID, n.Tool, cfg)
 	case NodeAgent:
+		if n.AgentRef != nil {
+			return b.nativeAgentNode(n.ID, n, in, out, cfg, render)
+		}
 		return b.agentNode(n.Agent, in, cfg)
 	case NodeLLM:
 		return b.llmNode(n, in, cfg)
@@ -205,6 +208,12 @@ func (b *builder) parallelWorker(n *NodeSpec, cfg workflow.NodeConfig) (workflow
 		}
 	case n.Tool != "":
 		wrapped, err = b.toolNode(n.ID+"_item", n.Tool, workflow.NodeConfig{})
+	case n.AgentRef != nil:
+		var in, out *jsonschema.Schema
+		in, out, err = nodeSchemas(n)
+		if err == nil {
+			wrapped, err = b.nativeAgentNode(n.ID+"_item", n, in, out, workflow.NodeConfig{}, false)
+		}
 	default:
 		wrapped, err = b.agentNode(n.Agent, nil, workflow.NodeConfig{})
 	}
