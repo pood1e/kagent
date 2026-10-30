@@ -138,8 +138,9 @@ session. Explicit client deletion still retains its tombstone and request ID.
 
 A2A continuation using a missing or expired context ID returns `TaskNotFound`
 (JSON-RPC `-32001`, gRPC `NOT_FOUND`), matching continuation using an old task ID.
-Ownership-filtered lookup gives the same response for another user's Session;
-the response does not distinguish expiry from absence or hidden ownership.
+Without `SessionAllCreators` get permission, ownership-filtered lookup gives
+the same response for another user's Session. The response does not distinguish
+expiry from absence or hidden ownership.
 Authorization-check failures still return permission denied. Clients can start a
 new conversation after `TaskNotFound` by sending without a context or task ID.
 Service-level not-found errors use this same A2A mapping, including missing Agents.

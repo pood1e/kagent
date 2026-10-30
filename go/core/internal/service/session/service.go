@@ -178,6 +178,14 @@ func (s *Service) getAuthorized(ctx context.Context, id string, verb auth.Verb) 
 		session, err = s.store.GetSessionByID(ctx, id)
 	} else {
 		session, err = s.store.GetSession(ctx, id, creator)
+		if errors.Is(err, database.ErrNotFound) && verb == auth.VerbGet && !shared {
+			principal := authSession.Principal()
+			// An all-creators read grant cannot expand a bound runtime or Session credential.
+			if principal.ID != "" && principal.Execution == nil && principal.RuntimeBinding == nil &&
+				s.authorizer.Check(ctx, principal, auth.VerbGet, auth.Resource{Type: "SessionAllCreators"}) == nil {
+				session, err = s.store.GetSessionByID(ctx, id)
+			}
+		}
 	}
 	if errors.Is(err, database.ErrNotFound) {
 		return nil, serviceerrors.NewNotFound("Session not found", err)
