@@ -65,15 +65,14 @@ func NewRunner(controller *controllerclient.Client) func(agent.Context, *apiv1.R
 		// Foreground sends let the native gateway bind this node to its working
 		// parent. ReturnImmediately would instead create a background execution.
 		streamCtx := controller.StreamContext(ctx, "")
-		var taskID a2a.TaskID
+		var taskID, anchorID a2a.TaskID
 		defer func() {
-			if taskID == "" || ctx.Err() == nil {
+			if anchorID == "" || ctx.Err() == nil {
 				return
 			}
 			select {
 			case <-origin.done:
-				// Runtime replacement preserves accepted work. Explicit parent
-				// cancellation is independently durable in the control plane.
+				// The native parent boundary owns durable cleanup after context loss.
 				return
 			default:
 			}
@@ -81,56 +80,79 @@ func NewRunner(controller *controllerclient.Client) func(agent.Context, *apiv1.R
 			defer stop()
 			// A terminal parent also queues durable foreground cleanup; this
 			// bounded attempt shortens node-timeout and parallel fail-fast latency.
-			if _, cancelErr := client.CancelTask(cleanup, &a2a.CancelTaskRequest{ID: taskID}); cancelErr != nil {
+			if _, cancelErr := client.CancelTask(cleanup, &a2a.CancelTaskRequest{ID: anchorID}); cancelErr != nil {
 				err = errors.Join(err, fmt.Errorf("cancel native Agent task: %w", cancelErr))
 			}
 		}()
 		progress := observer{ctx: ctx, ref: ref, emit: emit}
 		events := client.SendStreamingMessage(streamCtx, request)
+	observe:
 		for {
 			for event, err := range events {
 				if err != nil {
 					return nil, fmt.Errorf("observe native Agent: %w", err)
 				}
-				switch value := event.(type) {
-				case *a2a.Task:
-					taskID = value.ID
-				case *a2a.TaskStatusUpdateEvent:
-					taskID = value.TaskID
-				case *a2a.TaskArtifactUpdateEvent:
-					taskID = value.TaskID
+				if event == nil {
+					continue
+				}
+				if info := event.TaskInfo(); info.TaskID != "" {
+					taskID = info.TaskID
+					if anchorID == "" {
+						anchorID = taskID
+					}
 				}
 				if err := progress.observe(taskID, event); err != nil {
 					return nil, err
 				}
 			}
-			if taskID == "" {
+			if anchorID == "" {
 				return nil, fmt.Errorf("native Agent stream ended without an accepted task")
 			}
-			task, err := getTask(ctx, controller, client, taskID)
-			if err != nil {
-				return nil, err
-			}
-			for task.Status.State == a2a.TaskStateInputRequired || task.Status.State == a2a.TaskStateAuthRequired {
-				// Approvals belong to the child task. Observe its native resume
-				// rather than duplicating its interaction on the orchestration task.
-				if err := wait(ctx); err != nil {
-					return nil, err
-				}
-				task, err = getTask(ctx, controller, client, taskID)
+			for {
+				state, err := getExecution(ctx, controller, anchorID)
 				if err != nil {
 					return nil, err
 				}
+				if state.GetLatestTask().GetSessionId() != created.Session.Id || state.GetLatestTask().GetTaskId() == "" {
+					return nil, fmt.Errorf("native continuation reference does not belong to the child Session")
+				}
+				taskID = a2a.TaskID(state.LatestTask.TaskId)
+				task, err := getTask(ctx, controller, client, taskID)
+				if err != nil {
+					return nil, err
+				}
+				if task.ContextID != created.Session.Id {
+					return nil, fmt.Errorf("native task does not belong to the child Session")
+				}
+				if err := progress.observe(taskID, task); err != nil {
+					return nil, err
+				}
+				switch task.Status.State {
+				case a2a.TaskStateCompleted:
+					if !state.ContinuationPending {
+						return taskOutput(task)
+					}
+				case a2a.TaskStateFailed, a2a.TaskStateCanceled, a2a.TaskStateRejected:
+					return nil, fmt.Errorf("task %s ended %s", task.ID, task.Status.State)
+				case a2a.TaskStateInputRequired, a2a.TaskStateAuthRequired:
+				default:
+					events = client.SubscribeToTask(controller.StreamContext(ctx, ""), &a2a.SubscribeToTaskRequest{ID: taskID})
+					continue observe
+				}
+				// Native dependencies can resume the Agent in a new task. The
+				// accepted anchor remains the retry and cancellation identity.
+				if err := wait(ctx); err != nil {
+					return nil, err
+				}
 			}
-			switch task.Status.State {
-			case a2a.TaskStateCompleted:
-				return taskOutput(task)
-			case a2a.TaskStateFailed, a2a.TaskStateCanceled, a2a.TaskStateRejected:
-				return nil, fmt.Errorf("task %s ended %s", task.ID, task.Status.State)
-			}
-			events = client.SubscribeToTask(controller.StreamContext(ctx, ""), &a2a.SubscribeToTaskRequest{ID: taskID})
 		}
 	}
+}
+
+func getExecution(ctx context.Context, controller *controllerclient.Client, anchor a2a.TaskID) (*apiv1.GetTaskExecutionResponse, error) {
+	ctx, cancel := controller.CallContext(ctx, "")
+	defer cancel()
+	return controller.ExecutionService().GetTaskExecution(ctx, &apiv1.GetTaskExecutionRequest{TaskId: string(anchor)})
 }
 
 func invocationKey(parent *apiv1.TaskReference, path, branch string, ref *apiv1.ResourceReference, input []byte) string {
@@ -160,6 +182,7 @@ type observer struct {
 	ref   *apiv1.ResourceReference
 	emit  func(*session.Event) error
 	state a2a.TaskState
+	task  a2a.TaskID
 	last  time.Time
 }
 
@@ -171,10 +194,11 @@ func (o *observer) observe(id a2a.TaskID, event a2a.Event) error {
 	case *a2a.TaskStatusUpdateEvent:
 		state = value.Status.State
 	}
-	if id == "" || (state == o.state && time.Since(o.last) < 5*time.Second) {
+	if id == "" || (id == o.task && state == o.state && time.Since(o.last) < 5*time.Second) {
 		return nil
 	}
 	o.state, o.last = state, time.Now()
+	o.task = id
 	progress := session.NewEvent(o.ctx, o.ctx.InvocationID())
 	progress.Content = genai.NewContentFromText(fmt.Sprintf("%s %s · Agent %s/%s · %s · %s", o.ctx.Path(), o.ctx.Branch(), o.ref.Namespace, o.ref.Name, id, state), genai.RoleModel)
 	return o.emit(progress)

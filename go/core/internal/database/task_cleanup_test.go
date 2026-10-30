@@ -82,3 +82,19 @@ func TestTerminalTaskFencesReservedForegroundAdmission(t *testing.T) {
 		}
 	}
 }
+
+func TestCompletedOwnerPreservesBackgroundWorkOfFinishedDelegates(t *testing.T) {
+	client := NewClient(setupTestDB(t), "public")
+	sessionFixture(t, client, t.Context(), "team-a", "revision", "assistant", "kagent")
+	parent := continuationSession(t, client)
+	child := continuationSession(t, client, parent)
+	background := continuationSession(t, client, child)
+	root := continuationTask(t, client, parent, "root")
+	callee := continuationTask(t, client, child, "foreground", &DispatchOrigin{SessionID: parent.Id})
+	continuationTask(t, client, background, "background", &DispatchOrigin{SessionID: child.Id, Background: true})
+	settleContinuation(t, client, callee, a2a.TaskStateCompleted)
+	settleContinuation(t, client, root, a2a.TaskStateCompleted)
+	claims, err := client.ClaimTaskCancellations(t.Context(), 10)
+	require.NoError(t, err)
+	require.Empty(t, claims)
+}

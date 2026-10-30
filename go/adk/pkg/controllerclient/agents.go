@@ -18,6 +18,11 @@ func (client *Client) SessionService() apiv1.SessionServiceClient {
 	return apiv1.NewSessionServiceClient(client.connection)
 }
 
+// ExecutionService observes control-plane-owned native continuation progress.
+func (client *Client) ExecutionService() apiv1.ExecutionServiceClient {
+	return apiv1.NewExecutionServiceClient(client.connection)
+}
+
 // AgentClient routes native A2A calls through the controller's session gateway.
 // Its transport borrows the controller connection and never closes it.
 func (client *Client) AgentClient(ctx context.Context, ref *apiv1.ResourceReference) (*a2aclient.Client, error) {

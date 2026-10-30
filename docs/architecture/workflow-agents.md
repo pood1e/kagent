@@ -108,11 +108,13 @@ nodes accept input/output schemas; on `parallel_worker` they apply to each item.
 Stable Session request and A2A message IDs include parent Task, node path, item
 branch, target and input. Transport retries and replay of the same parent Task
 observe the accepted child, including a failed terminal result. Native approvals
-resume that child while the orchestrator keeps observing. Node timeout and
+resume that child while the orchestrator keeps observing. `GetTaskExecution`
+provides the latest task reference and pending native dependencies, so nodes also
+follow native continuation tasks after nested delegation. Node timeout and
 parallel fail-fast cancel accepted children. Terminal settlement durably cancels
 unfinished foreground subtrees, preserving background siblings and successful
-native MCP continuation dependencies. Runtime shutdown preserves accepted work
-for subsequent observation or replay.
+native MCP continuation dependencies. On parent context loss, the adapter leaves
+cleanup to the native parent boundary; replay retains the accepted child identity.
 
 ### CEL
 

@@ -64,7 +64,7 @@ func cancelUnfinishedDelegations(ctx context.Context, tx pgx.Tx, parentID, state
 	roots, err := queryMany(ctx, tx, `
  SELECT e.task_id FROM task_execution e JOIN session_task t ON t.id = e.task_id
  WHERE e.parent_task_id = $1 AND e.relation = 'TASK_RELATION_DELEGATION' AND NOT e.background
-   AND t.state NOT IN ('TASK_STATE_COMPLETED','TASK_STATE_FAILED','TASK_STATE_REJECTED','TASK_STATE_CANCELED')
+   AND ($2 <> 'TASK_STATE_COMPLETED' OR t.state NOT IN ('TASK_STATE_COMPLETED','TASK_STATE_FAILED','TASK_STATE_REJECTED','TASK_STATE_CANCELED'))
    AND ($2 <> 'TASK_STATE_COMPLETED' OR NOT EXISTS (
      SELECT 1 FROM task_continuation d WHERE d.parent_task_id = $1 AND d.child_task_id = e.task_id
        AND NOT d.delivered AND NOT d.abandoned))

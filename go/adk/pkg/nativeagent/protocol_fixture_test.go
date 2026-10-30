@@ -32,6 +32,7 @@ import (
 
 type nativeServer struct {
 	apiv1.UnimplementedSessionServiceServer
+	apiv1.UnimplementedExecutionServiceServer
 	a2apb.UnimplementedA2AServiceServer
 	mu                       sync.Mutex
 	sessions                 map[string]*apiv1.Session
@@ -54,6 +55,7 @@ func startNativeServer(t *testing.T, mode string) (*nativeServer, *controllercli
 	listener := bufconn.Listen(1 << 20)
 	grpcServer := grpc.NewServer()
 	apiv1.RegisterSessionServiceServer(grpcServer, server)
+	apiv1.RegisterExecutionServiceServer(grpcServer, server)
 	a2apb.RegisterA2AServiceServer(grpcServer, server)
 	served := make(chan error, 1)
 	go func() { served <- grpcServer.Serve(listener) }()
@@ -119,6 +121,9 @@ func (s *nativeServer) SendStreamingMessage(request *a2apb.SendMessageRequest, s
 	if s.mode == "failed" {
 		task.Status.State = a2a.TaskStateFailed
 	}
+	if s.mode == "continuation" {
+		task.Status.State = a2a.TaskStateCompleted
+	}
 	if s.mode == "" || (s.mode == "drop" && attempt > 1) || (s.mode == "hang" && released(s.release)) {
 		task.Status.State = a2a.TaskStateCompleted
 	}
@@ -139,6 +144,36 @@ func (s *nativeServer) SendStreamingMessage(request *a2apb.SendMessageRequest, s
 		return stream.Context().Err()
 	}
 	return nil
+}
+
+func (s *nativeServer) GetTaskExecution(ctx context.Context, request *apiv1.GetTaskExecutionRequest) (*apiv1.GetTaskExecutionResponse, error) {
+	if err := checkIdentity(ctx); err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, task := range s.tasks {
+		if string(task.ID) != request.TaskId {
+			continue
+		}
+		anchor := &apiv1.TaskReference{SessionId: task.ContextID, TaskId: string(task.ID)}
+		result := &apiv1.GetTaskExecutionResponse{Execution: &apiv1.TaskExecution{Task: anchor}, LatestTask: proto.CloneOf(anchor)}
+		if s.mode == "continuation" {
+			s.approvalOnce.Do(func() { close(s.approval) })
+			result.ContinuationPending = !released(s.release)
+			if !result.ContinuationPending {
+				resumed := s.tasks["native-continuation"]
+				if resumed == nil {
+					resumed = &a2a.Task{ID: a2a.TaskID(uuid.NewString()), ContextID: task.ContextID, Status: a2a.TaskStatus{State: a2a.TaskStateCompleted},
+						Artifacts: []*a2a.Artifact{{ID: "final", Parts: a2a.ContentParts{a2a.NewTextPart("final native continuation")}}}}
+					s.tasks["native-continuation"] = resumed
+				}
+				result.LatestTask.TaskId = string(resumed.ID)
+			}
+		}
+		return result, nil
+	}
+	return nil, status.Error(codes.NotFound, "task not found")
 }
 
 func (s *nativeServer) GetTask(ctx context.Context, request *a2apb.GetTaskRequest) (*a2apb.Task, error) {

@@ -129,7 +129,7 @@ func TestNodeTimeoutCancelsItsAcceptedChild(t *testing.T) {
 	require.Equal(t, 1, server.canceled)
 }
 
-func TestRuntimeReplacementKeepsAcceptedChildForReplay(t *testing.T) {
+func TestParentObserverLossKeepsAcceptedChildForReplay(t *testing.T) {
 	server, client := startNativeServer(t, "hang")
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
@@ -157,5 +157,46 @@ func TestRuntimeReplacementKeepsAcceptedChildForReplay(t *testing.T) {
 	require.Len(t, server.tasks, 1)
 	for _, count := range server.sends {
 		require.Equal(t, 2, count)
+	}
+}
+
+func TestNativeContinuationCompletesBeforeNodeReturns(t *testing.T) {
+	server, client := startNativeServer(t, "continuation")
+	done := make(chan struct {
+		events []*session.Event
+		err    error
+	}, 1)
+	go func() {
+		events, err := runWorkflow(taskContext(t.Context()), client, singleNode, singleEdge)
+		done <- struct {
+			events []*session.Event
+			err    error
+		}{events, err}
+	}()
+	select {
+	case <-server.approval:
+	case <-time.After(5 * time.Second):
+		t.Fatal("native continuation was not observed")
+	}
+	select {
+	case result := <-done:
+		t.Fatalf("node returned the intermediate task: %v", result.err)
+	default:
+	}
+	close(server.release)
+	select {
+	case result := <-done:
+		require.NoError(t, result.err)
+		require.Equal(t, "final native continuation", finalOutput(result.events))
+	case <-time.After(5 * time.Second):
+		t.Fatal("native continuation was not observed to completion")
+	}
+	server.mu.Lock()
+	defer server.mu.Unlock()
+	require.Len(t, server.tasks, 2)
+	require.Len(t, server.sessions, 1)
+	require.Len(t, server.sends, 1)
+	for _, count := range server.sends {
+		require.Equal(t, 1, count)
 	}
 }
