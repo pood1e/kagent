@@ -72,7 +72,7 @@ func TestValidateReportsFieldPaths(t *testing.T) {
 		{"retry not allowed on hitl", wf("[{ id: n, type: hitl, message: m, retry: { max_attempts: 2 } }]", startTo("n")),
 			[]string{"nodes[0].retry: not allowed on node type hitl"}},
 		{"parallel worker needs exactly one target", wf("[{ id: n, type: parallel_worker, function: f, tool: t }, { id: m, type: parallel_worker }]", "[{ from: START, to: n }, { from: n, to: m }]"),
-			[]string{"nodes[0]: parallel_worker needs exactly one of function, tool or agent, got 2", "nodes[1]: parallel_worker needs exactly one of function, tool or agent, got 0"}},
+			[]string{"nodes[0]: parallel_worker needs exactly one of function, tool, agent or agent_ref, got 2", "nodes[1]: parallel_worker needs exactly one of function, tool, agent or agent_ref, got 0"}},
 		{"negative bounds", wf("[{ id: n, type: parallel_worker, function: f, max_concurrency: -1 }, { id: d, type: dynamic, function: f, max_iters: -1 }]", "[{ from: START, to: n }, { from: n, to: d }]"),
 			[]string{"nodes[0].max_concurrency: must not be negative", "nodes[1].max_iters: must not be negative"}},
 		{"inline llm must be single_turn", wf("[{ id: n, type: llm, model: m, instruction: i, mode: chat }]", startTo("n")),

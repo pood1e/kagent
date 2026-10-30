@@ -74,7 +74,7 @@ func TestBuiltinToolsIndependentOfSkills(t *testing.T) {
 					if !disableBash && !disableFileSearch {
 						cfg.Runtime = nil // Exercise absent tool configuration defaults.
 					}
-					root, err := CreateGoogleADKAgent(t.Context(), cfg, "root", nil)
+					root, err := CreateGoogleADKAgent(t.Context(), cfg, "root", nil, nil)
 					require.NoError(t, err)
 					for _, agent := range []adkagent.Agent{root, root.SubAgents()[0]} {
 						t.Run(agent.Name(), func(t *testing.T) {

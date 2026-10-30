@@ -123,6 +123,21 @@ func bindTaskExecution(ctx context.Context, tx pgx.Tx, session sessionRow, taskI
 		if canceled {
 			return ErrFailedPrecondition
 		}
+		if !value.Background && value.Relation == apiv1.TaskRelation_TASK_RELATION_DELEGATION.String() {
+			admitted, err := queryOne(ctx, tx, `
+ SELECT EXISTS (SELECT 1 FROM session_task p WHERE p.id = $1 AND (
+   p.state = 'TASK_STATE_WORKING' OR (p.state = 'TASK_STATE_COMPLETED' AND EXISTS (
+     SELECT 1 FROM task_continuation d JOIN session_task_event e
+       ON e.history_id = $2 AND e.task_id = $3 AND e.message_id = d.child_message_id
+     WHERE d.parent_task_id = p.id AND d.child_session_id = $4 AND NOT d.delivered AND NOT d.abandoned))))
+ `, pgx.RowTo[bool], *value.ParentTaskID, session.HistoryID, taskID, session.ID)
+			if err != nil {
+				return err
+			}
+			if !admitted {
+				return ErrFailedPrecondition
+			}
+		}
 	}
 	root := taskID
 	if value.RootTaskID != nil {

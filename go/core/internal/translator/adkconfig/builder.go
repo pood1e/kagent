@@ -68,7 +68,7 @@ func HarnessEnvironment(harness *translator.HarnessConfiguration) []corev1.EnvVa
 // Runtime policy belongs to the root runner; shared subagents contribute only
 // agent behavior and use that runner's session store.
 func (c *Builder) Build(ctx context.Context, input *translator.HarnessInput) (*Result, error) {
-	if input.Harness.Spec.Kagent != nil {
+	if input.Harness.Spec.Kagent != nil && input.Workflow == nil {
 		if err := requireModels(input.Root); err != nil {
 			return nil, err
 		}

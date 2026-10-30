@@ -14,6 +14,8 @@ import (
 	"google.golang.org/adk/v2/tool/loadmemorytool"
 	"google.golang.org/adk/v2/tool/preloadmemorytool"
 	"google.golang.org/adk/v2/workflow"
+
+	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 )
 
 // StubModel is the name of the built-in offline model.
@@ -101,6 +103,10 @@ func (e *DynamicEnv) Runs() int { return int(e.runs.Load()) }
 // example by delegating to the provider factories of the kagent runtime.
 type ModelResolver func(ctx context.Context, name string) (adkmodel.LLM, error)
 
+// NativeAgentRunner invokes a native Agent without importing its model or tools
+// into the graph's runtime. The embedding runtime owns transport and identity.
+type NativeAgentRunner func(ctx agent.Context, ref *apiv1.ResourceReference, input any, emit func(*session.Event) error) (any, error)
+
 // BuildContext is what a NodeBuilder may use to construct its node.
 type BuildContext struct {
 	Context  context.Context
@@ -122,14 +128,15 @@ type nodeType struct {
 // before Build and read-only afterwards; it is not safe for concurrent
 // registration.
 type Registry struct {
-	funcs     map[string]Func
-	dynamics  map[string]DynamicFunc
-	tools     map[string]tool.Tool
-	toolsets  map[string]tool.Toolset
-	models    map[string]adkmodel.LLM
-	resolver  ModelResolver
-	nodeTypes map[NodeType]nodeType
-	hooks     map[string]Hook
+	funcs        map[string]Func
+	dynamics     map[string]DynamicFunc
+	tools        map[string]tool.Tool
+	toolsets     map[string]tool.Toolset
+	models       map[string]adkmodel.LLM
+	resolver     ModelResolver
+	nativeRunner NativeAgentRunner
+	nodeTypes    map[NodeType]nodeType
+	hooks        map[string]Hook
 	// mcpConnector creates the toolsets of declared MCP servers; nil uses
 	// ConnectMCP.
 	mcpConnector MCPConnector
@@ -232,6 +239,9 @@ func (r *Registry) RegisterModel(name string, m adkmodel.LLM) error {
 // SetModelResolver installs the fallback used for model names that were not
 // registered by value. Registered models always win.
 func (r *Registry) SetModelResolver(resolve ModelResolver) { r.resolver = resolve }
+
+// SetNativeAgentRunner enables agent_ref nodes.
+func (r *Registry) SetNativeAgentRunner(run NativeAgentRunner) { r.nativeRunner = run }
 
 // RegisterNodeType adds a node type to the vocabulary of documents. rule
 // declares which NodeSpec fields it takes; build constructs the node. Built-in

@@ -228,6 +228,7 @@ func mockCollections(t *testing.T, objects ...any) translator.Collections {
 	t.Helper()
 	mock := krttest.NewMock(t, objects)
 	collections := translator.Collections{
+		Agents:           krttest.GetMockCollection[*v1alpha3.Agent](mock),
 		EgressPolicies:   krttest.GetMockCollection[*v1alpha3.EgressPolicy](mock),
 		AgentTemplates:   krttest.GetMockCollection[*v1alpha3.AgentTemplate](mock),
 		Harnesses:        krttest.GetMockCollection[*v1alpha3.Harness](mock),

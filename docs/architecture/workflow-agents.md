@@ -49,10 +49,10 @@ converted with the same code as structured output) and `include_contents`
 | `function`        | `function`                 | Runs a registered `Func`; may select routes                     |
 | `join`            |                            | Fan-in barrier; emits a map keyed by predecessor                |
 | `tool`            | `tool`                     | Runs a registered tool with the predecessor output as arguments |
-| `agent`           | `agent`                    | Runs an agent of the document                                   |
+| `agent`           | one of `agent` / `agent_ref` | Runs a document agent or an independent native Agent             |
 | `llm`             | `model`, `instruction`     | Inline single-turn agent named after the node id                |
 | `workflow`        | `nodes`, `edges`           | Nested graph with its own `START`, nested at most 8 deep        |
-| `parallel_worker` | one of function/tool/agent | Runs the target once per item of a list input                   |
+| `parallel_worker` | one of function/tool/agent/agent_ref | Runs the target once per item of a list input              |
 | `dynamic`         | `function`                 | Registered `DynamicFunc` that runs children under `max_iters`, with `isolation` |
 | `hitl`            | `message`                  | Pauses for a human reply and forwards the reply                 |
 | `cel`             | one of output/route/routes/state_delta | Evaluates CEL expressions with `vars`; may select routes and write state |
@@ -78,6 +78,41 @@ There is no `END`: as in ADK, whose only sentinel is `START`, a node without
 outgoing edges ends its branch, so a separate finish node is needed only where
 the terminal rules below require one.
 Unknown fields anywhere in the document are decode errors.
+
+### Native Agent nodes
+
+`agent_ref` uses the public `ResourceReference` (`namespace`, `name`). An omitted
+namespace resolves to the workflow template's namespace. The controller validates
+target existence and transitive workflow cycles before preparing the graph.
+
+```yaml
+- id: review
+  type: agent
+  agent_ref: {name: reviewer}
+  input_schema: {type: object}
+  output_schema: {type: object}
+  timeout: 5m
+  retry: {max_attempts: 3, initial_delay: 1s}
+```
+
+The orchestrator runs on a kagent Harness; each referenced Agent selects its own
+kagent, Codex, Claude or BYO Harness. Session creation captures the child's prepared
+revision, credentials and authority. Native execution records bind its Task to the
+working parent. The graph receives compact progress and the final result; child
+tool activity and approvals remain in the child's Session.
+
+Strings are sent as text; other inputs use JSON. Output prefers a native structured
+result, followed by the final text artifact decoded as JSON when valid. Native
+nodes accept input/output schemas; on `parallel_worker` they apply to each item.
+
+Stable Session request and A2A message IDs include parent Task, node path, item
+branch, target and input. Transport retries and replay of the same parent Task
+observe the accepted child, including a failed terminal result. Native approvals
+resume that child while the orchestrator keeps observing. Node timeout and
+parallel fail-fast cancel accepted children. Terminal settlement durably cancels
+unfinished foreground subtrees, preserving background siblings and successful
+native MCP continuation dependencies. Runtime shutdown preserves accepted work
+for subsequent observation or replay.
 
 ### CEL
 
@@ -195,7 +230,7 @@ and can be `tool` nodes (CEL builds their arguments) or LLM tools.
 ### Typed contracts
 
 A `function`, `dynamic`, `agent` or `llm` node can carry an `input_schema`, and a
-`function` or `dynamic` node an `output_schema` (an `llm` node's `output_schema`
+`function`, `dynamic` or native `agent_ref` node an `output_schema` (an `llm` node's `output_schema`
 is the model's reply schema). On a `join`, `input_schema` applies to each
 predecessor's output separately. The engine validates what a node returns and
 what the next node receives, and compares the two schemas on every edge when it

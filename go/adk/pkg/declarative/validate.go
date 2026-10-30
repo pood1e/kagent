@@ -315,13 +315,13 @@ var builtinNodeRules = map[NodeType]NodeRule{
 	NodeFunction: {Required: []string{"function"}, Optional: []string{"input_schema", "output_schema", "retry", "timeout"}},
 	NodeJoin:     {Optional: []string{"input_schema"}},
 	NodeTool:     {Required: []string{"tool"}, Optional: []string{"server", "retry", "timeout"}},
-	NodeAgent:    {Required: []string{"agent"}, Optional: []string{"input_schema", "retry", "timeout"}},
+	NodeAgent:    {Optional: []string{"agent", "agent_ref", "input_schema", "output_schema", "retry", "timeout"}},
 	NodeLLM: {
 		Required: []string{"model", "instruction"},
 		Optional: []string{"mode", "global_instruction", "instruction_from", "global_instruction_from", "callbacks", "tools", "output_key", "input_schema", "output_schema", "include_contents", "retry", "timeout"},
 	},
 	NodeWorkflow:       {Required: []string{"nodes", "edges"}},
-	NodeParallelWorker: {Optional: []string{"function", "tool", "agent", "max_concurrency", "retry", "timeout"}},
+	NodeParallelWorker: {Optional: []string{"function", "tool", "agent", "agent_ref", "input_schema", "output_schema", "max_concurrency", "retry", "timeout"}},
 	NodeDynamic:        {Required: []string{"function"}, Optional: []string{"max_iters", "children", "isolation", "input_schema", "output_schema", "retry", "timeout"}},
 	NodeHITL:           {Required: []string{"message"}},
 	NodeCEL:            {Optional: []string{"vars", "output", "route", "routes", "state_delta", "input_schema", "output_schema", "retry", "timeout"}},
@@ -336,6 +336,7 @@ func presentFields(n *NodeSpec) map[string]bool {
 	present := llmPresent(&n.LLMSpec)
 	maps.Copy(present, map[string]bool{
 		"function": n.Function != "", "tool": n.Tool != "", "agent": n.Agent != "", "server": n.Server != "",
+		"agent_ref":       n.AgentRef != nil,
 		"max_concurrency": n.MaxConcurrency != 0, "max_iters": n.MaxIters != 0,
 		"children": len(n.Children) > 0, "isolation": n.Isolation != "", "message": n.Message != "",
 		"input_schema": len(n.InputSchema) > 0,
@@ -527,7 +528,11 @@ func (v *validator) node(path string, n *NodeSpec, classes map[string]AgentClass
 			v.addf(path+".mode", "an inline llm node runs mid-graph and must be single_turn, got %q", n.Mode)
 		}
 	case NodeAgent:
+		if (n.Agent == "") == (n.AgentRef == nil) {
+			v.addf(path, "agent needs exactly one of agent or agent_ref")
+		}
 		v.agentTarget(path+".agent", n.Agent, classes)
+		v.nativeAgent(path, n)
 	case NodeWorkflow:
 		v.graph(path, n.Nodes, n.Edges, "", classes, depth+1, terminal)
 	case NodeCEL:
@@ -604,13 +609,13 @@ func (v *validator) agentTarget(path, name string, classes map[string]AgentClass
 
 func (v *validator) parallelWorker(path string, n *NodeSpec, classes map[string]AgentClass) {
 	targets := 0
-	for _, set := range []bool{n.Function != "", n.Tool != "", n.Agent != ""} {
+	for _, set := range []bool{n.Function != "", n.Tool != "", n.Agent != "", n.AgentRef != nil} {
 		if set {
 			targets++
 		}
 	}
 	if targets != 1 {
-		v.addf(path, "parallel_worker needs exactly one of function, tool or agent, got %d", targets)
+		v.addf(path, "parallel_worker needs exactly one of function, tool, agent or agent_ref, got %d", targets)
 	}
 	if n.MaxConcurrency < 0 {
 		v.addf(path+".max_concurrency", "must not be negative")
@@ -618,6 +623,10 @@ func (v *validator) parallelWorker(path string, n *NodeSpec, classes map[string]
 	v.function(path, n.Function)
 	v.toolNode(path, n.Tool)
 	v.agentTarget(path+".agent", n.Agent, classes)
+	v.nativeAgent(path, n)
+	if n.AgentRef == nil && (len(n.InputSchema) > 0 || len(n.OutputSchema) > 0) {
+		v.addf(path, "parallel_worker input_schema and output_schema require agent_ref and apply to each item")
+	}
 	if target := v.agents[n.Agent]; target != nil && target.OutputKey != "" {
 		v.addf(path+".agent", "every concurrent item writes the state key %q of agent %q; drop its output_key and read the worker's output", target.OutputKey, n.Agent)
 	}

@@ -24,6 +24,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	runtimeconfig "github.com/kagent-dev/kagent/go/adk/pkg/config"
+	"github.com/kagent-dev/kagent/go/adk/pkg/declarative"
 	"github.com/kagent-dev/kagent/go/adk/pkg/fileextract"
 	"github.com/kagent-dev/kagent/go/adk/pkg/mcp"
 	"github.com/kagent-dev/kagent/go/adk/pkg/models"
@@ -47,7 +48,7 @@ const (
 // extraTools are appended to the agent's tool list (e.g. save_memory).
 // Optional stsPlugin can be provided for token propagation to MCP tools; pass
 // nil if token propagation is not needed.
-func CreateGoogleADKAgent(ctx context.Context, config *configv1.ADKConfig, agentName string, stsPlugin *sts.TokenPropagationPlugin, extraTools ...tool.Tool) (agent.Agent, error) {
+func CreateGoogleADKAgent(ctx context.Context, config *configv1.ADKConfig, agentName string, stsPlugin *sts.TokenPropagationPlugin, nativeRunner declarative.NativeAgentRunner, extraTools ...tool.Tool) (agent.Agent, error) {
 	if config.GetAgent() == nil {
 		return nil, fmt.Errorf("agent config is required")
 	}
@@ -58,7 +59,7 @@ func CreateGoogleADKAgent(ctx context.Context, config *configv1.ADKConfig, agent
 		return nil, fmt.Errorf("the root agent sets isolation, but it has no parent to isolate from")
 	}
 	if config.Agent.Workflow != nil {
-		return createWorkflowAgent(ctx, config.Agent, stsPlugin, runtimeconfig.ProcessConfig(config))
+		return createWorkflowAgent(ctx, config.Agent, stsPlugin, runtimeconfig.ProcessConfig(config), nativeRunner)
 	}
 	return createGoogleADKAgent(ctx, config.Agent, agentName, stsPlugin, runtimeconfig.ProcessConfig(config), false, extraTools...)
 }
