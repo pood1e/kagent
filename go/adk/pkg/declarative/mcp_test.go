@@ -335,7 +335,7 @@ agents:
   - name: w
     agent_class: Workflow
     nodes: [{ id: t, type: tool, server: ghost, tool: x }, { id: d, type: cel, output: "'x'" }]
-    edges: [{ from: START, to: t }, { from: t, to: d }]`, `server "ghost" is not declared in mcp_servers`},
+    edges: [{ from: START, to: t }, { from: t, to: d }]`, `server "ghost" is not declared in mcp_servers or registered`},
 		{`
 agents:
   - name: a

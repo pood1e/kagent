@@ -8,6 +8,9 @@ import (
 	"errors"
 	"fmt"
 
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/tool"
+
 	"github.com/kagent-dev/kagent/go/adk/pkg/declarative"
 	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 )
@@ -25,6 +28,11 @@ type ResolvedWorkflow struct {
 	SHA256   string
 	Source   *ResolvedConfigMapKeyReference
 	Prompts  []*ResolvedConfigMapKeyReference
+	// Spec is the validated document with its prompt sources inlined.
+	Spec *declarative.Spec
+	// Models are the ModelConfigs a document for the kagent runtime names,
+	// keyed by name. A BYO image resolves model names itself.
+	Models map[string]*ResolvedModelConfig
 }
 
 // ConfigMapNames returns the ConfigMaps the workflow was compiled from.
@@ -72,7 +80,7 @@ func (c *Compiler) resolveWorkflow(_ context.Context, template *TemplateConfigur
 		prompts = append(prompts, prompt)
 		return string(text), nil, nil
 	}
-	canonical, err := validateWorkflow(raw, resolve)
+	spec, canonical, err := validateWorkflow(raw, resolve)
 	if err != nil {
 		if _, ok := errors.AsType[*promptReferenceError](err); ok {
 			return nil, fmt.Errorf("workflow: %w", err)
@@ -80,8 +88,72 @@ func (c *Compiler) resolveWorkflow(_ context.Context, template *TemplateConfigur
 		return nil, NewValidationError("invalid workflow: %v", err)
 	}
 	digest := sha256.Sum256(canonical)
-	return &ResolvedWorkflow{Document: canonical, SHA256: hex.EncodeToString(digest[:]), Source: source, Prompts: prompts}, nil
+	return &ResolvedWorkflow{Document: canonical, SHA256: hex.EncodeToString(digest[:]), Source: source, Prompts: prompts, Spec: spec}, nil
 }
+
+// resolveKagentWorkflow checks that the kagent Go runtime can build the
+// document from the revision alone and resolves the ModelConfigs it names.
+// That runtime has no Go registry: a document names models by ModelConfig and
+// MCP servers by the RemoteMCPServer of a template binding. The runtime cannot
+// pause a workflow, so hitl nodes and bindings that require approval are
+// refused.
+func (c *Compiler) resolveKagentWorkflow(workflow *ResolvedWorkflow, root *AgentInput, outputSchema *ResolvedOutputSchema) error {
+	template := root.Template
+	switch {
+	case outputSchema != nil:
+		return NewValidationError("workflowFrom cannot be combined with an output schema on a kagent Harness; set output_schema on the document's terminal node")
+	case len(root.Shared) > 0:
+		return NewValidationError("workflowFrom cannot be combined with subagent tools on a kagent Harness; declare the agents in the document")
+	case len(template.Spec.Skills) > 0 || len(template.Spec.Plugins) > 0:
+		return NewValidationError("workflowFrom cannot be combined with skills or plugins on a kagent Harness")
+	case len(workflow.Spec.MCPServers) > 0:
+		return NewValidationError("invalid workflow: mcp_servers: a kagent Harness reaches MCP servers through the AgentTemplate's RemoteMCPServer bindings; name a bound server instead")
+	}
+	for path, node := range workflow.Spec.Nodes() {
+		if node.Type == declarative.NodeHITL {
+			return NewValidationError("invalid workflow: %s: hitl nodes are not supported on a kagent Harness", path)
+		}
+	}
+	vocabulary := declarative.NewRegistry()
+	bound := map[string]bool{}
+	for _, binding := range root.MCPTools {
+		name := binding.Server.Name
+		if binding.Binding.RequireApproval {
+			return NewValidationError("RemoteMCPServer %q requires approval, which a workflow on a kagent Harness cannot pause for", name)
+		}
+		if bound[name] {
+			continue
+		}
+		bound[name] = true
+		if err := vocabulary.RegisterToolset(boundServer(name)); err != nil {
+			return NewValidationError("invalid workflow: %v", err)
+		}
+	}
+	models := make(map[string]*ResolvedModelConfig)
+	for _, name := range workflow.Spec.Models() {
+		resolved, err := c.resolveModelConfig(template.Namespace, name)
+		if err != nil {
+			return err
+		}
+		if err := vocabulary.RegisterModel(name, declarative.NewStubModel(name)); err != nil {
+			return NewValidationError("invalid workflow: %v", err)
+		}
+		models[name] = resolved
+	}
+	if err := vocabulary.Validate(workflow.Spec); err != nil {
+		return NewValidationError("invalid workflow for the kagent runtime: %v", err)
+	}
+	workflow.Models = models
+	return nil
+}
+
+// boundServer stands in for the toolset the kagent runtime registers for a
+// bound RemoteMCPServer, so validation resolves the names the runtime does.
+type boundServer string
+
+func (s boundServer) Name() string { return string(s) }
+
+func (boundServer) Tools(agent.ReadonlyContext) ([]tool.Tool, error) { return nil, nil }
 
 // unsupportedPromptSource explains why the controller does not deliver a
 // Secret or environment prompt source. Secrets never enter a runtime: kagent
@@ -97,29 +169,29 @@ func unsupportedPromptSource(src declarative.TextSource) error {
 
 // validateWorkflow checks a document with the same structural rules the Go ADK
 // applies before building it, resolves its prompt sources with resolve, and
-// returns its canonical JSON. Names that only
-// the runtime image can resolve (functions, tools, models) are not checked
-// here; the runtime reports them at startup.
-func validateWorkflow(raw []byte, resolve declarative.PromptResolver) ([]byte, error) {
+// returns it with its canonical JSON. Names that only a BYO image can resolve
+// (functions, tools, models) are not checked here; the image reports them at
+// startup.
+func validateWorkflow(raw []byte, resolve declarative.PromptResolver) (*declarative.Spec, []byte, error) {
 	if len(raw) == 0 {
-		return nil, fmt.Errorf("document is empty")
+		return nil, nil, fmt.Errorf("document is empty")
 	}
 	if len(raw) > maxWorkflowBytes {
-		return nil, fmt.Errorf("document exceeds %d bytes", maxWorkflowBytes)
+		return nil, nil, fmt.Errorf("document exceeds %d bytes", maxWorkflowBytes)
 	}
 	spec, err := declarative.Parse(raw)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := declarative.ResolvePrompts(spec, resolve); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	canonical, err := json.Marshal(spec)
 	if err != nil {
-		return nil, fmt.Errorf("canonicalize document: %w", err)
+		return nil, nil, fmt.Errorf("canonicalize document: %w", err)
 	}
 	if len(canonical) > maxWorkflowBytes {
-		return nil, fmt.Errorf("canonical document exceeds %d bytes", maxWorkflowBytes)
+		return nil, nil, fmt.Errorf("canonical document exceeds %d bytes", maxWorkflowBytes)
 	}
-	return canonical, nil
+	return spec, canonical, nil
 }

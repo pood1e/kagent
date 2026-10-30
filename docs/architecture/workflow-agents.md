@@ -6,11 +6,11 @@ with `go/adk/pkg/declarative`. The package compiles a document into native ADK
 timeouts, pause and resume, telemetry, and A2A streaming are the behavior of the
 ADK `workflow` package and the ADK agent runtime.
 
-This is a library for Go ADK programs, such as a BYO Harness. It is not a session
-or task model: A2A still owns interaction state, and a paused workflow resumes
-through the same A2A task as any other ADK agent. A BYO image can embed its
-document, or receive one through `AgentTemplate.spec.workflowFrom`; see
-[Control plane](#control-plane).
+This is a library for Go ADK programs: the kagent Go runtime and BYO images
+build documents with it. It is not a session or task model: A2A still owns
+interaction state, and a paused workflow resumes through the same A2A task as
+any other ADK agent. A BYO image can embed its document; both runtimes receive
+one through `AgentTemplate.spec.workflowFrom`; see [Control plane](#control-plane).
 
 ## Document model
 
@@ -314,7 +314,7 @@ The controller:
 2. decodes it strictly and runs `declarative.Validate`, the registry-free
    structural checks above, so a typo fails at reconcile time with its field
    path instead of crash-looping the runtime;
-3. canonicalizes it to JSON, records its SHA-256, and delivers both in the BYO
+3. canonicalizes it to JSON, records its SHA-256, and delivers both in the
    runtime's `config.json` as `agent.workflow`;
 4. records the ConfigMap in the revision provenance, so editing the document
    prepares a new revision.
@@ -323,17 +323,36 @@ Failures that are the document's fault report `Compatible=False` with reason
 `UnsupportedConfiguration` and the validation message. A missing ConfigMap or key
 is an ordinary reference failure and is retried.
 
-What the controller cannot check is whether the image has the functions, tools
-and models the document names. Those live in the image, so the runtime checks
-them at startup with `Registry.ParseConfig`, which also verifies the delivered
-digest. A document therefore pairs with the image that registers its names; roll
-them out together.
+On a BYO Harness the controller cannot check whether the image has the
+functions, tools and models the document names. Those live in the image, so the
+runtime checks them at startup with `Registry.ParseConfig`, which also verifies
+the delivered digest. A document therefore pairs with the image that registers
+its names; roll them out together.
+
+### kagent Harness
+
+The kagent Go runtime has no Go registry; it builds a document from the
+revision alone, and the controller validates the document against the names
+that runtime registers:
+
+- `model` names a same-namespace ModelConfig. The controller resolves every
+  model the document names and delivers it in `agent.workflow.models`; its
+  credentials, egress and provenance join the revision, and the gateway admits
+  it for the Session like the agent model.
+- An MCP server is a RemoteMCPServer bound in the template's `tools`. LLM
+  `tools` and `tool` nodes name it by the RemoteMCPServer name; the bindings of
+  one server form one toolset with their tool selections and credentials.
+  `mcp_servers` is for BYO images.
+- Function, dynamic and registered-tool nodes and Hook functions need Go code
+  and are rejected. So are `hitl` nodes and bindings that require approval,
+  because the runtime does not pause a workflow.
+- The document declares the agents and outputs, so the template sets no output
+  schema, subagent tools, skills or plugins.
 
 Constraints, enforced at compile time:
 
-- Only a BYO Harness runs a workflow. The managed kagent runtime has no
-  function registry, so it rejects the config as well as the controller;
-  Codex and Claude cannot run ADK graphs.
+- A kagent or BYO Harness runs a workflow. Codex and Claude cannot run ADK
+  graphs.
 - Only the root template may set `workflowFrom`. A shared subagent template that
   sets it is rejected rather than ignored.
 - `workflowFrom` cannot be combined with `systemPrompt` or `systemPromptFrom`;

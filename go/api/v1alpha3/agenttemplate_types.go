@@ -209,9 +209,10 @@ type AgentTemplateSpec struct {
 	SystemPromptFrom *ConfigMapKeyReference `json:"systemPromptFrom,omitempty"`
 	// WorkflowFrom references an adk.declarative/v0.2 AgentSystem document, as
 	// YAML or JSON, in a same-namespace ConfigMap key. The controller validates
-	// the document's structure and delivers it to the runtime; the BYO image
-	// resolves the functions, tools, and models it names. Only a root template
-	// on a BYO Harness may set it.
+	// the document and delivers it to the runtime. On a kagent Harness the
+	// document names ModelConfigs and the RemoteMCPServers of this template's
+	// tools; a BYO image resolves the functions, tools, and models it names.
+	// Only a root template on a kagent or BYO Harness may set it.
 	// +optional
 	WorkflowFrom *ConfigMapKeyReference `json:"workflowFrom,omitempty"`
 	// OutputSchema constrains successful terminal output when this template is
