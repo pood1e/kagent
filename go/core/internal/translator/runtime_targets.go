@@ -28,8 +28,8 @@ func runtimeTargets(input *HarnessInput) ([]v1alpha3.MCPToolBinding, []corev1.Lo
 	}
 	visit(input.Root)
 	if input.Workflow != nil {
-		for name := range input.Workflow.Models {
-			models = append(models, corev1.LocalObjectReference{Name: name})
+		for _, model := range input.Workflow.Models {
+			models = append(models, corev1.LocalObjectReference{Name: model.Config.Name})
 		}
 	}
 	slices.SortFunc(models, func(a, b corev1.LocalObjectReference) int { return strings.Compare(a.Name, b.Name) })

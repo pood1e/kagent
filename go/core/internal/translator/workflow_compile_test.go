@@ -225,6 +225,25 @@ func TestCompileAgentRunsWorkflowOnKagent(t *testing.T) {
 	require.Contains(t, string(revision.Provenance), "workflows-uid")
 }
 
+func TestCompileAgentResolvesTemplateNamesInKagentWorkflows(t *testing.T) {
+	const document = `
+apiVersion: adk.declarative/v0.2
+kind: AgentSystem
+agents:
+  - { name: analyst, agent_class: LlmAgent, model: "template:model", instruction: Analyze., tools: ["template:tools"] }
+`
+	harness := kagentHarness()
+	objects := []any{workflowConfigMap(document), modelConfig(), remoteMCPServer("incidents", "http://incidents.test/mcp"), harness}
+
+	revision, err := compiler(t, objects...).CompileAgent(t.Context(), inlineAgent(harness, kagentWorkflowTemplate(nil)))
+	require.NoError(t, err)
+
+	var config configv1.ADKConfig
+	require.NoError(t, runtimeconfig.Unmarshal(revision.ConfigJSON, &config))
+	require.Equal(t, "gpt-4o", config.Agent.Workflow.Models["template:model"].Model, "the template's own ModelConfig")
+	require.Equal(t, []corev1.LocalObjectReference{{Name: "default-model"}}, revision.Models)
+}
+
 func TestCompileAgentRejectsKagentWorkflowsItCannotBuild(t *testing.T) {
 	const hitlYAML = `
 apiVersion: adk.declarative/v0.2
