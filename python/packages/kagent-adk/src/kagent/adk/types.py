@@ -291,6 +291,8 @@ def create_agent(
     runtime_config: Optional[RuntimeConfig] = None,
 ) -> Agent:
     validate(config)
+    if config.HasField("workflow"):
+        raise ValueError("declarative workflows run on the Go runtime")
     if not config.HasField("model"):
         raise ValueError("model is required")
     if name is None or not str(name).strip():

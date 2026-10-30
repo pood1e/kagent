@@ -1,6 +1,11 @@
 package declarative
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+	"iter"
+	"slices"
+)
 
 // Document identity.
 const (
@@ -330,4 +335,45 @@ type RetrySpec struct {
 	// When is a CEL predicate over `error` ({message, timeout, canceled})
 	// that decides whether a failure is retried. Empty retries every error.
 	When string `json:"when,omitempty"`
+}
+
+// Nodes yields every node of the document's Workflow agents, including the
+// nodes of nested workflow nodes, with its field path such as
+// agents[0].nodes[2].nodes[1].
+func (s *Spec) Nodes() iter.Seq2[string, *NodeSpec] {
+	return func(yield func(string, *NodeSpec) bool) {
+		for i := range s.Agents {
+			if !yieldNodes(fmt.Sprintf("agents[%d]", i), s.Agents[i].Nodes, yield) {
+				return
+			}
+		}
+	}
+}
+
+func yieldNodes(path string, nodes []NodeSpec, yield func(string, *NodeSpec) bool) bool {
+	for i := range nodes {
+		p := fmt.Sprintf("%s.nodes[%d]", path, i)
+		if !yield(p, &nodes[i]) || !yieldNodes(p, nodes[i].Nodes, yield) {
+			return false
+		}
+	}
+	return true
+}
+
+// Models returns the model names of the document's agents and llm nodes,
+// sorted and without duplicates.
+func (s *Spec) Models() []string {
+	var names []string
+	for i := range s.Agents {
+		if model := s.Agents[i].Model; model != "" {
+			names = append(names, model)
+		}
+	}
+	for _, n := range s.Nodes() {
+		if n.Model != "" {
+			names = append(names, n.Model)
+		}
+	}
+	slices.Sort(names)
+	return slices.Compact(names)
 }

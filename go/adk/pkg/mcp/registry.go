@@ -6,14 +6,17 @@ import (
 	"crypto/x509"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"os"
 	"os/exec"
+	"slices"
 	"time"
 
 	"github.com/a2aproject/a2a-go/v2/a2asrv"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	adkagent "google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/tool"
 	"google.golang.org/adk/v2/tool/mcptoolset"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -126,21 +129,7 @@ func CreateToolsets(
 
 	log.InfoContext(ctx, "processing HTTP MCP tools", "http_tools_count", len(httpTools))
 	for i, httpTool := range httpTools {
-		params := mcpServerParams{
-			URL:                   httpTool.Params.Url,
-			Headers:               httpTool.Params.Headers,
-			AllowedHeaders:        httpTool.AllowedHeaders,
-			PropagateToken:        propagateToken,
-			TokenPassthrough:      httpTool.TokenPassthrough,
-			HeaderProvider:        headerProvider,
-			ServerType:            "http",
-			Timeout:               httpTool.Params.Timeout,
-			SseReadTimeout:        httpTool.Params.SseReadTimeout,
-			TLSInsecureSkipVerify: httpTool.Params.TlsInsecureSkipVerify,
-			TLSCACertPath:         httpTool.Params.TlsCaCertPath,
-			TLSDisableSystemCAs:   httpTool.Params.TlsDisableSystemCas,
-		}
-		ts, err := addToolset(ctx, log, params, httpTool.Tools, httpTool.RequireApproval, "HTTP", i+1)
+		ts, err := addToolset(ctx, log, httpServerParams(httpTool, propagateToken, headerProvider), httpTool.Tools, httpTool.RequireApproval, "HTTP", i+1)
 		if err != nil {
 			continue
 		}
@@ -149,21 +138,7 @@ func CreateToolsets(
 
 	log.InfoContext(ctx, "processing SSE MCP tools", "sse_tools_count", len(sseTools))
 	for i, sseTool := range sseTools {
-		params := mcpServerParams{
-			URL:                   sseTool.Params.Url,
-			Headers:               sseTool.Params.Headers,
-			AllowedHeaders:        sseTool.AllowedHeaders,
-			PropagateToken:        propagateToken,
-			TokenPassthrough:      sseTool.TokenPassthrough,
-			HeaderProvider:        headerProvider,
-			ServerType:            "sse",
-			Timeout:               sseTool.Params.Timeout,
-			SseReadTimeout:        sseTool.Params.SseReadTimeout,
-			TLSInsecureSkipVerify: sseTool.Params.TlsInsecureSkipVerify,
-			TLSCACertPath:         sseTool.Params.TlsCaCertPath,
-			TLSDisableSystemCAs:   sseTool.Params.TlsDisableSystemCas,
-		}
-		ts, err := addToolset(ctx, log, params, sseTool.Tools, sseTool.RequireApproval, "SSE", i+1)
+		ts, err := addToolset(ctx, log, sseServerParams(sseTool, propagateToken, headerProvider), sseTool.Tools, sseTool.RequireApproval, "SSE", i+1)
 		if err != nil {
 			continue
 		}
@@ -171,6 +146,102 @@ func CreateToolsets(
 	}
 
 	return toolsets
+}
+
+// NamedToolsets creates one toolset per RemoteMCPServer of the HTTP and SSE
+// bindings, named after the server, for declarative workflows that call a
+// server by name. Bindings of the same server join its toolset. Unlike
+// CreateToolsets it fails instead of skipping a server, because a workflow
+// that names a missing server cannot be built.
+func NamedToolsets(
+	ctx context.Context,
+	httpTools []*configv1.ADKHTTPMCPServerConfig,
+	sseTools []*configv1.ADKSSEMCPServerConfig,
+	propagateToken bool,
+	headerProvider DynamicHeaderProvider,
+) ([]tool.Toolset, error) {
+	log := logging.FromContext(ctx)
+	parts := map[string][]tool.Toolset{}
+	add := func(name string, params mcpServerParams, tools []string, requireApproval bool, label string, index int) error {
+		if name == "" {
+			return fmt.Errorf("%s MCP server %d has no name", label, index)
+		}
+		ts, err := addToolset(ctx, log, params, tools, requireApproval, label, index)
+		if err != nil {
+			return fmt.Errorf("MCP server %q: %w", name, err)
+		}
+		parts[name] = append(parts[name], ts)
+		return nil
+	}
+	for i, httpTool := range httpTools {
+		if err := add(httpTool.Name, httpServerParams(httpTool, propagateToken, headerProvider), httpTool.Tools, httpTool.RequireApproval, "HTTP", i+1); err != nil {
+			return nil, err
+		}
+	}
+	for i, sseTool := range sseTools {
+		if err := add(sseTool.Name, sseServerParams(sseTool, propagateToken, headerProvider), sseTool.Tools, sseTool.RequireApproval, "SSE", i+1); err != nil {
+			return nil, err
+		}
+	}
+	toolsets := make([]tool.Toolset, 0, len(parts))
+	for _, name := range slices.Sorted(maps.Keys(parts)) {
+		toolsets = append(toolsets, &serverToolset{name: name, parts: parts[name]})
+	}
+	return toolsets, nil
+}
+
+// serverToolset joins the bindings of one MCP server under the server's name.
+type serverToolset struct {
+	name  string
+	parts []tool.Toolset
+}
+
+func (s *serverToolset) Name() string { return s.name }
+
+func (s *serverToolset) Tools(ctx adkagent.ReadonlyContext) ([]tool.Tool, error) {
+	var tools []tool.Tool
+	for _, part := range s.parts {
+		listed, err := part.Tools(ctx)
+		if err != nil {
+			return nil, err
+		}
+		tools = append(tools, listed...)
+	}
+	return tools, nil
+}
+
+func httpServerParams(httpTool *configv1.ADKHTTPMCPServerConfig, propagateToken bool, headerProvider DynamicHeaderProvider) mcpServerParams {
+	return mcpServerParams{
+		URL:                   httpTool.Params.Url,
+		Headers:               httpTool.Params.Headers,
+		AllowedHeaders:        httpTool.AllowedHeaders,
+		PropagateToken:        propagateToken,
+		TokenPassthrough:      httpTool.TokenPassthrough,
+		HeaderProvider:        headerProvider,
+		ServerType:            "http",
+		Timeout:               httpTool.Params.Timeout,
+		SseReadTimeout:        httpTool.Params.SseReadTimeout,
+		TLSInsecureSkipVerify: httpTool.Params.TlsInsecureSkipVerify,
+		TLSCACertPath:         httpTool.Params.TlsCaCertPath,
+		TLSDisableSystemCAs:   httpTool.Params.TlsDisableSystemCas,
+	}
+}
+
+func sseServerParams(sseTool *configv1.ADKSSEMCPServerConfig, propagateToken bool, headerProvider DynamicHeaderProvider) mcpServerParams {
+	return mcpServerParams{
+		URL:                   sseTool.Params.Url,
+		Headers:               sseTool.Params.Headers,
+		AllowedHeaders:        sseTool.AllowedHeaders,
+		PropagateToken:        propagateToken,
+		TokenPassthrough:      sseTool.TokenPassthrough,
+		HeaderProvider:        headerProvider,
+		ServerType:            "sse",
+		Timeout:               sseTool.Params.Timeout,
+		SseReadTimeout:        sseTool.Params.SseReadTimeout,
+		TLSInsecureSkipVerify: sseTool.Params.TlsInsecureSkipVerify,
+		TLSCACertPath:         sseTool.Params.TlsCaCertPath,
+		TLSDisableSystemCAs:   sseTool.Params.TlsDisableSystemCas,
+	}
 }
 
 // addToolset logs, initializes, and returns a single MCP toolset.

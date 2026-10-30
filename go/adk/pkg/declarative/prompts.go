@@ -19,26 +19,12 @@ func ResolvePrompts(spec *Spec, resolve PromptResolver) error {
 		return nil
 	}
 	for i := range spec.Agents {
-		a := &spec.Agents[i]
-		path := fmt.Sprintf("agents[%d]", i)
-		if err := resolveLLMPrompts(path, &a.LLMSpec, resolve); err != nil {
-			return err
-		}
-		if err := resolveNodePrompts(path, a.Nodes, resolve); err != nil {
+		if err := resolveLLMPrompts(fmt.Sprintf("agents[%d]", i), &spec.Agents[i].LLMSpec, resolve); err != nil {
 			return err
 		}
 	}
-	return nil
-}
-
-func resolveNodePrompts(path string, nodes []NodeSpec, resolve PromptResolver) error {
-	for i := range nodes {
-		n := &nodes[i]
-		p := fmt.Sprintf("%s.nodes[%d]", path, i)
-		if err := resolveLLMPrompts(p, &n.LLMSpec, resolve); err != nil {
-			return err
-		}
-		if err := resolveNodePrompts(p, n.Nodes, resolve); err != nil {
+	for path, n := range spec.Nodes() {
+		if err := resolveLLMPrompts(path, &n.LLMSpec, resolve); err != nil {
 			return err
 		}
 	}

@@ -63,7 +63,7 @@ func (c *Compiler) Compile(ctx context.Context, input *translator.HarnessInput) 
 	harnessEnvironment := adkconfig.HarnessEnvironment(harness)
 	environment := append(compiled.Environment, harnessEnvironment...)
 	environment = adkconfig.DedupeEnv(environment)
-	provenance, err := c.config.BuildProvenance(ctx, harness, compiled)
+	provenance, err := c.config.BuildProvenance(ctx, harness, compiled, input.Workflow.ConfigMapNames()...)
 	if err != nil {
 		return nil, fmt.Errorf("build revision provenance: %w", err)
 	}
