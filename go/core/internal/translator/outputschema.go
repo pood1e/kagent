@@ -13,6 +13,8 @@ import (
 	"github.com/google/jsonschema-go/jsonschema"
 	"istio.io/istio/pkg/kube/krt"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 )
 
 const maxOutputSchemaBytes = 64 << 10
@@ -70,6 +72,22 @@ type ResolvedOutputSchema struct {
 	Source *ResolvedConfigMapKeyReference
 }
 
+// resolveConfigMapKey reads one key of a same-namespace ConfigMap. purpose names
+// the input in errors. The fetch registers the ConfigMap as a dependency, so
+// changes to it recompile the Agent.
+func (c *Compiler) resolveConfigMapKey(namespace, purpose string, ref *v1alpha3.ConfigMapKeyReference) ([]byte, *ResolvedConfigMapKeyReference, error) {
+	key := types.NamespacedName{Namespace: namespace, Name: ref.Name}
+	configMap := krt.FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(key))
+	if configMap == nil {
+		return nil, nil, fmt.Errorf("resolve %s ConfigMap %q: not found", purpose, ref.Name)
+	}
+	value, ok := (*configMap).Data[ref.Key]
+	if !ok {
+		return nil, nil, fmt.Errorf("resolve %s ConfigMap %q: key %q not found", purpose, ref.Name, ref.Key)
+	}
+	return []byte(value), &ResolvedConfigMapKeyReference{NamespacedName: key, Key: ref.Key}, nil
+}
+
 // ResolvedConfigMapKeyReference identifies the exact ConfigMap input used by a
 // compiled revision.
 type ResolvedConfigMapKeyReference struct {
@@ -84,18 +102,11 @@ func (c *Compiler) resolveOutputSchema(_ context.Context, template *TemplateConf
 	case template.Spec.OutputSchema != nil:
 		raw = template.Spec.OutputSchema.Raw
 	case template.Spec.OutputSchemaFrom != nil:
-		ref := template.Spec.OutputSchemaFrom
-		key := types.NamespacedName{Namespace: template.Namespace, Name: ref.Name}
-		configMap := FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(key))
-		if configMap == nil {
-			return nil, fmt.Errorf("resolve output schema ConfigMap %q: not found", ref.Name)
+		var err error
+		raw, source, err = c.resolveConfigMapKey(template.Namespace, "output schema", template.Spec.OutputSchemaFrom)
+		if err != nil {
+			return nil, err
 		}
-		value, ok := (*configMap).Data[ref.Key]
-		if !ok {
-			return nil, fmt.Errorf("resolve output schema ConfigMap %q: key %q not found", ref.Name, ref.Key)
-		}
-		raw = []byte(value)
-		source = &ResolvedConfigMapKeyReference{NamespacedName: key, Key: ref.Key}
 	default:
 		return nil, nil
 	}

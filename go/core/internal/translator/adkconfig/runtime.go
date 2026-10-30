@@ -3,6 +3,8 @@ package adkconfig
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 
 	"istio.io/istio/pkg/kube/krt"
 	corev1 "k8s.io/api/core/v1"
@@ -34,6 +36,12 @@ func (c *Builder) buildModel(namespace, name string) (*modelResult, error) {
 	if failures := resolved.ReferenceFailures; len(failures) > 0 {
 		return nil, fmt.Errorf("ModelConfig %q: %s", name, failures[0].Message)
 	}
+	return compileModel(resolved)
+}
+
+// compileModel translates a resolved ModelConfig into its runtime
+// configuration, environment and egress.
+func compileModel(resolved *translator.ResolvedModelConfig) (*modelResult, error) {
 	runtime, err := resolveModel(resolved)
 	if err != nil {
 		return nil, err
@@ -107,6 +115,37 @@ func applyOutputSchema(config *configv1.ADKAgentConfig, output *translator.Resol
 	return nil
 }
 
+// applyWorkflow delivers the validated declarative workflow document. The
+// ModelConfigs a document for the kagent runtime names are translated like the
+// agent model: their runtime configuration travels with the document, and
+// their credentials, egress and provenance join the revision.
+func applyWorkflow(result *Result, workflow *translator.ResolvedWorkflow) error {
+	if workflow == nil {
+		return nil
+	}
+	config := &configv1.ADKWorkflowConfig{
+		Document: append([]byte(nil), workflow.Document...),
+		Sha256:   workflow.SHA256,
+	}
+	for _, name := range slices.Sorted(maps.Keys(workflow.Models)) {
+		model, err := compileModel(workflow.Models[name])
+		if err != nil {
+			return fmt.Errorf("render workflow ModelConfig %q: %w", name, err)
+		}
+		if config.Models == nil {
+			config.Models = make(map[string]*configv1.ADKModelConfig, len(workflow.Models))
+		}
+		config.Models[name] = model.Model
+		if !slices.ContainsFunc(result.Models, func(m *translator.ResolvedModelConfig) bool { return m.Config.Name == name }) {
+			result.Models = append(result.Models, model.Resolved)
+		}
+		result.Environment = append(result.Environment, model.Environment...)
+		result.Egress = append(result.Egress, model.Egress...)
+	}
+	result.Config.Workflow = config
+	return nil
+}
+
 func requireModels(input *translator.AgentInput) error {
 	if input.ResolvedModelConfig == nil || input.ResolvedModelConfig.Config == nil {
 		return translator.NewValidationError("kagent ModelConfig is required")
@@ -133,5 +172,23 @@ func (c *Builder) applyMemory(result *Result, harness *translator.HarnessConfigu
 	result.Models = append(result.Models, model.Resolved)
 	result.Environment = append(result.Environment, model.Environment...)
 	result.Egress = append(result.Egress, model.Egress...)
+	return nil
+}
+
+// ValidateSubAgentIsolation rejects combinations the runtime cannot honor.
+//
+// STS token exchange caches the exchanged token by session ID. An Isolated
+// subagent runs in a new session, so its MCP requests would find no token and
+// fall back to the caller's own credential, which the exchange exists to
+// replace. Refuse the combination instead of sending the wrong credential.
+func ValidateSubAgentIsolation(config *configv1.ADKConfig) error {
+	if config.GetRuntime().GetTokenPropagation().GetStsWellKnownUri() == "" {
+		return nil
+	}
+	for _, sub := range config.GetAgent().GetSubAgents() {
+		if sub.GetIsolation() == configv1.ADKAgentIsolation_ADK_AGENT_ISOLATION_SESSION {
+			return translator.NewValidationError("subagent %q is Isolated, which cannot be combined with STS token exchange: the exchanged token is cached per session and an isolated subagent runs in a new one", sub.GetName())
+		}
+	}
 	return nil
 }

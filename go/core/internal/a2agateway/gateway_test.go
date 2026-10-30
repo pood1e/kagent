@@ -162,15 +162,22 @@ func (s *gatewayTestStore) GetSettledSessionTask(ctx context.Context, sessionID,
 }
 
 type gatewayTestAuthorizer struct {
-	principal auth.Principal
-	err       error
-	verb      auth.Verb
-	resource  auth.Resource
+	principal       auth.Principal
+	err             error
+	verb            auth.Verb
+	resource        auth.Resource
+	denyAllCreators bool
 }
 
 func (a *gatewayTestAuthorizer) Check(_ context.Context, principal auth.Principal, verb auth.Verb, resource auth.Resource) error {
 	a.principal, a.verb, a.resource = principal, verb, resource
-	return a.err
+	if a.err != nil {
+		return a.err
+	}
+	if a.denyAllCreators && resource.Type == "SessionAllCreators" {
+		return errors.New("all-creators read denied")
+	}
+	return nil
 }
 
 type gatewayTestDialer struct {
