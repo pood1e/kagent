@@ -153,7 +153,7 @@ func TestGatewayMissingConversationAcrossTransports(t *testing.T) {
 			t.Run(string(protocol)+"/"+test.name, func(t *testing.T) {
 				store := &gatewayTestStore{session: gatewayTestSession(), err: test.storeErr, taskErr: test.taskErr}
 				dialer := &gatewayTestDialer{}
-				gateway := newTestGateway(store, &gatewayTestAuthorizer{err: test.authErr}, dialer, "")
+				gateway := newTestGateway(store, &gatewayTestAuthorizer{err: test.authErr, denyAllCreators: true}, dialer, "")
 				transport := newGatewayTestTransport(t, startCoreTestServer(t, gateway, nil), protocol)
 				params := a2aclient.ServiceParams{"authorization": {"Bearer valid"}}
 				for _, ids := range []struct {
