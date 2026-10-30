@@ -2,9 +2,12 @@ package e2e_test
 
 import (
 	"context"
+	"embed"
+	"fmt"
 	"testing"
 	"time"
 
+	a2atype "github.com/a2aproject/a2a-go/v2/a2a"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -41,10 +44,14 @@ agents:
 `
 )
 
+//go:embed mocks/invoke_workflow.json
+var workflowMocks embed.FS
+
 // TestAgentWorkflowFromValidation covers the controller's judgment of a
-// workflow document before any runtime exists: an invalid document and an
-// unsupported harness both fail compilation with Compatible=False and name the
-// problem. Neither case starts an Actor.
+// workflow document before any runtime exists: an invalid document, and a
+// document that names Go code the kagent runtime does not have, both fail
+// compilation with Compatible=False and name the problem. Neither case starts
+// an Actor.
 func TestAgentWorkflowFromValidation(t *testing.T) {
 	t.Parallel()
 	interactionTarget(t) // skips without a cluster
@@ -63,8 +70,8 @@ func TestAgentWorkflowFromValidation(t *testing.T) {
 			},
 		},
 		{
-			name: "valid document on a managed harness", harness: "kagent", document: validWorkflowDocument,
-			want: []string{`Harness runtime "kagent" does not run declarative workflows; use a BYO Harness`},
+			name: "Go function on the kagent harness", harness: "kagent", document: validWorkflowDocument,
+			want: []string{"invalid workflow for the kagent runtime", `agents[0].nodes[0].function: function "triage" is not registered`},
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -104,6 +111,48 @@ func TestAgentWorkflowFromValidation(t *testing.T) {
 			require.Empty(t, agent.Status.LatestSuccessfulRevision, "no revision is prepared for a rejected document")
 		})
 	}
+}
+
+// TestKagentHarnessRunsWorkflow runs a declarative workflow on the kagent
+// Harness: an llm node answers through the ModelConfig the document names, and
+// a cel node turns the answer into the reply.
+func TestKagentHarnessRunsWorkflow(t *testing.T) {
+	t.Parallel()
+	target := interactionTarget(t)
+	kube := interactionKubeClient(t)
+	model := createInteractionModel(t, kube, reachableModelURL(t, startMockLLMServer(t, workflowMocks, "mocks/invoke_workflow.json")), nil)
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{GenerateName: "workflow-", Namespace: "kagent"},
+		Data: map[string]string{"agents.yaml": fmt.Sprintf(`
+apiVersion: adk.declarative/v0.2
+kind: AgentSystem
+agents:
+  - name: triage
+    agent_class: Workflow
+    entry: classify
+    nodes:
+      - { id: classify, type: llm, model: %s, instruction: Answer with the category of the request. }
+      - { id: reply, type: cel, output: "'category: ' + input" }
+    edges: [{ from: classify, to: reply }]
+`, model.Name)},
+	}
+	require.NoError(t, kube.Create(t.Context(), configMap))
+	deleteOnCleanup(t, kube, configMap)
+
+	template := &v1alpha3.AgentTemplate{
+		ObjectMeta: metav1.ObjectMeta{GenerateName: "workflow-run-", Namespace: "kagent"},
+		Spec: v1alpha3.AgentTemplateSpec{
+			Description:  "Workflow runtime E2E fixture",
+			ModelConfig:  &corev1.LocalObjectReference{Name: model.Name},
+			WorkflowFrom: &v1alpha3.ConfigMapKeyReference{Name: configMap.Name, Key: "agents.yaml"},
+		},
+	}
+	createAndWaitInteractionTemplateForHarness(t, kube, template, "kagent")
+	fixture := newInteractionFixtureForHarnessTemplate(t, target, "kagent", template.Name)
+
+	_, _, task := fixture.send(t, "My VPN keeps dropping")
+	require.Equalf(t, a2atype.TaskStateCompleted, task.Status.State, "task ended in %s: %s", task.Status.State, taskText(task))
+	require.Contains(t, taskText(task), "category: network")
 }
 
 func deleteOnCleanup(t *testing.T, kube ctrlclient.Client, object ctrlclient.Object) {

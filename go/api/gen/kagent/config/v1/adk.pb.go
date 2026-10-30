@@ -155,8 +155,8 @@ type ADKAgentConfig struct {
 	SkillsDirectory string                     `protobuf:"bytes,16,opt,name=skills_directory,json=skillsDirectory,proto3" json:"skills_directory,omitempty"`
 	SubAgents       []*ADKAgentConfig          `protobuf:"bytes,17,rep,name=sub_agents,json=subAgents,proto3" json:"sub_agents,omitempty"`
 	Output          *ADKOutputConfig           `protobuf:"bytes,18,opt,name=output,proto3" json:"output,omitempty"`
-	// workflow carries a declarative AgentSystem document for BYO images. The
-	// managed runtimes reject it.
+	// workflow carries a declarative AgentSystem document for the kagent Go
+	// runtime and BYO images.
 	Workflow *ADKWorkflowConfig `protobuf:"bytes,19,opt,name=workflow,proto3" json:"workflow,omitempty"`
 	// isolation applies to a subagent and says how its parent runs it. Unspecified
 	// is shared. The root agent must leave it unspecified.
@@ -1786,8 +1786,11 @@ type ADKHTTPMCPServerConfig struct {
 	RequireApproval bool                     `protobuf:"varint,4,opt,name=require_approval,json=requireApproval,proto3" json:"require_approval,omitempty"`
 	// Forward the incoming A2A bearer token as this server's Authorization header.
 	TokenPassthrough bool `protobuf:"varint,5,opt,name=token_passthrough,json=tokenPassthrough,proto3" json:"token_passthrough,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Name of the RemoteMCPServer the binding selects. Declarative workflows
+	// refer to the server by this name.
+	Name          string `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ADKHTTPMCPServerConfig) Reset() {
@@ -1855,6 +1858,13 @@ func (x *ADKHTTPMCPServerConfig) GetTokenPassthrough() bool {
 	return false
 }
 
+func (x *ADKHTTPMCPServerConfig) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
 type ADKSSEMCPServerConfig struct {
 	state           protoimpl.MessageState  `protogen:"open.v1"`
 	Params          *ADKSSEConnectionParams `protobuf:"bytes,1,opt,name=params,proto3" json:"params,omitempty"`
@@ -1863,8 +1873,11 @@ type ADKSSEMCPServerConfig struct {
 	RequireApproval bool                    `protobuf:"varint,4,opt,name=require_approval,json=requireApproval,proto3" json:"require_approval,omitempty"`
 	// Forward the incoming A2A bearer token as this server's Authorization header.
 	TokenPassthrough bool `protobuf:"varint,5,opt,name=token_passthrough,json=tokenPassthrough,proto3" json:"token_passthrough,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Name of the RemoteMCPServer the binding selects. Declarative workflows
+	// refer to the server by this name.
+	Name          string `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ADKSSEMCPServerConfig) Reset() {
@@ -1930,6 +1943,13 @@ func (x *ADKSSEMCPServerConfig) GetTokenPassthrough() bool {
 		return x.TokenPassthrough
 	}
 	return false
+}
+
+func (x *ADKSSEMCPServerConfig) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
 }
 
 type ADKStdioMCPServerConfig struct {
@@ -2488,12 +2508,16 @@ func (x *ADKOutputConfig) GetSha256() string {
 }
 
 // ADKWorkflowConfig is an adk.declarative AgentSystem document that the
-// controller validated. The BYO image owns the Go behavior the document names.
+// controller validated. A BYO image owns the Go behavior the document names;
+// the kagent Go runtime builds documents that name none.
 type ADKWorkflowConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Canonical JSON bytes retain the exact document hashed by the compiler.
-	Document      []byte `protobuf:"bytes,1,opt,name=document,proto3" json:"document,omitempty"`
-	Sha256        string `protobuf:"bytes,2,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	Document []byte `protobuf:"bytes,1,opt,name=document,proto3" json:"document,omitempty"`
+	Sha256   string `protobuf:"bytes,2,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	// Models the document names, keyed by ModelConfig name. The controller sets
+	// them for the kagent Go runtime.
+	Models        map[string]*ADKModelConfig `protobuf:"bytes,3,rep,name=models,proto3" json:"models,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2540,6 +2564,13 @@ func (x *ADKWorkflowConfig) GetSha256() string {
 		return x.Sha256
 	}
 	return ""
+}
+
+func (x *ADKWorkflowConfig) GetModels() map[string]*ADKModelConfig {
+	if x != nil {
+		return x.Models
+	}
+	return nil
 }
 
 type ADKAgentPlugins struct {
@@ -3279,19 +3310,21 @@ const file_kagent_config_v1_adk_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x1b\n" +
 	"\x19_tls_insecure_skip_verifyB\x13\n" +
 	"\x11_tls_ca_cert_pathB\x19\n" +
-	"\x17_tls_disable_system_cas\"\xfa\x01\n" +
+	"\x17_tls_disable_system_cas\"\x8e\x02\n" +
 	"\x16ADKHTTPMCPServerConfig\x12I\n" +
 	"\x06params\x18\x01 \x01(\v2).kagent.config.v1.ADKHTTPConnectionParamsB\x06\xbaH\x03\xc8\x01\x01R\x06params\x12\x14\n" +
 	"\x05tools\x18\x02 \x03(\tR\x05tools\x12'\n" +
 	"\x0fallowed_headers\x18\x03 \x03(\tR\x0eallowedHeaders\x12)\n" +
 	"\x10require_approval\x18\x04 \x01(\bR\x0frequireApproval\x12+\n" +
-	"\x11token_passthrough\x18\x05 \x01(\bR\x10tokenPassthrough\"\xf8\x01\n" +
+	"\x11token_passthrough\x18\x05 \x01(\bR\x10tokenPassthrough\x12\x12\n" +
+	"\x04name\x18\x06 \x01(\tR\x04name\"\x8c\x02\n" +
 	"\x15ADKSSEMCPServerConfig\x12H\n" +
 	"\x06params\x18\x01 \x01(\v2(.kagent.config.v1.ADKSSEConnectionParamsB\x06\xbaH\x03\xc8\x01\x01R\x06params\x12\x14\n" +
 	"\x05tools\x18\x02 \x03(\tR\x05tools\x12'\n" +
 	"\x0fallowed_headers\x18\x03 \x03(\tR\x0eallowedHeaders\x12)\n" +
 	"\x10require_approval\x18\x04 \x01(\bR\x0frequireApproval\x12+\n" +
-	"\x11token_passthrough\x18\x05 \x01(\bR\x10tokenPassthrough\"\xd7\x01\n" +
+	"\x11token_passthrough\x18\x05 \x01(\bR\x10tokenPassthrough\x12\x12\n" +
+	"\x04name\x18\x06 \x01(\tR\x04name\"\xd7\x01\n" +
 	"\x17ADKStdioMCPServerConfig\x12\x18\n" +
 	"\acommand\x18\x01 \x01(\tR\acommand\x12\x12\n" +
 	"\x04args\x18\x02 \x03(\tR\x04args\x12D\n" +
@@ -3357,10 +3390,14 @@ const file_kagent_config_v1_adk_proto_rawDesc = "" +
 	"\x0fADKOutputConfig\x12\x1f\n" +
 	"\vjson_schema\x18\x01 \x01(\fR\n" +
 	"jsonSchema\x12\x16\n" +
-	"\x06sha256\x18\x02 \x01(\tR\x06sha256\"k\n" +
+	"\x06sha256\x18\x02 \x01(\tR\x06sha256\"\x91\x02\n" +
 	"\x11ADKWorkflowConfig\x12'\n" +
 	"\bdocument\x18\x01 \x01(\fB\v\xbaH\bz\x06\x10\x01\x18\x80\x80\x04R\bdocument\x12-\n" +
-	"\x06sha256\x18\x02 \x01(\tB\x15\xbaH\x12r\x102\x0e^[0-9a-f]{64}$R\x06sha256\"\x82\x01\n" +
+	"\x06sha256\x18\x02 \x01(\tB\x15\xbaH\x12r\x102\x0e^[0-9a-f]{64}$R\x06sha256\x12G\n" +
+	"\x06models\x18\x03 \x03(\v2/.kagent.config.v1.ADKWorkflowConfig.ModelsEntryR\x06models\x1a[\n" +
+	"\vModelsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x126\n" +
+	"\x05value\x18\x02 \x01(\v2 .kagent.config.v1.ADKModelConfigR\x05value:\x028\x01\"\x82\x01\n" +
 	"\x0fADKAgentPlugins\x122\n" +
 	"\x06skills\x18\x01 \x03(\v2\x1a.kagent.config.v1.ADKSkillR\x06skills\x12;\n" +
 	"\aplugins\x18\x02 \x03(\v2!.kagent.config.v1.ADKPluginBundleR\aplugins\"Y\n" +
@@ -3421,7 +3458,7 @@ func file_kagent_config_v1_adk_proto_rawDescGZIP() []byte {
 }
 
 var file_kagent_config_v1_adk_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_kagent_config_v1_adk_proto_msgTypes = make([]protoimpl.MessageInfo, 43)
+var file_kagent_config_v1_adk_proto_msgTypes = make([]protoimpl.MessageInfo, 44)
 var file_kagent_config_v1_adk_proto_goTypes = []any{
 	(ADKAgentIsolation)(0),             // 0: kagent.config.v1.ADKAgentIsolation
 	(*ADKConfig)(nil),                  // 1: kagent.config.v1.ADKConfig
@@ -3467,10 +3504,11 @@ var file_kagent_config_v1_adk_proto_goTypes = []any{
 	nil,                                // 41: kagent.config.v1.ADKSSEConnectionParams.HeadersEntry
 	nil,                                // 42: kagent.config.v1.ADKStdioMCPServerConfig.EnvEntry
 	nil,                                // 43: kagent.config.v1.ADKRemoteAgentConfig.HeadersEntry
-	(*durationpb.Duration)(nil),        // 44: google.protobuf.Duration
-	(*TokenPropagationConfig)(nil),     // 45: kagent.config.v1.TokenPropagationConfig
-	(*TelemetryConfig)(nil),            // 46: kagent.config.v1.TelemetryConfig
-	(*BuiltinToolsConfig)(nil),         // 47: kagent.config.v1.BuiltinToolsConfig
+	nil,                                // 44: kagent.config.v1.ADKWorkflowConfig.ModelsEntry
+	(*durationpb.Duration)(nil),        // 45: google.protobuf.Duration
+	(*TokenPropagationConfig)(nil),     // 46: kagent.config.v1.TokenPropagationConfig
+	(*TelemetryConfig)(nil),            // 47: kagent.config.v1.TelemetryConfig
+	(*BuiltinToolsConfig)(nil),         // 48: kagent.config.v1.BuiltinToolsConfig
 }
 var file_kagent_config_v1_adk_proto_depIdxs = []int32{
 	37, // 0: kagent.config.v1.ADKConfig.runtime:type_name -> kagent.config.v1.ADKRuntimeConfig
@@ -3500,43 +3538,45 @@ var file_kagent_config_v1_adk_proto_depIdxs = []int32{
 	16, // 24: kagent.config.v1.ADKModelConfig.sap_ai_core:type_name -> kagent.config.v1.ADKSAPAICore
 	17, // 25: kagent.config.v1.ADKModelConfig.foundry:type_name -> kagent.config.v1.ADKFoundry
 	9,  // 26: kagent.config.v1.ADKModelConfig.mistral:type_name -> kagent.config.v1.ADKMistral
-	44, // 27: kagent.config.v1.ADKOpenAI.timeout:type_name -> google.protobuf.Duration
+	45, // 27: kagent.config.v1.ADKOpenAI.timeout:type_name -> google.protobuf.Duration
 	5,  // 28: kagent.config.v1.ADKOpenAI.token_exchange:type_name -> kagent.config.v1.ADKTokenExchangeConfig
 	6,  // 29: kagent.config.v1.ADKTokenExchangeConfig.gdch_service_account:type_name -> kagent.config.v1.ADKGDCHTokenExchangeConfig
-	44, // 30: kagent.config.v1.ADKAnthropic.timeout:type_name -> google.protobuf.Duration
-	44, // 31: kagent.config.v1.ADKMistral.timeout:type_name -> google.protobuf.Duration
+	45, // 30: kagent.config.v1.ADKAnthropic.timeout:type_name -> google.protobuf.Duration
+	45, // 31: kagent.config.v1.ADKMistral.timeout:type_name -> google.protobuf.Duration
 	39, // 32: kagent.config.v1.ADKOllama.options:type_name -> kagent.config.v1.ADKOllama.OptionsEntry
 	15, // 33: kagent.config.v1.ADKBedrock.guardrail:type_name -> kagent.config.v1.ADKBedrockGuardrail
-	44, // 34: kagent.config.v1.ADKBedrock.read_timeout:type_name -> google.protobuf.Duration
-	44, // 35: kagent.config.v1.ADKBedrock.connect_timeout:type_name -> google.protobuf.Duration
+	45, // 34: kagent.config.v1.ADKBedrock.read_timeout:type_name -> google.protobuf.Duration
+	45, // 35: kagent.config.v1.ADKBedrock.connect_timeout:type_name -> google.protobuf.Duration
 	40, // 36: kagent.config.v1.ADKHTTPConnectionParams.headers:type_name -> kagent.config.v1.ADKHTTPConnectionParams.HeadersEntry
-	44, // 37: kagent.config.v1.ADKHTTPConnectionParams.timeout:type_name -> google.protobuf.Duration
-	44, // 38: kagent.config.v1.ADKHTTPConnectionParams.sse_read_timeout:type_name -> google.protobuf.Duration
+	45, // 37: kagent.config.v1.ADKHTTPConnectionParams.timeout:type_name -> google.protobuf.Duration
+	45, // 38: kagent.config.v1.ADKHTTPConnectionParams.sse_read_timeout:type_name -> google.protobuf.Duration
 	41, // 39: kagent.config.v1.ADKSSEConnectionParams.headers:type_name -> kagent.config.v1.ADKSSEConnectionParams.HeadersEntry
-	44, // 40: kagent.config.v1.ADKSSEConnectionParams.timeout:type_name -> google.protobuf.Duration
-	44, // 41: kagent.config.v1.ADKSSEConnectionParams.sse_read_timeout:type_name -> google.protobuf.Duration
+	45, // 40: kagent.config.v1.ADKSSEConnectionParams.timeout:type_name -> google.protobuf.Duration
+	45, // 41: kagent.config.v1.ADKSSEConnectionParams.sse_read_timeout:type_name -> google.protobuf.Duration
 	18, // 42: kagent.config.v1.ADKHTTPMCPServerConfig.params:type_name -> kagent.config.v1.ADKHTTPConnectionParams
 	19, // 43: kagent.config.v1.ADKSSEMCPServerConfig.params:type_name -> kagent.config.v1.ADKSSEConnectionParams
 	42, // 44: kagent.config.v1.ADKStdioMCPServerConfig.env:type_name -> kagent.config.v1.ADKStdioMCPServerConfig.EnvEntry
 	43, // 45: kagent.config.v1.ADKRemoteAgentConfig.headers:type_name -> kagent.config.v1.ADKRemoteAgentConfig.HeadersEntry
-	44, // 46: kagent.config.v1.ADKRemoteAgentConfig.timeout:type_name -> google.protobuf.Duration
+	45, // 46: kagent.config.v1.ADKRemoteAgentConfig.timeout:type_name -> google.protobuf.Duration
 	24, // 47: kagent.config.v1.ADKMemoryConfig.embedding:type_name -> kagent.config.v1.ADKEmbeddingConfig
 	28, // 48: kagent.config.v1.ADKContextConfig.compaction:type_name -> kagent.config.v1.ADKCompressionConfig
 	3,  // 49: kagent.config.v1.ADKCompressionConfig.summarizer_model:type_name -> kagent.config.v1.ADKModelConfig
-	32, // 50: kagent.config.v1.ADKAgentPlugins.skills:type_name -> kagent.config.v1.ADKSkill
-	33, // 51: kagent.config.v1.ADKAgentPlugins.plugins:type_name -> kagent.config.v1.ADKPluginBundle
-	34, // 52: kagent.config.v1.ADKSkill.source:type_name -> kagent.config.v1.ADKPluginSource
-	34, // 53: kagent.config.v1.ADKPluginBundle.source:type_name -> kagent.config.v1.ADKPluginSource
-	35, // 54: kagent.config.v1.ADKPluginSource.git:type_name -> kagent.config.v1.ADKPluginGitSource
-	36, // 55: kagent.config.v1.ADKPluginSource.s3:type_name -> kagent.config.v1.ADKPluginS3Source
-	45, // 56: kagent.config.v1.ADKRuntimeConfig.token_propagation:type_name -> kagent.config.v1.TokenPropagationConfig
-	46, // 57: kagent.config.v1.ADKRuntimeConfig.telemetry:type_name -> kagent.config.v1.TelemetryConfig
-	47, // 58: kagent.config.v1.ADKRuntimeConfig.builtin_tools:type_name -> kagent.config.v1.BuiltinToolsConfig
-	59, // [59:59] is the sub-list for method output_type
-	59, // [59:59] is the sub-list for method input_type
-	59, // [59:59] is the sub-list for extension type_name
-	59, // [59:59] is the sub-list for extension extendee
-	0,  // [0:59] is the sub-list for field type_name
+	44, // 50: kagent.config.v1.ADKWorkflowConfig.models:type_name -> kagent.config.v1.ADKWorkflowConfig.ModelsEntry
+	32, // 51: kagent.config.v1.ADKAgentPlugins.skills:type_name -> kagent.config.v1.ADKSkill
+	33, // 52: kagent.config.v1.ADKAgentPlugins.plugins:type_name -> kagent.config.v1.ADKPluginBundle
+	34, // 53: kagent.config.v1.ADKSkill.source:type_name -> kagent.config.v1.ADKPluginSource
+	34, // 54: kagent.config.v1.ADKPluginBundle.source:type_name -> kagent.config.v1.ADKPluginSource
+	35, // 55: kagent.config.v1.ADKPluginSource.git:type_name -> kagent.config.v1.ADKPluginGitSource
+	36, // 56: kagent.config.v1.ADKPluginSource.s3:type_name -> kagent.config.v1.ADKPluginS3Source
+	46, // 57: kagent.config.v1.ADKRuntimeConfig.token_propagation:type_name -> kagent.config.v1.TokenPropagationConfig
+	47, // 58: kagent.config.v1.ADKRuntimeConfig.telemetry:type_name -> kagent.config.v1.TelemetryConfig
+	48, // 59: kagent.config.v1.ADKRuntimeConfig.builtin_tools:type_name -> kagent.config.v1.BuiltinToolsConfig
+	3,  // 60: kagent.config.v1.ADKWorkflowConfig.ModelsEntry.value:type_name -> kagent.config.v1.ADKModelConfig
+	61, // [61:61] is the sub-list for method output_type
+	61, // [61:61] is the sub-list for method input_type
+	61, // [61:61] is the sub-list for extension type_name
+	61, // [61:61] is the sub-list for extension extendee
+	0,  // [0:61] is the sub-list for field type_name
 }
 
 func init() { file_kagent_config_v1_adk_proto_init() }
@@ -3584,7 +3624,7 @@ func file_kagent_config_v1_adk_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_kagent_config_v1_adk_proto_rawDesc), len(file_kagent_config_v1_adk_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   43,
+			NumMessages:   44,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

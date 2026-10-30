@@ -54,11 +54,11 @@ func CreateGoogleADKAgent(ctx context.Context, config *configv1.ADKConfig, agent
 	if err := protovalidate.Validate(config); err != nil {
 		return nil, err
 	}
-	if config.Agent.Workflow != nil {
-		return nil, fmt.Errorf("agent config carries a declarative workflow, which only BYO images run")
-	}
 	if config.Agent.GetIsolation() != configv1.ADKAgentIsolation_ADK_AGENT_ISOLATION_UNSPECIFIED {
 		return nil, fmt.Errorf("the root agent sets isolation, but it has no parent to isolate from")
+	}
+	if config.Agent.Workflow != nil {
+		return createWorkflowAgent(ctx, config.Agent, stsPlugin, runtimeconfig.ProcessConfig(config))
 	}
 	return createGoogleADKAgent(ctx, config.Agent, agentName, stsPlugin, runtimeconfig.ProcessConfig(config), false, extraTools...)
 }

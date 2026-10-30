@@ -3,6 +3,8 @@ package adkconfig
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 
 	"istio.io/istio/pkg/kube/krt"
 	corev1 "k8s.io/api/core/v1"
@@ -34,6 +36,12 @@ func (c *Builder) buildModel(namespace, name string) (*modelResult, error) {
 	if failures := resolved.ReferenceFailures; len(failures) > 0 {
 		return nil, fmt.Errorf("ModelConfig %q: %s", name, failures[0].Message)
 	}
+	return compileModel(resolved)
+}
+
+// compileModel translates a resolved ModelConfig into its runtime
+// configuration, environment and egress.
+func compileModel(resolved *translator.ResolvedModelConfig) (*modelResult, error) {
 	runtime, err := resolveModel(resolved)
 	if err != nil {
 		return nil, err
@@ -107,16 +115,35 @@ func applyOutputSchema(config *configv1.ADKAgentConfig, output *translator.Resol
 	return nil
 }
 
-// applyWorkflow delivers the validated declarative workflow document to the
-// BYO image, which builds its agents from it.
-func applyWorkflow(config *configv1.ADKAgentConfig, workflow *translator.ResolvedWorkflow) {
+// applyWorkflow delivers the validated declarative workflow document. The
+// ModelConfigs a document for the kagent runtime names are translated like the
+// agent model: their runtime configuration travels with the document, and
+// their credentials, egress and provenance join the revision.
+func applyWorkflow(result *Result, workflow *translator.ResolvedWorkflow) error {
 	if workflow == nil {
-		return
+		return nil
 	}
-	config.Workflow = &configv1.ADKWorkflowConfig{
+	config := &configv1.ADKWorkflowConfig{
 		Document: append([]byte(nil), workflow.Document...),
 		Sha256:   workflow.SHA256,
 	}
+	for _, name := range slices.Sorted(maps.Keys(workflow.Models)) {
+		model, err := compileModel(workflow.Models[name])
+		if err != nil {
+			return fmt.Errorf("render workflow ModelConfig %q: %w", name, err)
+		}
+		if config.Models == nil {
+			config.Models = make(map[string]*configv1.ADKModelConfig, len(workflow.Models))
+		}
+		config.Models[name] = model.Model
+		if !slices.ContainsFunc(result.Models, func(m *translator.ResolvedModelConfig) bool { return m.Config.Name == name }) {
+			result.Models = append(result.Models, model.Resolved)
+		}
+		result.Environment = append(result.Environment, model.Environment...)
+		result.Egress = append(result.Egress, model.Egress...)
+	}
+	result.Config.Workflow = config
+	return nil
 }
 
 func requireModels(input *translator.AgentInput) error {

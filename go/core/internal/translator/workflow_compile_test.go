@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	runtimeconfig "github.com/kagent-dev/kagent/go/adk/pkg/config"
@@ -141,7 +142,6 @@ func TestCompileAgentWorkflowSourceFailuresAreNotValidationErrors(t *testing.T) 
 func TestCompileAgentRejectsWorkflowOnOtherHarnesses(t *testing.T) {
 	configMap := workflowConfigMap(workflowYAML)
 	for name, spec := range map[string]v1alpha3.HarnessSpec{
-		"kagent": {Kagent: &v1alpha3.KagentHarness{}},
 		"codex":  {Codex: &v1alpha3.CodexHarness{}},
 		"claude": {Claude: &v1alpha3.ClaudeHarness{}},
 	} {
@@ -153,9 +153,144 @@ func TestCompileAgentRejectsWorkflowOnOtherHarnesses(t *testing.T) {
 			_, err := compiler(t, configMap, harness).CompileAgent(t.Context(), inlineAgent(harness, workflowTemplate(nil)))
 			var validation *translator.ValidationError
 			require.ErrorAs(t, err, &validation)
-			require.ErrorContains(t, err, "does not run declarative workflows; use a BYO Harness")
+			require.ErrorContains(t, err, "does not run declarative workflows; use a kagent or BYO Harness")
 		})
 	}
+}
+
+// kagentWorkflowYAML names only what the kagent runtime offers: ModelConfigs
+// and the template's RemoteMCPServer bindings.
+const kagentWorkflowYAML = `
+apiVersion: adk.declarative/v0.2
+kind: AgentSystem
+agents:
+  - name: rca
+    agent_class: Workflow
+    entry: diagnose
+    nodes:
+      - { id: diagnose, type: llm, model: default-model, instruction: Diagnose., tools: [incidents] }
+      - { id: review, type: llm, model: review-model, instruction: Review. }
+      - { id: args, type: cel, output: "{'summary': input}" }
+      - { id: record, type: tool, server: incidents, tool: record_analysis }
+      - { id: done, type: cel, output: "'recorded'" }
+    edges:
+      - { from: diagnose, to: review }
+      - { from: review, to: args }
+      - { from: args, to: record }
+      - { from: record, to: done }
+`
+
+func kagentHarness() *v1alpha3.Harness {
+	return &v1alpha3.Harness{ObjectMeta: metav1.ObjectMeta{Name: "kagent", Namespace: "test"}, Spec: v1alpha3.HarnessSpec{
+		Kagent:    &v1alpha3.KagentHarness{},
+		Substrate: v1alpha3.RuntimeSubstratePolicy{WorkerPoolRef: corev1.LocalObjectReference{Name: "default"}},
+	}}
+}
+
+func kagentWorkflowTemplate(mutate func(*v1alpha3.AgentTemplateSpec)) *v1alpha3.AgentTemplate {
+	return workflowTemplate(func(s *v1alpha3.AgentTemplateSpec) {
+		s.ModelConfig = &corev1.LocalObjectReference{Name: "default-model"}
+		s.Tools = []v1alpha3.ToolBinding{{MCP: &v1alpha3.MCPToolBinding{
+			Server: corev1.TypedLocalObjectReference{Kind: "RemoteMCPServer", Name: "incidents"}, Tools: []string{"record_analysis"},
+		}}}
+		if mutate != nil {
+			mutate(s)
+		}
+	})
+}
+
+func reviewModel() *v1alpha3.ModelConfig {
+	model := modelConfig()
+	model.Name, model.Spec.Model = "review-model", "gpt-4o-mini"
+	return model
+}
+
+func TestCompileAgentRunsWorkflowOnKagent(t *testing.T) {
+	harness := kagentHarness()
+	objects := []any{workflowConfigMap(kagentWorkflowYAML), modelConfig(), reviewModel(), remoteMCPServer("incidents", "http://incidents.test/mcp"), harness}
+
+	revision, err := compiler(t, objects...).CompileAgent(t.Context(), inlineAgent(harness, kagentWorkflowTemplate(nil)))
+	require.NoError(t, err)
+
+	var config configv1.ADKConfig
+	require.NoError(t, runtimeconfig.Unmarshal(revision.ConfigJSON, &config))
+	workflow := config.Agent.Workflow
+	require.NotNil(t, workflow)
+	require.Len(t, workflow.Models, 2)
+	require.Equal(t, "gpt-4o", workflow.Models["default-model"].Model)
+	require.Equal(t, "gpt-4o-mini", workflow.Models["review-model"].Model)
+	require.Equal(t, "incidents", config.Agent.HttpTools[0].Name, "the document names the server of the binding")
+	require.Equal(t, []corev1.LocalObjectReference{{Name: "default-model"}, {Name: "review-model"}}, revision.Models, "the gateway admits every model the document names")
+	require.Contains(t, string(revision.Provenance), `"name":"review-model"`)
+	require.Contains(t, string(revision.Provenance), "workflows-uid")
+}
+
+func TestCompileAgentRejectsKagentWorkflowsItCannotBuild(t *testing.T) {
+	const hitlYAML = `
+apiVersion: adk.declarative/v0.2
+kind: AgentSystem
+agents:
+  - name: approve
+    agent_class: Workflow
+    entry: ask
+    nodes:
+      - { id: ask, type: hitl, message: "Approve?" }
+`
+	const declaredServerYAML = `
+apiVersion: adk.declarative/v0.2
+kind: AgentSystem
+mcp_servers:
+  - { name: crm, url: "http://crm.test/mcp" }
+agents:
+  - { name: support, agent_class: LlmAgent, model: default-model, instruction: hi, tools: [crm] }
+`
+	const unboundServerYAML = `
+apiVersion: adk.declarative/v0.2
+kind: AgentSystem
+agents:
+  - { name: support, agent_class: LlmAgent, model: default-model, instruction: hi, tools: [crm] }
+`
+	tests := []struct {
+		name     string
+		document string
+		mutate   func(*v1alpha3.AgentTemplateSpec)
+		want     string
+	}{
+		{name: "Go function", document: workflowYAML, want: `agents[0].nodes[0].function: function "triage" is not registered`},
+		{name: "unbound server", document: unboundServerYAML, want: `agents[0].tools[0]: tool "crm" is not registered`},
+		{name: "declared server", document: declaredServerYAML, want: "RemoteMCPServer bindings"},
+		{name: "hitl node", document: hitlYAML, want: "agents[0].nodes[0]: hitl nodes are not supported"},
+		{name: "approval", document: kagentWorkflowYAML, mutate: func(s *v1alpha3.AgentTemplateSpec) {
+			s.Tools[0].MCP.RequireApproval = true
+		}, want: `RemoteMCPServer "incidents" requires approval`},
+		{name: "output schema", document: kagentWorkflowYAML, mutate: func(s *v1alpha3.AgentTemplateSpec) {
+			s.OutputSchema = &apiextensionsv1.JSON{Raw: []byte(`{"type":"object"}`)}
+		}, want: "output schema"},
+		{name: "skills", document: kagentWorkflowYAML, mutate: func(s *v1alpha3.AgentTemplateSpec) {
+			s.Skills = []v1alpha3.AgentTemplateSkill{{Name: "review", Source: v1alpha3.ArtifactSource{
+				OCI: "ghcr.io/acme/review@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+			}}}
+		}, want: "skills or plugins"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			harness := kagentHarness()
+			objects := []any{workflowConfigMap(tt.document), modelConfig(), reviewModel(), remoteMCPServer("incidents", "http://incidents.test/mcp"), harness}
+			_, err := compiler(t, objects...).CompileAgent(t.Context(), inlineAgent(harness, kagentWorkflowTemplate(tt.mutate)))
+			var validation *translator.ValidationError
+			require.ErrorAs(t, err, &validation)
+			require.ErrorContains(t, err, tt.want)
+		})
+	}
+}
+
+func TestCompileAgentRetriesMissingWorkflowModels(t *testing.T) {
+	harness := kagentHarness()
+	objects := []any{workflowConfigMap(kagentWorkflowYAML), modelConfig(), remoteMCPServer("incidents", "http://incidents.test/mcp"), harness}
+	_, err := compiler(t, objects...).CompileAgent(t.Context(), inlineAgent(harness, kagentWorkflowTemplate(nil)))
+	require.ErrorContains(t, err, `resolve ModelConfig "review-model": not found`)
+	var validation *translator.ValidationError
+	require.False(t, errors.As(err, &validation), "a ModelConfig that may appear later must be retried")
 }
 
 func TestCompileAgentRejectsWorkflowOnSharedTemplates(t *testing.T) {

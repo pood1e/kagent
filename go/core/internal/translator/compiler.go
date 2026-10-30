@@ -69,7 +69,7 @@ type HarnessInput struct {
 	Root         *AgentInput
 	OutputSchema *ResolvedOutputSchema
 	// Workflow is the validated declarative workflow document of the root
-	// template. Only BYO Harnesses receive one.
+	// template. Only kagent and BYO Harnesses receive one.
 	Workflow *ResolvedWorkflow
 }
 
@@ -177,7 +177,7 @@ func (c *Compiler) compileConfiguration(ctx context.Context, agent *v1alpha3.Age
 	if err != nil {
 		return nil, err
 	}
-	result.MCPTools, result.Models = runtimeTargets(input.Root)
+	result.MCPTools, result.Models = runtimeTargets(input)
 	workerKey := types.NamespacedName{Namespace: harness.Namespace, Name: harness.Spec.Substrate.WorkerPoolRef.Name}
 	workerPool := FetchOne(c.ctx, c.collections.WorkerPools, krt.FilterObjectName(workerKey))
 	if workerPool == nil {
@@ -281,8 +281,8 @@ func (c *Compiler) buildInputs(ctx context.Context, tree *resolvedTemplateTree) 
 	if err != nil {
 		return nil, err
 	}
-	if workflow != nil && harnessType(tree.Harness) != HarnessTypeBYO {
-		return nil, NewValidationError("Harness runtime %q does not run declarative workflows; use a BYO Harness", harnessType(tree.Harness))
+	if workflow != nil && harnessType(tree.Harness) != HarnessTypeKagent && harnessType(tree.Harness) != HarnessTypeBYO {
+		return nil, NewValidationError("Harness runtime %q does not run declarative workflows; use a kagent or BYO Harness", harnessType(tree.Harness))
 	}
 	var build func(*resolvedTemplate) (*AgentInput, error)
 	build = func(agent *resolvedTemplate) (*AgentInput, error) {
@@ -293,15 +293,9 @@ func (c *Compiler) buildInputs(ctx context.Context, tree *resolvedTemplateTree) 
 		}
 		input := &AgentInput{Template: template, Instruction: instruction}
 		if template.Spec.ModelConfig != nil {
-			input.ResolvedModelConfig = FetchOne(c.ctx, c.collections.ResolvedModelConfigs, krt.FilterObjectName(types.NamespacedName{Namespace: template.Namespace, Name: template.Spec.ModelConfig.Name}))
-			if input.ResolvedModelConfig == nil {
-				return nil, fmt.Errorf("resolve ModelConfig %q: not found", template.Spec.ModelConfig.Name)
-			}
-			if failures := input.ResolvedModelConfig.SemanticFailures; len(failures) > 0 {
-				return nil, NewValidationError("ModelConfig %q: %s", template.Spec.ModelConfig.Name, failures[0].Message)
-			}
-			if failures := input.ResolvedModelConfig.ReferenceFailures; len(failures) > 0 {
-				return nil, fmt.Errorf("resolve ModelConfig %q: %s", template.Spec.ModelConfig.Name, failures[0].Message)
+			input.ResolvedModelConfig, err = c.resolveModelConfig(template.Namespace, template.Spec.ModelConfig.Name)
+			if err != nil {
+				return nil, err
 			}
 		}
 		toolNames := make([]string, 0)
@@ -357,5 +351,27 @@ func (c *Compiler) buildInputs(ctx context.Context, tree *resolvedTemplateTree) 
 	if err != nil {
 		return nil, err
 	}
+	if workflow != nil && harnessType(tree.Harness) == HarnessTypeKagent {
+		if err := c.resolveKagentWorkflow(workflow, root, outputSchema); err != nil {
+			return nil, err
+		}
+	}
 	return &HarnessInput{Harness: tree.Harness, Root: root, OutputSchema: outputSchema, Workflow: workflow}, nil
+}
+
+// resolveModelConfig returns a same-namespace ModelConfig that compiled
+// without failures. A missing ModelConfig or reference may appear later and
+// is retried; a semantic failure is incompatible configuration.
+func (c *Compiler) resolveModelConfig(namespace, name string) (*ResolvedModelConfig, error) {
+	resolved := FetchOne(c.ctx, c.collections.ResolvedModelConfigs, krt.FilterObjectName(types.NamespacedName{Namespace: namespace, Name: name}))
+	if resolved == nil {
+		return nil, fmt.Errorf("resolve ModelConfig %q: not found", name)
+	}
+	if failures := resolved.SemanticFailures; len(failures) > 0 {
+		return nil, NewValidationError("ModelConfig %q: %s", name, failures[0].Message)
+	}
+	if failures := resolved.ReferenceFailures; len(failures) > 0 {
+		return nil, fmt.Errorf("resolve ModelConfig %q: %s", name, failures[0].Message)
+	}
+	return resolved, nil
 }

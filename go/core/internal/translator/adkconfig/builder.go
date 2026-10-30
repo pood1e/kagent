@@ -88,8 +88,8 @@ func (c *Builder) Build(ctx context.Context, input *translator.HarnessInput) (*R
 			return nil, err
 		}
 	}
-	if input.Harness.Spec.BYO != nil {
-		applyWorkflow(result.Config, input.Workflow)
+	if err := applyWorkflow(result, input.Workflow); err != nil {
+		return nil, err
 	}
 	// The Python runtime needs an async SQLite driver; the Go runtime accepts
 	// this URL and strips the driver before opening the same durable database.

@@ -1043,7 +1043,8 @@ func (v *validator) mcpServers(servers []MCPServerSpec) {
 
 // mcpToolNode checks a tool node that calls a tool of a server. Whether the
 // server offers the tool is only known when it runs, unless the server
-// declares an allowlist.
+// declares an allowlist. A server that the document does not declare must be
+// a registered toolset, which only a registry can confirm.
 func (v *validator) mcpToolNode(path string, n *NodeSpec) {
 	if n.Tool != "" && !toolName.MatchString(n.Tool) {
 		v.addf(path+".tool", "%q must match %s", n.Tool, toolName)
@@ -1054,7 +1055,7 @@ func (v *validator) mcpToolNode(path string, n *NodeSpec) {
 		}
 		return
 	}
-	if v.refs == nil || !v.refs.hasToolset(n.Server) {
-		v.addf(path+".server", "server %q is not declared in mcp_servers", n.Server)
+	if v.refs != nil && !v.refs.hasToolset(n.Server) {
+		v.addf(path+".server", "server %q is not declared in mcp_servers or registered", n.Server)
 	}
 }
