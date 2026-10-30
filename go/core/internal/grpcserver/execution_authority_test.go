@@ -91,6 +91,7 @@ func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	cfg := &configv1.ExecutionAuthorizationConfig{ScopeClaim: "roles", EncryptionKeyFile: keyFile, Rules: []*configv1.ResourceScopeRule{
 		{ResourceType: "Session", Verbs: []string{"get"}},
 		{ResourceType: "Session", Verbs: []string{"create", "update"}, AnyScope: []string{"write"}},
+		{ResourceType: "SessionAllCreators", Verbs: []string{"get"}, AnyScope: []string{"admin"}},
 		{ResourceType: "Agent", Verbs: []string{"get", "list"}},
 	}}
 	authority, err := executionauth.NewService(store, userProvider, cfg, false)
@@ -133,6 +134,21 @@ func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	_, err = client.CreateSession(withToken(limitedToken), &apiv1.CreateSessionRequest{Agent: root.Agent, RequestId: uuid.NewString()})
 	assertGRPCCode(t, err, codes.PermissionDenied)
 	other := create(user, "write")
+	bobToken := users.Token(t, jwt.MapClaims{"iss": users.URL, "aud": "kagent-api", "sub": "bob", "roles": []string{"read", "write"}, "exp": time.Now().Add(time.Hour).Unix()})
+	bobSession := create(withToken(bobToken), "read", "write")
+	all, err := client.ListSessions(user, &apiv1.ListSessionsRequest{AllCreators: true})
+	require.NoError(t, err)
+	var allIDs []string
+	for _, session := range all.Sessions {
+		allIDs = append(allIDs, session.Id)
+	}
+	require.Contains(t, allIDs, bobSession.Id)
+	_, err = client.GetSession(user, &apiv1.GetSessionRequest{SessionId: bobSession.Id})
+	require.NoError(t, err)
+	_, err = client.UpdateSessionName(user, &apiv1.UpdateSessionNameRequest{SessionId: bobSession.Id, Name: "foreign"})
+	assertGRPCCode(t, err, codes.NotFound)
+	_, err = executionClient.IssueSessionCredential(user, &apiv1.IssueSessionCredentialRequest{SessionId: bobSession.Id, Ttl: durationpb.New(time.Minute)})
+	assertGRPCCode(t, err, codes.PermissionDenied)
 	group, err := client.ListSessions(user, &apiv1.ListSessionsRequest{RootSessionId: root.Id, Page: &apiv1.PageRequest{Limit: 100}})
 	require.NoError(t, err)
 	var sessionIDs []string
@@ -142,6 +158,8 @@ func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	require.ElementsMatch(t, []string{root.Id, child.Id, limited.Id}, sessionIDs)
 	stranger := users.Token(t, jwt.MapClaims{"iss": users.URL, "aud": "kagent-api", "sub": "stranger", "roles": []string{"read"}, "exp": time.Now().Add(time.Hour).Unix()})
 	_, err = client.ListSessions(withToken(stranger), &apiv1.ListSessionsRequest{RootSessionId: root.Id})
+	assertGRPCCode(t, err, codes.NotFound)
+	_, err = client.GetSession(withToken(stranger), &apiv1.GetSessionRequest{SessionId: bobSession.Id})
 	assertGRPCCode(t, err, codes.NotFound)
 	credential, err := executionClient.IssueSessionCredential(user, &apiv1.IssueSessionCredentialRequest{SessionId: root.Id, Ttl: durationpb.New(5 * time.Minute)})
 	require.NoError(t, err)
