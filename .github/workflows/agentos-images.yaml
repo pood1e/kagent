@@ -2,7 +2,7 @@ name: AgentOS images
 
 on:
   push:
-    branches: ['agentos/**']
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -15,7 +15,7 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io/${{ github.repository }}
-  VERSION: 1.0.0-alpha17-agentos.14
+  VERSION: 0.0.0-main.g${{ github.sha }}
 
 jobs:
   verify:
@@ -100,7 +100,7 @@ jobs:
           retention-days: 1
 
   images:
-    if: github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/main'
     needs: verify
     runs-on: ubuntu-24.04
     permissions:
@@ -118,11 +118,12 @@ jobs:
           - component: standard-harness
             dockerfile: harness
             entrypoint: /app
-            base: ghcr.io/kagent-dev/kagent/golang-adk:1.0.0-alpha17@sha256:d20d411759d7bb549f00b7d6e8d669b91694aeb57dce847dcd2cbb68aa0d45f3
+            # Upstream main snapshot 692964d30c6b; the runtime binary comes from this checkout.
+            base: ghcr.io/kagent-dev/kagent/golang-adk@sha256:a9193f48437a3f1e12149bd754fd488b7d3b57be818974f19e904fa4d7363284
           - component: codex-harness
             dockerfile: harness
             entrypoint: /usr/local/bin/kagent-codex
-            base: ghcr.io/kagent-dev/kagent/codex-harness:1.0.0-alpha17@sha256:1c8565efce78c420b6726c68eaf010363fafd4eeec0c1afcd317d9e517434c22
+            base: ghcr.io/kagent-dev/kagent/codex-harness@sha256:2c9b447cd2d6a78b56b91b9ec78658388ab2df27290062fcbd070c6cde0a5315
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -144,11 +145,14 @@ jobs:
           platforms: linux/amd64
           push: true
           provenance: false
-          tags: ${{ env.REGISTRY }}/${{ matrix.component }}:${{ github.sha }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ matrix.component }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ matrix.component }}:main
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.version=${{ env.VERSION }}
+            org.opencontainers.image.ref.name=main
       - name: Verify the published entrypoint
         run: docker run --rm --entrypoint '${{ matrix.entrypoint }}' "${REGISTRY}/${{ matrix.component }}@${{ steps.build.outputs.digest }}" --help
       - run: echo "${REGISTRY}/${{ matrix.component }}@${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
@@ -169,7 +173,7 @@ jobs:
           retention-days: 1
 
   charts:
-    if: startsWith(github.ref, 'refs/heads/agentos/')
+    if: github.ref == 'refs/heads/main'
     needs: images
     runs-on: ubuntu-24.04
     permissions:
@@ -208,7 +212,7 @@ jobs:
           digest = json.loads(Path('metadata/controller.json').read_text())['containerimage.digest']
           config['controller']['image'].update(registry='ghcr.io', repository=os.environ['GITHUB_REPOSITORY'] + '/controller', tag=os.environ['GITHUB_SHA'] + '@' + digest)
           config['ui']['replicas'] = 0
-          config['ui']['image']['tag'] = '1.0.0-alpha17@sha256:68dc2ec374a5250a545b85850b6d284c318e3472c73de6e419e534cdcf5b79a1'
+          config['ui']['image']['tag'] = '0.0.0-alpha.g692964d30c6b@sha256:c212265004302450b7a0f10442e125e528fddc16aaaf3cbfd1cb760afab19e6b'
           for name in ('kagent-tools', 'grafana-mcp'):
               config[name]['enabled'] = False
           values.write_text(yaml.safe_dump(config, sort_keys=False))
