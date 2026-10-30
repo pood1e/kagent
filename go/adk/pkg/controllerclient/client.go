@@ -128,6 +128,15 @@ func (client *Client) MaxMessageBytes() int {
 }
 
 func (client *Client) CallContext(ctx context.Context, userID string) (context.Context, context.CancelFunc) {
+	ctx = client.StreamContext(ctx, userID)
+	if client.timeout <= 0 {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(ctx, client.timeout)
+}
+
+// StreamContext attaches runtime identity without imposing a unary RPC timeout.
+func (client *Client) StreamContext(ctx context.Context, userID string) context.Context {
 	if userID == "" {
 		userID = auth.UserIDFromContext(ctx)
 	}
@@ -147,11 +156,7 @@ func (client *Client) CallContext(ctx context.Context, userID string) (context.C
 	if userID != "" {
 		metadataValues.Set("x-user-id", userID)
 	}
-	ctx = metadata.NewOutgoingContext(ctx, metadataValues)
-	if client.timeout <= 0 {
-		return ctx, func() {}
-	}
-	return context.WithTimeout(ctx, client.timeout)
+	return metadata.NewOutgoingContext(ctx, metadataValues)
 }
 
 func (client *Client) Close() error {

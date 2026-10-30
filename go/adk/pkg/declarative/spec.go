@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"iter"
 	"slices"
+
+	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 )
 
 // Document identity.
@@ -264,6 +266,9 @@ type NodeSpec struct {
 	Function string `json:"function,omitempty"`
 	Tool     string `json:"tool,omitempty"`
 	Agent    string `json:"agent,omitempty"`
+	// AgentRef selects an independently prepared native Agent and its Harness.
+	// An omitted namespace is resolved by the embedding controller.
+	AgentRef *apiv1.ResourceReference `json:"agent_ref,omitempty"`
 	// Server makes a tool node call Tool on a declared MCP server, or on a
 	// registered toolset, instead of a registered tool.
 	Server string `json:"server,omitempty"`

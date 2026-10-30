@@ -12,6 +12,8 @@
 //   - build.go and nodes.go resolve a validated document against a Registry
 //     and produce ADK workflow nodes, edges, and agents, including the
 //     Sequential, Parallel and Loop agents.
+//   - native_agent.go adapts agent_ref nodes to the embedding runtime's native
+//     Agent runner; pkg/nativeagent owns the managed Session/A2A transport.
 //
 // A document never carries code. Behavior is attached by name through the
 // Registry, and new node types can be added with Registry.RegisterNodeType

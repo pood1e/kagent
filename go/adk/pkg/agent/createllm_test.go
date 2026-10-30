@@ -54,7 +54,7 @@ func runAgent(t *testing.T, agentCfg *configv1.ADKConfig, prompt string) string 
 	t.Helper()
 	ctx := logging.IntoContext(t.Context(), slog.New(slog.DiscardHandler))
 
-	adkAgent, err := CreateGoogleADKAgent(ctx, agentCfg, "test-agent", nil)
+	adkAgent, err := CreateGoogleADKAgent(ctx, agentCfg, "test-agent", nil, nil)
 	require.NoError(t, err)
 
 	sessionService := adksession.InMemoryService()

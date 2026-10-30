@@ -70,6 +70,9 @@ func (c *Builder) applyCompaction(result *Result, harness *translator.HarnessCon
 	if spec == nil {
 		return nil
 	}
+	if result.Config.Model == nil && (spec.Summarizer == nil || spec.Summarizer.ModelConfigRef == nil) {
+		return translator.NewValidationError("Harness compaction requires summarizer.modelConfigRef when the workflow has no modelConfig")
+	}
 	compaction := &configv1.ADKCompressionConfig{
 		CompactionInterval: runtimeInt(spec.CompactionInterval),
 		OverlapSize:        runtimeInt(spec.OverlapSize),

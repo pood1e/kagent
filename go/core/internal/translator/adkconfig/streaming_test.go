@@ -80,7 +80,7 @@ func TestNonStreamingModelTurn(t *testing.T) {
 			require.NoError(t, err)
 			var config configv1.ADKConfig
 			require.NoError(t, runtimeconfig.Unmarshal(payload, &config))
-			agent, err := adkagent.CreateGoogleADKAgent(t.Context(), &config, "agent", nil)
+			agent, err := adkagent.CreateGoogleADKAgent(t.Context(), &config, "agent", nil, nil)
 			require.NoError(t, err)
 			executor, err := adka2a.NewKAgentExecutor(adka2a.KAgentExecutorConfig{
 				AppName: "test", Stream: config.Agent.GetStream(), Logger: slog.New(slog.DiscardHandler),

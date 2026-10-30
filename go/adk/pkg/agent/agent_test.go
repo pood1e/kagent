@@ -561,7 +561,7 @@ func TestCreateGoogleADKAgentBuildsSubAgents(t *testing.T) {
 		SubAgents: []*configv1.ADKAgentConfig{{Name: "researcher", Model: model(), Description: "research", Instruction: "investigate"}},
 	}
 
-	root, err := CreateGoogleADKAgent(context.Background(), &configv1.ADKConfig{Agent: config}, "root", nil)
+	root, err := CreateGoogleADKAgent(context.Background(), &configv1.ADKConfig{Agent: config}, "root", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

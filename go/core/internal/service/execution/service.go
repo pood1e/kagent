@@ -17,6 +17,7 @@ import (
 type Store interface {
 	GetRuntimeRevision(context.Context, string) (*database.RuntimeRevision, error)
 	GetTaskExecution(context.Context, string) (*apiv1.TaskExecution, error)
+	GetTaskContinuationState(context.Context, string, string) (*apiv1.TaskReference, bool, error)
 	ListTaskExecutions(context.Context, string, string, int) ([]*apiv1.TaskExecution, error)
 }
 
@@ -47,6 +48,22 @@ func (s *Service) Get(ctx context.Context, taskID string) (*apiv1.TaskExecution,
 		return nil, err
 	}
 	return result, nil
+}
+
+// Inspect observes native continuation progress after authorizing the anchor.
+func (s *Service) Inspect(ctx context.Context, taskID string) (*apiv1.GetTaskExecutionResponse, error) {
+	execution, err := s.Get(ctx, taskID)
+	if err != nil {
+		return nil, err
+	}
+	latest, pending, err := s.store.GetTaskContinuationState(ctx, execution.Task.SessionId, taskID)
+	if errors.Is(err, database.ErrNotFound) {
+		return nil, serviceerrors.NewNotFound("Task execution not found", err)
+	}
+	if err != nil {
+		return nil, serviceerrors.NewInternal("Failed to inspect native continuation", err)
+	}
+	return &apiv1.GetTaskExecutionResponse{Execution: execution, LatestTask: latest, ContinuationPending: pending}, nil
 }
 
 func (s *Service) List(ctx context.Context, request *apiv1.ListTaskExecutionsRequest) (*apiv1.ListTaskExecutionsResponse, error) {

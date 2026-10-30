@@ -73,7 +73,7 @@ func TestCreateGoogleADKAgentRunsDeclarativeWorkflow(t *testing.T) {
 		},
 	}}
 
-	root, err := CreateGoogleADKAgent(t.Context(), config, "rca", nil)
+	root, err := CreateGoogleADKAgent(t.Context(), config, "rca", nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, "rca", root.Name())
 
@@ -88,7 +88,7 @@ func TestCreateGoogleADKAgentRejectsUnknownWorkflowNames(t *testing.T) {
 		Model:    openAIModel("http://127.0.0.1:1", "agent-model"),
 		Workflow: &configv1.ADKWorkflowConfig{Document: []byte(rcaWorkflow), Sha256: hex.EncodeToString(sum[:])},
 	}}
-	_, err := CreateGoogleADKAgent(t.Context(), config, "rca", nil)
+	_, err := CreateGoogleADKAgent(t.Context(), config, "rca", nil, nil)
 	require.ErrorContains(t, err, `model "diagnosis" is not registered`)
 	require.ErrorContains(t, err, `server "incidents" is not declared in mcp_servers or registered`)
 }
@@ -136,7 +136,7 @@ func TestWorkflowLLMUsesTheTemplateModelAndTools(t *testing.T) {
 		},
 	}}
 
-	root, err := CreateGoogleADKAgent(t.Context(), config, "analyst", nil)
+	root, err := CreateGoogleADKAgent(t.Context(), config, "analyst", nil, nil)
 	require.NoError(t, err)
 	require.Contains(t, runWorkflow(t, root, "incident 42"), "recorded")
 	require.Equal(t, map[string]any{"summary": "fan failure"}, <-recorded)

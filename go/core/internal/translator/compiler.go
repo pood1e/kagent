@@ -169,6 +169,9 @@ func (c *Compiler) compileConfiguration(ctx context.Context, agent *v1alpha3.Age
 		return nil, err
 	}
 	input.AgentName = agent.Name
+	if err := c.validateNativeWorkflowRefs(ctx, agent, input.Workflow); err != nil {
+		return nil, err
+	}
 	image, err := harnessImage(harness, c.images)
 	if err != nil {
 		return nil, err

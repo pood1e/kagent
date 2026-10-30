@@ -24,8 +24,10 @@ import (
 
 	"github.com/kagent-dev/kagent/go/adk/pkg/auth"
 	"github.com/kagent-dev/kagent/go/adk/pkg/models"
+	"github.com/kagent-dev/kagent/go/adk/pkg/nativeagent"
 	"github.com/kagent-dev/kagent/go/adk/pkg/telemetry"
 	apia2a "github.com/kagent-dev/kagent/go/api/a2a"
+	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	configv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/config/v1"
 	"github.com/kagent-dev/kagent/go/pkg/tracing"
 )
@@ -263,6 +265,7 @@ func (e *KAgentExecutor) Execute(ctx context.Context, reqCtx *a2asrv.ExecutorCon
 		}
 		sessionID := reqCtx.ContextID
 
+		ctx = nativeagent.WithTask(ctx, &apiv1.TaskReference{SessionId: string(reqCtx.ContextID), TaskId: string(reqCtx.TaskID)})
 		ctx = context.WithValue(ctx, publicContextIDKey{}, reqCtx.ContextID)
 		ctx = withBearerToken(ctx)
 		// The synthetic ADK user ID is only a native session lookup key. Memory
