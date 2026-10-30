@@ -15,7 +15,7 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io/${{ github.repository }}
-  VERSION: 1.0.0-alpha17-agentos.11
+  VERSION: 1.0.0-alpha17-agentos.12
 
 jobs:
   verify:
