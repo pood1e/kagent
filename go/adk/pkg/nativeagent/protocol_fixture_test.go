@@ -27,6 +27,7 @@ import (
 	"github.com/kagent-dev/kagent/go/adk/pkg/controllerclient"
 	"github.com/kagent-dev/kagent/go/adk/pkg/declarative"
 	"github.com/kagent-dev/kagent/go/adk/pkg/nativeagent"
+	apia2a "github.com/kagent-dev/kagent/go/api/a2a"
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 )
 
@@ -89,6 +90,9 @@ func (s *nativeServer) CreateSession(ctx context.Context, request *apiv1.CreateS
 func (s *nativeServer) SendStreamingMessage(request *a2apb.SendMessageRequest, stream grpc.ServerStreamingServer[a2apb.StreamResponse]) error {
 	if err := checkIdentity(stream.Context()); err != nil {
 		return err
+	}
+	if got := metadata.ValueFromIncomingContext(stream.Context(), strings.ToLower(a2a.SvcParamExtensions)); len(got) != 1 || got[0] != apia2a.HITLExtensionURI {
+		return status.Error(codes.InvalidArgument, "native HITL was not negotiated")
 	}
 	if request.Configuration.GetReturnImmediately() {
 		return status.Error(codes.InvalidArgument, "node became background")

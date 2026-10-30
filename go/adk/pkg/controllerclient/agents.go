@@ -10,6 +10,7 @@ import (
 	"github.com/a2aproject/a2a-go/v2/a2apb/v1"
 	"google.golang.org/grpc/metadata"
 
+	apia2a "github.com/kagent-dev/kagent/go/api/a2a"
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 )
 
@@ -44,6 +45,8 @@ type agentIdentity struct{ client *Client }
 func (i agentIdentity) Before(ctx context.Context, request *a2aclient.Request) (context.Context, any, error) {
 	ctx = i.client.StreamContext(ctx, "")
 	values, _ := metadata.FromOutgoingContext(ctx)
+	// Persist typed child approvals for the child's native interaction clients.
+	request.ServiceParams[a2a.SvcParamExtensions] = []string{apia2a.HITLExtensionURI}
 	// The SDK renders ServiceParams as a fresh metadata map. Supply identity
 	// there so its protocol headers cannot replace the authenticated origin.
 	for _, name := range []string{"authorization", "x-agent-name", "x-user-id"} {
