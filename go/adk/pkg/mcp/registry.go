@@ -185,20 +185,24 @@ func NamedToolsets(
 	}
 	toolsets := make([]tool.Toolset, 0, len(parts))
 	for _, name := range slices.Sorted(maps.Keys(parts)) {
-		toolsets = append(toolsets, &serverToolset{name: name, parts: parts[name]})
+		toolsets = append(toolsets, JoinToolsets(name, parts[name]...))
 	}
 	return toolsets, nil
 }
 
-// serverToolset joins the bindings of one MCP server under the server's name.
-type serverToolset struct {
+// JoinToolsets offers the tools of parts as one toolset named name.
+func JoinToolsets(name string, parts ...tool.Toolset) tool.Toolset {
+	return &joinedToolset{name: name, parts: slices.Clone(parts)}
+}
+
+type joinedToolset struct {
 	name  string
 	parts []tool.Toolset
 }
 
-func (s *serverToolset) Name() string { return s.name }
+func (s *joinedToolset) Name() string { return s.name }
 
-func (s *serverToolset) Tools(ctx adkagent.ReadonlyContext) ([]tool.Tool, error) {
+func (s *joinedToolset) Tools(ctx adkagent.ReadonlyContext) ([]tool.Tool, error) {
 	var tools []tool.Tool
 	for _, part := range s.parts {
 		listed, err := part.Tools(ctx)

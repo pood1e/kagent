@@ -8,6 +8,7 @@ import (
 
 	"google.golang.org/adk/v2/agent"
 
+	runtimeconfig "github.com/kagent-dev/kagent/go/adk/pkg/config"
 	"github.com/kagent-dev/kagent/go/adk/pkg/declarative"
 	"github.com/kagent-dev/kagent/go/adk/pkg/fileextract"
 	"github.com/kagent-dev/kagent/go/adk/pkg/mcp"
@@ -18,7 +19,8 @@ import (
 // createWorkflowAgent builds the declarative workflow that the controller
 // delivered. The document names no Go code: its models are the ModelConfigs
 // the controller resolved, and its MCP servers are the template's
-// RemoteMCPServer bindings, registered under the server name.
+// RemoteMCPServer bindings, registered under the server name and together as
+// the template's tools.
 func createWorkflowAgent(ctx context.Context, agentConfig *configv1.ADKAgentConfig, stsPlugin *sts.TokenPropagationPlugin, runtime *configv1.ADKRuntimeConfig) (agent.Agent, error) {
 	workflow := agentConfig.GetWorkflow()
 	reg := declarative.NewRegistry()
@@ -40,7 +42,7 @@ func createWorkflowAgent(ctx context.Context, agentConfig *configv1.ADKAgentConf
 	if err != nil {
 		return nil, fmt.Errorf("create workflow MCP toolsets: %w", err)
 	}
-	for _, ts := range toolsets {
+	for _, ts := range append(toolsets, mcp.JoinToolsets(runtimeconfig.WorkflowTemplateTools, toolsets...)) {
 		if err := reg.RegisterToolset(ts); err != nil {
 			return nil, err
 		}
