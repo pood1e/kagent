@@ -211,7 +211,7 @@ func (b *builder) parallelWorker(n *NodeSpec, cfg workflow.NodeConfig) (workflow
 	if err != nil {
 		return nil, err
 	}
-	return workflow.NewParallelWorker(n.ID, wrapped, n.MaxConcurrency, cfg)
+	return parallelNode(n.ID, wrapped, n.MaxConcurrency, cfg), nil
 }
 
 // plainFunc adapts a Func whose routes are ignored: a worker item has no
