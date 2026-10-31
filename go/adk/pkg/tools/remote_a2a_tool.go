@@ -332,6 +332,7 @@ func (s *remoteA2AState) handleFirstCall(ctx adkagent.Context, requestText strin
 		a2atype.NewTextPart(requestText),
 	)
 	message.ContextID = contextID
+	kagenta2a.SetResponseLocale(message, kagenta2a.ContextResponseLocale(ctx))
 
 	sendCtx := remoteCallContext(ctx)
 	result, err := client.SendMessage(sendCtx, &a2atype.SendMessageRequest{Message: message})

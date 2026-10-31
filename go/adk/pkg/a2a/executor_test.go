@@ -15,6 +15,7 @@ import (
 	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"golang.org/x/text/language"
 	adkagent "google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/model"
 	"google.golang.org/adk/v2/runner"
@@ -37,6 +38,7 @@ func TestUserIDCallInterceptorPropagatesUserID(t *testing.T) {
 
 type recordingExecutor struct {
 	message       *a2atype.Message
+	locale        string
 	userID        string
 	cleanupCalled bool
 	events        []a2atype.Event
@@ -48,6 +50,7 @@ func (e *recordingExecutor) Execute(ctx context.Context, reqCtx *a2asrv.Executor
 	return func(yield func(a2atype.Event, error) bool) {
 		e.message = reqCtx.Message
 		e.userID = auth.UserIDFromContext(ctx)
+		e.locale = apia2a.ContextResponseLocale(ctx).String()
 		if e.span != "" {
 			_, span := otel.Tracer("adk-test").Start(ctx, e.span)
 			span.End()
@@ -908,5 +911,30 @@ func TestRequestSpanAttributesCarryOnlyATrustedUser(t *testing.T) {
 				t.Fatalf("attributes = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestExecutorKeepsResponseLocaleAcrossResumes(t *testing.T) {
+	original := a2atype.NewMessage(a2atype.MessageRoleUser, a2atype.NewTextPart("inspect"))
+	apia2a.SetResponseLocale(original, language.English)
+	reply := a2atype.NewMessage(a2atype.MessageRoleUser, a2atype.NewTextPart("approved"))
+	apia2a.SetResponseLocale(reply, language.Chinese)
+	for _, resume := range []bool{false, true} {
+		builtin := &recordingExecutor{}
+		executor := &KAgentExecutor{builtin: builtin, logger: slog.New(slog.DiscardHandler)}
+		request := &a2asrv.ExecutorContext{ContextID: "session", TaskID: "task", Message: reply}
+		want := "zh"
+		if resume {
+			request.StoredTask = &a2atype.Task{History: []*a2atype.Message{original}}
+			want = "en"
+		}
+		for _, err := range executor.Execute(t.Context(), request) {
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		if builtin.locale != want {
+			t.Fatalf("resume %v locale = %q, want %q", resume, builtin.locale, want)
+		}
 	}
 }

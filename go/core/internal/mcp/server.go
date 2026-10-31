@@ -12,6 +12,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	adka2a "github.com/kagent-dev/kagent/go/adk/pkg/a2a"
+	apia2a "github.com/kagent-dev/kagent/go/api/a2a"
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 	"github.com/kagent-dev/kagent/go/core/internal/a2a"
@@ -92,7 +93,12 @@ func New(sessions *sessionsvc.Service, checkpoints *checkpoint.Service, gateway 
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.http.ServeHTTP(w, r)
+	tag, err := apia2a.ParseAcceptLanguage(r.Header.Get("Accept-Language"))
+	if err != nil {
+		http.Error(w, "invalid Accept-Language", http.StatusBadRequest)
+		return
+	}
+	h.http.ServeHTTP(w, r.WithContext(apia2a.WithResponseLocale(r.Context(), tag)))
 }
 
 // WithContinuations enables durable native synchronous delegation.
@@ -152,6 +158,7 @@ func (h *Handler) invoke(ctx context.Context, input *InvokeSessionInput, async b
 		return nil, err
 	}
 	message.ContextID = session.GetId()
+	apia2a.SetResponseLocale(message, apia2a.ContextResponseLocale(ctx))
 	if origin := runtimeauth.Origin(ctx); !async && origin != nil && h.continuations != nil {
 		if err := h.continuations.Register(ctx, origin.SessionID, session.Id, message.ID); err != nil {
 			return nil, err
