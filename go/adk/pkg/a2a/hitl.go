@@ -485,10 +485,13 @@ func hitlStatusText(tools []*apia2a.HITLTool, hints []string) string {
 	return genericHITLText
 }
 
-// BuildHITLStatusMessage: ADK confirmation DataParts → public HITL Message extension.
+// BuildHITLStatusMessage maps ADK pause DataParts to the public HITL Message extension.
 func BuildHITLStatusMessage(message *a2atype.Message, activated bool) (*a2atype.Message, error) {
 	if message == nil {
 		return nil, nil
+	}
+	if public, err := buildWorkflowInputStatus(message, activated); public != nil || err != nil {
+		return public, err
 	}
 	var tools []*apia2a.HITLTool
 	var remote *RemoteHitlState
@@ -616,6 +619,8 @@ func BuildResumeHITLMessage(storedTask *a2atype.Task, incoming *a2atype.Message)
 	var parts []*a2atype.Part
 	var err error
 	switch {
+	case askReq != nil && isWorkflowInput(storedTask.Status.Message, askReq.Id):
+		parts, err = workflowInputResponse(askReq, incoming)
 	case askReq != nil && askReq.Nested != nil:
 		parts, err = processNestedAskUser(askReq, incoming)
 	case approvalReq != nil && approvalReq.Nested != nil:

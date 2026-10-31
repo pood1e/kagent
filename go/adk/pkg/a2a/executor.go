@@ -347,7 +347,7 @@ func (e *KAgentExecutor) Execute(ctx context.Context, reqCtx *a2asrv.ExecutorCon
 				update.Status.State == a2atype.TaskStateInputRequired && update.Status.Message != nil {
 				public, buildErr := BuildHITLStatusMessage(update.Status.Message, hitlActivated)
 				if buildErr != nil {
-					yield(nil, buildErr)
+					yield(nil, fmt.Errorf("failed to build HITL status message: %w", buildErr))
 					return
 				}
 				update.Status.Message = public
