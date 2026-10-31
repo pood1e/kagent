@@ -26,11 +26,14 @@ func (s *continuationResultStore) LatestContinuationTask(context.Context, string
 
 type continuationGateway struct {
 	a2asrv.RequestHandler
-	messages []*a2a.SendMessageRequest
+	messages   []*a2a.SendMessageRequest
+	principals []auth.Principal
 }
 
-func (g *continuationGateway) SendMessage(_ context.Context, request *a2a.SendMessageRequest) (a2a.SendMessageResult, error) {
+func (g *continuationGateway) SendMessage(ctx context.Context, request *a2a.SendMessageRequest) (a2a.SendMessageResult, error) {
 	g.messages = append(g.messages, request)
+	caller, _ := auth.AuthSessionFrom(ctx)
+	g.principals = append(g.principals, caller.Principal())
 	return &a2a.Task{ID: "resumed-task"}, nil
 }
 
