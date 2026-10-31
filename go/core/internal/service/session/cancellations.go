@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/a2aproject/a2a-go/v2/a2asrv"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
 	"github.com/kagent-dev/kagent/go/core/internal/runtimeauth"
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
@@ -18,6 +20,7 @@ import (
 type cancellationStore interface {
 	ClaimTaskCancellations(context.Context, int) ([]database.TaskCancellation, error)
 	CompleteTaskCancellation(context.Context, database.TaskCancellation) error
+	GetSessionByID(context.Context, string) (*apiv1.Session, error)
 }
 
 // Cancellations recovers recursive cancellation independently of client streams
@@ -58,10 +61,7 @@ func (c *Cancellations) tick(ctx context.Context) error {
 		group.Go(func() {
 			attempt, cancel := context.WithTimeout(ctx, 20*time.Second)
 			defer cancel()
-			result, err := c.gateway.CancelTask(runtimeauth.CancellationContext(attempt, claim.SessionID, claim.TaskID), &a2a.CancelTaskRequest{ID: a2a.TaskID(claim.TaskID)})
-			if err == nil && result != nil && result.Status.State.Terminal() {
-				err = c.store.CompleteTaskCancellation(attempt, claim)
-			}
+			err := c.cancel(attempt, claim)
 			if err != nil && ctx.Err() == nil {
 				logging.FromContext(ctx).WarnContext(ctx, "native descendant cancellation pending", "task_id", claim.TaskID, "error", err)
 			}
@@ -69,4 +69,23 @@ func (c *Cancellations) tick(ctx context.Context) error {
 	}
 	group.Wait()
 	return nil
+}
+
+func (c *Cancellations) cancel(ctx context.Context, claim database.TaskCancellation) error {
+	session, err := c.store.GetSessionByID(ctx, claim.SessionID)
+	if errors.Is(err, database.ErrNotFound) {
+		return c.store.CompleteTaskCancellation(ctx, claim)
+	}
+	if err != nil {
+		return err
+	}
+	ctx = runtimeauth.CancellationContext(ctx, claim.SessionID, claim.TaskID)
+	result, err := c.gateway.CancelTask(ctx, &a2a.CancelTaskRequest{
+		Tenant: session.GetAgent().GetNamespace() + "/" + session.GetAgent().GetName(),
+		ID:     a2a.TaskID(claim.TaskID),
+	})
+	if err == nil && result != nil && result.Status.State.Terminal() {
+		return c.store.CompleteTaskCancellation(ctx, claim)
+	}
+	return err
 }
