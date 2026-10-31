@@ -108,9 +108,8 @@ func (c *Compiler) resolveWorkflow(_ context.Context, template *TemplateConfigur
 // document from the revision alone and resolves the ModelConfigs it names.
 // That runtime has no Go registry: a document names models by ModelConfig and
 // MCP servers by the RemoteMCPServer of a template binding, or uses the
-// template's own model and tools under their reserved names. The runtime
-// cannot pause a workflow, so hitl nodes and bindings that require approval
-// are refused.
+// template's own model and tools under their reserved names. HITL input nodes
+// use the runtime's native question bridge.
 func (c *Compiler) resolveKagentWorkflow(workflow *ResolvedWorkflow, root *AgentInput, outputSchema *ResolvedOutputSchema) error {
 	template := root.Template
 	switch {
@@ -122,11 +121,6 @@ func (c *Compiler) resolveKagentWorkflow(workflow *ResolvedWorkflow, root *Agent
 		return NewValidationError("workflowFrom cannot be combined with skills or plugins on a kagent Harness")
 	case len(workflow.Spec.MCPServers) > 0:
 		return NewValidationError("invalid workflow: mcp_servers: a kagent Harness reaches MCP servers through the AgentTemplate's RemoteMCPServer bindings; name a bound server instead")
-	}
-	for path, node := range workflow.Spec.Nodes() {
-		if node.Type == declarative.NodeHITL {
-			return NewValidationError("invalid workflow: %s: hitl nodes are not supported on a kagent Harness", path)
-		}
 	}
 	vocabulary := declarative.NewRegistry()
 	vocabulary.SetNativeAgentRunner(func(agent.Context, *apiv1.ResourceReference, any, func(*session.Event) error) (any, error) {

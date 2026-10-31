@@ -172,12 +172,14 @@ agents:
       - { id: review, type: llm, model: review-model, instruction: Review. }
       - { id: args, type: cel, output: "{'summary': input}" }
       - { id: record, type: tool, server: incidents, tool: record_analysis }
+      - { id: confirm, type: hitl, message: "Approve?" }
       - { id: done, type: cel, output: "'recorded'" }
     edges:
       - { from: diagnose, to: review }
       - { from: review, to: args }
       - { from: args, to: record }
-      - { from: record, to: done }
+      - { from: record, to: confirm }
+      - { from: confirm, to: done }
 `
 
 func kagentHarness() *v1alpha3.Harness {
@@ -217,6 +219,7 @@ func TestCompileAgentRunsWorkflowOnKagent(t *testing.T) {
 	workflow := config.Agent.Workflow
 	require.NotNil(t, workflow)
 	require.Len(t, workflow.Models, 2)
+	require.Contains(t, string(workflow.Document), `"type":"hitl"`)
 	require.Equal(t, "gpt-4o", workflow.Models["default-model"].Model)
 	require.Equal(t, "gpt-4o-mini", workflow.Models["review-model"].Model)
 	require.Equal(t, "incidents", config.Agent.HttpTools[0].Name, "the document names the server of the binding")
@@ -245,16 +248,6 @@ agents:
 }
 
 func TestCompileAgentRejectsKagentWorkflowsItCannotBuild(t *testing.T) {
-	const hitlYAML = `
-apiVersion: adk.declarative/v0.2
-kind: AgentSystem
-agents:
-  - name: approve
-    agent_class: Workflow
-    entry: ask
-    nodes:
-      - { id: ask, type: hitl, message: "Approve?" }
-`
 	const declaredServerYAML = `
 apiVersion: adk.declarative/v0.2
 kind: AgentSystem
@@ -278,7 +271,6 @@ agents:
 		{name: "Go function", document: workflowYAML, want: `agents[0].nodes[0].function: function "triage" is not registered`},
 		{name: "unbound server", document: unboundServerYAML, want: `agents[0].tools[0]: tool "crm" is not registered`},
 		{name: "declared server", document: declaredServerYAML, want: "RemoteMCPServer bindings"},
-		{name: "hitl node", document: hitlYAML, want: "agents[0].nodes[0]: hitl nodes are not supported"},
 		{name: "approval", document: kagentWorkflowYAML, mutate: func(s *v1alpha3.AgentTemplateSpec) {
 			s.Tools[0].MCP.RequireApproval = true
 		}, want: `RemoteMCPServer "incidents" requires approval`},
