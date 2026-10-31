@@ -42,7 +42,7 @@ func ValidateAgentConfigUsage(config *configv1.ADKAgentConfig) error {
 	}
 
 	// Validate required fields
-	if config.Model == nil {
+	if config.Model == nil && config.Workflow == nil {
 		return fmt.Errorf("agent config model is required")
 	}
 	// Validate tools
