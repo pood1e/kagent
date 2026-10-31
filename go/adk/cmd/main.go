@@ -52,7 +52,7 @@ func run(logLevel, host, port, configDir string) error {
 
 	compiled, agentCard, err := config.LoadAgentConfigs(configDir)
 	if err != nil {
-		return fmt.Errorf("load agent config from %s (model configuration is required): %w", configDir, err)
+		return fmt.Errorf("load agent config from %s: %w", configDir, err)
 	}
 	agentConfig := compiled.Agent
 	runtime := config.ProcessConfig(compiled)
