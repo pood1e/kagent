@@ -161,6 +161,9 @@ func (s *InteractionService) ListTasks(ctx context.Context, agent types.Namespac
 // PrepareSend authorizes and resolves the conversation, then reserves its input.
 // An initial-message retry returns its saved task without granting another send.
 func (s *InteractionService) PrepareSend(ctx context.Context, agent types.NamespacedName, req *a2atype.SendMessageRequest) (*PreparedSend, error) {
+	if err := captureResponseLocale(ctx, req); err != nil {
+		return nil, err
+	}
 	initialID := initialMessageID(req)
 	pushConfig, err := initialPushConfig(agent, req, s.allowPushHTTP)
 	if err != nil {

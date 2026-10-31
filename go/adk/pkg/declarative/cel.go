@@ -16,6 +16,8 @@ import (
 	"github.com/google/cel-go/ext"
 	"google.golang.org/adk/v2/agent"
 	"google.golang.org/genai"
+
+	apia2a "github.com/kagent-dev/kagent/go/api/a2a"
 )
 
 // CEL variables. Every scope sees the ADK context of the running agent; each
@@ -24,7 +26,7 @@ const (
 	celState      = "state"      // session state, map(string, dyn)
 	celSession    = "session"    // {id, app_name, user_id}
 	celUser       = "user"       // {id, content}: content is the text that started the invocation
-	celInvocation = "invocation" // {id, branch, agent_name}
+	celInvocation = "invocation" // {id, branch, agent_name, locale}
 	celInput      = "input"      // node input (cel nodes)
 	celVars       = "vars"       // named values of a cel node
 	celRequest    = "request"    // {model, text, contents, system_instruction, tools} (before_model)
@@ -218,7 +220,7 @@ func contextVars(ctx agent.ReadonlyContext) map[string]any {
 		celState:      plainValue(state),
 		celSession:    map[string]any{"id": ctx.SessionID(), "app_name": ctx.AppName(), "user_id": ctx.UserID()},
 		celUser:       map[string]any{"id": ctx.UserID(), "content": contentText(ctx.UserContent())},
-		celInvocation: map[string]any{"id": ctx.InvocationID(), "branch": ctx.Branch(), "agent_name": ctx.AgentName()},
+		celInvocation: map[string]any{"id": ctx.InvocationID(), "branch": ctx.Branch(), "agent_name": ctx.AgentName(), "locale": apia2a.ContextResponseLocale(ctx).String()},
 	}
 }
 

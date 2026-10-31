@@ -10,6 +10,7 @@ import (
 	"github.com/a2aproject/a2a-go/v2/a2asrv"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	apia2a "github.com/kagent-dev/kagent/go/api/a2a"
 	nativea2a "github.com/kagent-dev/kagent/go/core/internal/a2a"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
@@ -17,6 +18,7 @@ import (
 )
 
 type continuationStore interface {
+	GetSessionTask(context.Context, string, string, *int) (*a2a.Task, error)
 	RegisterTaskContinuation(context.Context, string, string, string) error
 	ClaimTaskContinuations(context.Context, int) ([]database.TaskContinuation, error)
 	CompleteTaskContinuation(context.Context, database.TaskContinuation, string) error
@@ -118,6 +120,15 @@ func (c *Continuations) resume(ctx context.Context, value database.TaskContinuat
 	}
 	message := a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart(fmt.Sprintf(
 		"Delegated task %s settled with state %s.\n%s\nContinue from this result; reuse the existing child session if more work is required.", child.ID, child.Status.State, nativea2a.TaskText(child))))
+	parentTask, err := c.store.GetSessionTask(ctx, value.ParentSessionID, value.ParentTaskID, nil)
+	if err != nil {
+		return "", err
+	}
+	tag, err := apia2a.TaskResponseLocale(parentTask)
+	if err != nil {
+		return "", err
+	}
+	apia2a.SetResponseLocale(message, tag)
 	message.ID = "kagent-continuation-" + value.ID.String()
 	message.ContextID = parent.Id
 	message.ReferenceTasks = []a2a.TaskID{a2a.TaskID(value.ParentTaskID), a2a.TaskID(*value.ChildTaskID)}

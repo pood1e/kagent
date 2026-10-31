@@ -16,6 +16,7 @@ import (
 	"github.com/a2aproject/a2a-go/v2/a2asrv"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"golang.org/x/text/language"
 	adkagent "google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/tool"
 	"google.golang.org/adk/v2/tool/mcptoolset"
@@ -24,6 +25,7 @@ import (
 	"github.com/kagent-dev/kagent/go/adk/pkg/auth"
 	"github.com/kagent-dev/kagent/go/adk/pkg/constants"
 	"github.com/kagent-dev/kagent/go/adk/pkg/models"
+	apia2a "github.com/kagent-dev/kagent/go/api/a2a"
 	configv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/config/v1"
 	"github.com/kagent-dev/kagent/go/pkg/logging"
 )
@@ -400,6 +402,9 @@ type headerRoundTripper struct {
 
 func (rt *headerRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	req = req.Clone(req.Context())
+	if tag := apia2a.ContextResponseLocale(req.Context()); tag != language.Und && req.Method == http.MethodPost && inCallScope(req.Context()) {
+		req.Header.Set("Accept-Language", tag.String())
+	}
 
 	// When propagateToken is enabled, forward Authorization from the incoming
 	// A2A request independently of allowedHeaders. Carry the authenticated user

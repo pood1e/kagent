@@ -37,6 +37,7 @@ interpret runtime-specific metadata.
 | `kagent.dev/a2a/timeline-position`    | message or artifact | Temporary RFC 3339 timestamp used to order task history until the upstream A2A timeline is available |
 | `kagent.dev/a2a/task-created-at`      | task                | Durable task creation time used by task projections                                                  |
 | `kagent.dev/a2a/part-type`            | data part           | Semantic data kind, including function calls and function results                                    |
+| `kagent.dev/a2a/response-locale`      | opening user message | Canonical BCP 47 language preference for user-facing responses and delegated work                    |
 | `kagent.dev/a2a/usage`                | task event          | Model usage reported by runtimes that support it                                                     |
 | `kagent.dev/a2a/output-schema-sha256` | result part         | Binds a structured result to the compiled output schema                                              |
 
@@ -63,6 +64,20 @@ prefixes used privately by Claude and Codex are resolved by their adapters.
 MCP results prefer `structuredContent`, then joined text blocks. Rich content
 retains its original representation. Managed ADK, Claude, and Codex adapters
 produce this contract before events enter public task history.
+
+## Response locale
+
+Clients send the current interface language through `Accept-Language`. Native
+admission records the selected locale in the opening message's
+`kagent.dev/a2a/response-locale` metadata. A caller may supply this metadata directly.
+The Go ADK adds the preference to each model request while preserving the role
+instructions, structured input, identifiers and authorization semantics. CEL
+workflow nodes read the same preference through `invocation.locale`.
+
+Native workflow nodes, remote Agent tools, MCP delegation and durable
+continuations carry the same preference. An accepted task retains its opening
+locale through human input and restart; a new task uses the client's current
+language. Unattended callers supply their environment's configured locale.
 
 ## Other metadata
 
