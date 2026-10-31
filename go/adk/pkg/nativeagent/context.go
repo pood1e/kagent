@@ -4,6 +4,7 @@ package nativeagent
 
 import (
 	"context"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -13,11 +14,26 @@ import (
 type executionKey struct{}
 
 type execution struct {
-	task *apiv1.TaskReference
-	done <-chan struct{}
+	task     *apiv1.TaskReference
+	done     <-chan struct{}
+	deadline time.Time
 }
 
 // WithTask attaches the accepted native task to its runtime invocation.
 func WithTask(ctx context.Context, task *apiv1.TaskReference) context.Context {
-	return context.WithValue(ctx, executionKey{}, execution{task: proto.CloneOf(task), done: ctx.Done()})
+	deadline, _ := ctx.Deadline()
+	return context.WithValue(ctx, executionKey{}, execution{task: proto.CloneOf(task), done: ctx.Done(), deadline: deadline})
+}
+
+func (e execution) stopped() bool {
+	select {
+	case <-e.done:
+		return true
+	default:
+		return deadlineElapsed(e.deadline)
+	}
+}
+
+func deadlineElapsed(deadline time.Time) bool {
+	return !deadline.IsZero() && !time.Now().Before(deadline)
 }

@@ -67,14 +67,17 @@ func NewRunner(controller *controllerclient.Client) func(agent.Context, *apiv1.R
 		streamCtx := controller.StreamContext(ctx, "")
 		var taskID, anchorID a2a.TaskID
 		defer func() {
-			if anchorID == "" || ctx.Err() == nil {
+			if anchorID == "" {
 				return
 			}
-			select {
-			case <-origin.done:
+			// The remote deadline can expire before the local timer closes Done.
+			deadline, _ := ctx.Deadline()
+			if ctx.Err() == nil && !deadlineElapsed(deadline) {
+				return
+			}
+			if origin.stopped() {
 				// The native parent boundary owns durable cleanup after context loss.
 				return
-			default:
 			}
 			cleanup, stop := context.WithTimeout(context.WithoutCancel(streamCtx), 10*time.Second)
 			defer stop()
