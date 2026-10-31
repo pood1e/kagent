@@ -7,10 +7,12 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"golang.org/x/text/language"
 	"google.golang.org/adk/v2/session"
 
 	"github.com/kagent-dev/kagent/go/adk/pkg/auth"
 	"github.com/kagent-dev/kagent/go/adk/pkg/nativeagent"
+	apia2a "github.com/kagent-dev/kagent/go/api/a2a"
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 )
 
@@ -198,5 +200,25 @@ func TestNativeContinuationCompletesBeforeNodeReturns(t *testing.T) {
 	require.Len(t, server.sends, 1)
 	for _, count := range server.sends {
 		require.Equal(t, 1, count)
+	}
+}
+
+func TestNativeWorkflowInheritsResponseLocale(t *testing.T) {
+	for _, tag := range []language.Tag{language.English, language.Chinese} {
+		t.Run(tag.String(), func(t *testing.T) {
+			server, client := startNativeServer(t, "")
+			ctx := apia2a.WithResponseLocale(taskContext(t.Context()), tag)
+			events, err := runWorkflow(ctx, client, singleNode, singleEdge)
+			require.NoError(t, err)
+			require.Equal(t, "hello|analyst", finalOutput(events))
+			server.mu.Lock()
+			defer server.mu.Unlock()
+			require.Len(t, server.tasks, 1)
+			for _, task := range server.tasks {
+				got, err := apia2a.TaskResponseLocale(task)
+				require.NoError(t, err)
+				require.Equal(t, tag, got)
+			}
+		})
 	}
 }

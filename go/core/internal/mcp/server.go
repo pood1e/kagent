@@ -12,6 +12,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	adka2a "github.com/kagent-dev/kagent/go/adk/pkg/a2a"
+	apia2a "github.com/kagent-dev/kagent/go/api/a2a"
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 	"github.com/kagent-dev/kagent/go/core/internal/a2a"
@@ -137,7 +138,12 @@ func New(cfg Config) (*Handler, error) {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.http.ServeHTTP(w, r)
+	tag, err := apia2a.ParseAcceptLanguage(r.Header.Get("Accept-Language"))
+	if err != nil {
+		http.Error(w, "invalid Accept-Language", http.StatusBadRequest)
+		return
+	}
+	h.http.ServeHTTP(w, r.WithContext(apia2a.WithResponseLocale(r.Context(), tag)))
 }
 
 func (h *Handler) listSessions(ctx context.Context, _ *mcp.CallToolRequest, input ListSessionsInput) (*mcp.CallToolResult, ListSessionsOutput, error) {
@@ -187,6 +193,7 @@ func (h *Handler) invoke(ctx context.Context, input InvokeAgentInput, async bool
 	if input.MessageID != "" {
 		message.ID = input.MessageID
 	}
+	apia2a.SetResponseLocale(message, apia2a.ContextResponseLocale(ctx))
 	var tenant string
 	if input.Agent != nil {
 		// An unset context lets A2A own creation and initial-message retries.

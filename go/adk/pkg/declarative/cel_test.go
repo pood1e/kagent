@@ -6,7 +6,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"golang.org/x/text/language"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/runner"
 	"google.golang.org/genai"
+
+	apia2a "github.com/kagent-dev/kagent/go/api/a2a"
 )
 
 func TestCELVarsRoutesAndHelpers(t *testing.T) {
@@ -123,4 +128,30 @@ agents:
     nodes: [{ id: c, type: cel, output: "'x'" }]
     edges: [{ from: START, to: c }, { from: c, to: END }]`))
 	require.ErrorContains(t, err, "there is no END node")
+}
+
+func TestCELInvocationCarriesResponseLocale(t *testing.T) {
+	sys := buildDoc(t, NewRegistry(), head+`
+agents:
+  - name: localized
+    agent_class: Workflow
+    nodes:
+      - {id: language, type: cel, output: "invocation.locale"}
+    edges:
+      - {from: START, to: language}
+`)
+	for _, tag := range []language.Tag{language.English, language.Chinese} {
+		svc, id := newSession(t)
+		ctx := apia2a.WithResponseLocale(t.Context(), tag)
+		r, err := runner.New(runner.Config{AppName: "test", Agent: sys.Root(), SessionService: svc})
+		require.NoError(t, err)
+		var got string
+		for event, err := range r.Run(ctx, "user", id, genai.NewContentFromText("input", genai.RoleUser), agent.RunConfig{}) {
+			require.NoError(t, err)
+			if event.Output != nil {
+				got, _ = event.Output.(string)
+			}
+		}
+		require.Equal(t, tag.String(), got)
+	}
 }

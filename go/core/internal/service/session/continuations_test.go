@@ -9,8 +9,10 @@ import (
 	"github.com/a2aproject/a2a-go/v2/a2asrv"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/text/language"
 	"k8s.io/apimachinery/pkg/types"
 
+	apia2a "github.com/kagent-dev/kagent/go/api/a2a"
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
@@ -20,10 +22,15 @@ import (
 type continuationResultStore struct {
 	continuationStore
 	result *a2a.Task
+	parent *a2a.Task
 }
 
 func (s *continuationResultStore) LatestContinuationTask(context.Context, string, string) (*a2a.Task, error) {
 	return s.result, nil
+}
+
+func (s *continuationResultStore) GetSessionTask(context.Context, string, string, *int) (*a2a.Task, error) {
+	return s.parent, nil
 }
 
 type continuationGateway struct {
@@ -43,6 +50,9 @@ func TestContinuationUsesStableNativeAdmissionAndOriginalTaskReferences(t *testi
 	parent := &apiv1.Session{Id: uuid.NewString(), Creator: "owner", Agent: &apiv1.AgentProvenance{Ref: &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}}}
 	store := &continuationResultStore{result: &a2a.Task{ID: "child-after-nested-resume", Status: a2a.TaskStatus{State: a2a.TaskStateFailed,
 		Message: a2a.NewMessage(a2a.MessageRoleAgent, a2a.NewTextPart("Permission denied"))}}}
+	original := a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart("inspect"))
+	apia2a.SetResponseLocale(original, language.English)
+	store.parent = &a2a.Task{History: []*a2a.Message{original}}
 	gateway := &continuationGateway{}
 	sessions := NewService(&serviceTestStore{getResult: parent}, serviceTestAuthorizer{}, nil)
 	service := NewContinuations(store, gateway, sessions)
@@ -61,6 +71,9 @@ func TestContinuationUsesStableNativeAdmissionAndOriginalTaskReferences(t *testi
 		require.Empty(t, request.Message.TaskID)
 		require.Equal(t, []a2a.TaskID{"parent-task", "original-child"}, request.Message.ReferenceTasks)
 		require.Equal(t, "team-a/assistant", request.Tenant)
+		tag, err := apia2a.ResponseLocale(request.Message)
+		require.NoError(t, err)
+		require.Equal(t, language.English, tag)
 		require.True(t, request.Config.ReturnImmediately)
 		require.Contains(t, request.Message.Parts[0].Text(), "Permission denied")
 	}

@@ -29,7 +29,7 @@ func (f *cancellationFixture) GetSessionByID(_ context.Context, id string) (*api
 	if f.sessionErr != nil {
 		return nil, f.sessionErr
 	}
-	return &apiv1.Session{Id: id, Agent: &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}}, nil
+	return &apiv1.Session{Id: id, Agent: &apiv1.AgentProvenance{Ref: &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}}}, nil
 }
 
 func (f *cancellationFixture) CompleteTaskCancellation(_ context.Context, claim database.TaskCancellation) error {

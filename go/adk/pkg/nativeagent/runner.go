@@ -16,6 +16,7 @@ import (
 	"google.golang.org/genai"
 
 	"github.com/kagent-dev/kagent/go/adk/pkg/controllerclient"
+	apia2a "github.com/kagent-dev/kagent/go/api/a2a"
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 )
 
@@ -60,6 +61,7 @@ func NewRunner(controller *controllerclient.Client) func(agent.Context, *apiv1.R
 			message = text
 		}
 		request := &a2a.SendMessageRequest{Message: a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart(message))}
+		apia2a.SetResponseLocale(request.Message, apia2a.ContextResponseLocale(ctx))
 		request.Message.ID = key
 		request.Message.ContextID = created.GetSession().GetId()
 		// Foreground sends let the native gateway bind this node to its working

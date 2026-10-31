@@ -112,6 +112,7 @@ func (s *nativeServer) SendStreamingMessage(request *a2apb.SendMessageRequest, s
 			text += part.Text()
 		}
 		task = &a2a.Task{ID: a2a.TaskID(uuid.NewString()), ContextID: request.Message.ContextId,
+			History:   []*a2a.Message{input},
 			Status:    a2a.TaskStatus{State: a2a.TaskStateWorking},
 			Artifacts: []*a2a.Artifact{{ID: "answer", Parts: a2a.ContentParts{a2a.NewTextPart(text + "|" + agentName)}}},
 		}

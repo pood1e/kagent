@@ -81,7 +81,7 @@ func (c *Cancellations) cancel(ctx context.Context, claim database.TaskCancellat
 	}
 	ctx = runtimeauth.CancellationContext(ctx, claim.SessionID, claim.TaskID)
 	result, err := c.gateway.CancelTask(ctx, &a2a.CancelTaskRequest{
-		Tenant: session.GetAgent().GetNamespace() + "/" + session.GetAgent().GetName(),
+		Tenant: session.GetAgent().GetRef().GetNamespace() + "/" + session.GetAgent().GetRef().GetName(),
 		ID:     a2a.TaskID(claim.TaskID),
 	})
 	if err == nil && result != nil && result.Status.State.Terminal() {

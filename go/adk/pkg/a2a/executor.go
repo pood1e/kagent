@@ -15,6 +15,7 @@ import (
 	"github.com/google/jsonschema-go/jsonschema"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"golang.org/x/text/language"
 	adkagent "google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/plugin"
 	"google.golang.org/adk/v2/runner"
@@ -86,6 +87,11 @@ func NewKAgentExecutor(cfg KAgentExecutorConfig) (*KAgentExecutor, error) {
 	if runnerConfig.Agent == nil {
 		return nil, fmt.Errorf("root agent is required")
 	}
+	localePlugin, err := responseLocalePlugin()
+	if err != nil {
+		return nil, fmt.Errorf("response locale plugin: %w", err)
+	}
+	runnerConfig.PluginConfig.Plugins = append([]*plugin.Plugin{localePlugin}, runnerConfig.PluginConfig.Plugins...)
 	rootName := runnerConfig.Agent.Name()
 	if rootName == "" {
 		return nil, fmt.Errorf("root agent name is required")
@@ -265,6 +271,15 @@ func (e *KAgentExecutor) Execute(ctx context.Context, reqCtx *a2asrv.ExecutorCon
 		}
 		sessionID := reqCtx.ContextID
 
+		tag, err := apia2a.TaskResponseLocale(reqCtx.StoredTask)
+		if err == nil && tag == language.Und {
+			tag, err = apia2a.ResponseLocale(reqCtx.Message)
+		}
+		if err != nil {
+			yield(nil, err)
+			return
+		}
+		ctx = apia2a.WithResponseLocale(ctx, tag)
 		ctx = nativeagent.WithTask(ctx, &apiv1.TaskReference{SessionId: string(reqCtx.ContextID), TaskId: string(reqCtx.TaskID)})
 		ctx = context.WithValue(ctx, publicContextIDKey{}, reqCtx.ContextID)
 		ctx = withBearerToken(ctx)

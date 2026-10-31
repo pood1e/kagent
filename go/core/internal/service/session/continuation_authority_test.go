@@ -49,7 +49,7 @@ func TestContinuationReauthorizesEachBoundSession(t *testing.T) {
 	parentID, childID := uuid.NewString(), uuid.NewString()
 	store := &continuationAuthorityStore{serviceTestStore: &serviceTestStore{}, sessions: make(map[string]*apiv1.Session)}
 	for _, id := range []string{parentID, childID} {
-		store.sessions[id] = &apiv1.Session{Id: id, Creator: "owner", Agent: &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"},
+		store.sessions[id] = &apiv1.Session{Id: id, Creator: "owner", Agent: &apiv1.AgentProvenance{Ref: &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}},
 			Authority: &apiv1.SessionAuthority{SessionId: id, InitiatorId: "owner", RootSessionId: parentID, ScopeCeiling: &apiv1.ScopeCeiling{Scopes: []string{"read"}}}}
 	}
 	store.sessions[childID].Authority.ParentSessionId = parentID
