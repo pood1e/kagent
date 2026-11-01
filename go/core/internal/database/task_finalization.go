@@ -49,6 +49,10 @@ func (c *Client) SettleSessionTask(ctx context.Context, sessionID, taskID string
 		if err != nil {
 			return err
 		}
+		previous, err := unmarshalSessionTask(stored.Data)
+		if err != nil {
+			return err
+		}
 		wire, err := applyStoredBoundary(stored.Data, row.Data)
 		if err != nil {
 			return err
@@ -78,7 +82,10 @@ func (c *Client) SettleSessionTask(ctx context.Context, sessionID, taskID string
 				return err
 			}
 		}
-		return publishPushBoundary(ctx, tx, session.HistoryID, taskID, version, task)
+		if err := publishPushBoundary(ctx, tx, session.HistoryID, taskID, version, task); err != nil {
+			return err
+		}
+		return refreshTaskCatalogMetadata(ctx, tx, session.HistoryID, taskID, row.ExpectedVersion, previous)
 	})
 }
 

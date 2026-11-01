@@ -20,6 +20,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/emptypb"
 	corev1 "k8s.io/api/core/v1"
 
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
@@ -35,6 +36,7 @@ import (
 	"github.com/kagent-dev/kagent/go/core/internal/service/checkpoint"
 	executionsvc "github.com/kagent-dev/kagent/go/core/internal/service/execution"
 	sessionsvc "github.com/kagent-dev/kagent/go/core/internal/service/session"
+	"github.com/kagent-dev/kagent/go/core/internal/service/taskcatalog"
 	"github.com/kagent-dev/kagent/go/core/internal/substrate"
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
 )
@@ -105,6 +107,7 @@ func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	executions := executionsvc.NewService(store, sessions, authority)
 	connection := newConfigurationConnection(t, nil, func(config *Config) {
 		config.Authenticator, config.SessionService, config.ExecutionService = provider, sessions, executions
+		config.TaskCatalogService = taskcatalog.NewService(store, sessions)
 	})
 	client, executionClient := apiv1.NewSessionServiceClient(connection), apiv1.NewExecutionServiceClient(connection)
 	userToken := users.Token(t, jwt.MapClaims{"iss": users.URL, "aud": "kagent-api", "sub": "alice", "roles": []string{"read", "write", "admin"}, "exp": time.Now().Add(time.Hour).Unix()})
@@ -165,6 +168,16 @@ func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	require.NoError(t, err)
 	require.NotContains(t, credential.Credential, userToken)
 	bound := withToken(credential.Credential)
+	catalog := apiv1.NewTaskCatalogServiceClient(connection)
+	catalogScope := &apiv1.TaskCatalogScope{Namespace: "team-a", Visibility: &apiv1.TaskCatalogScope_Owned{Owned: &emptypb.Empty{}}}
+	for _, caller := range []context.Context{bound, actor} {
+		page, readErr := catalog.ListTaskRecords(caller, &apiv1.ListTaskRecordsRequest{Scope: catalogScope})
+		require.NoError(t, readErr)
+		require.Len(t, page.Sessions, 1)
+		require.Equal(t, root.Id, page.Sessions[0].Id, "a bound catalog read grants exactly its owning Session")
+		_, readErr = catalog.ListTaskRecords(caller, &apiv1.ListTaskRecordsRequest{Scope: &apiv1.TaskCatalogScope{Namespace: "team-a", Visibility: &apiv1.TaskCatalogScope_OtherInitiators{OtherInitiators: &emptypb.Empty{}}}})
+		assertGRPCCode(t, readErr, codes.PermissionDenied)
+	}
 	_, err = client.GetSession(bound, &apiv1.GetSessionRequest{SessionId: root.Id})
 	require.NoError(t, err)
 	_, err = client.GetSession(bound, &apiv1.GetSessionRequest{SessionId: other.Id})
@@ -302,6 +315,10 @@ func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	afterRevoke()
 	_, err = client.GetSession(bound, &apiv1.GetSessionRequest{SessionId: root.Id})
 	assertGRPCCode(t, err, codes.Unauthenticated)
+	_, err = catalog.ListTaskRecords(bound, &apiv1.ListTaskRecordsRequest{Scope: catalogScope})
+	assertGRPCCode(t, err, codes.Unauthenticated)
+	_, err = catalog.ListTaskRecords(actor, &apiv1.ListTaskRecordsRequest{Scope: catalogScope})
+	assertGRPCCode(t, err, codes.PermissionDenied)
 	independent, err := executionClient.GetSessionAuthority(user, &apiv1.GetSessionAuthorityRequest{SessionId: other.Id})
 	require.NoError(t, err)
 	require.False(t, independent.Revoked)

@@ -637,7 +637,10 @@ func insertReplayedTask(ctx context.Context, db dbExecutor, task sessionTaskRow)
 	); err != nil {
 		return err
 	}
-	return execSQL(ctx, db, `INSERT INTO task_execution (task_id, history_id, root_task_id, relation) VALUES ($1, $2, $1, 'TASK_RELATION_ROOT')`, task.ID, task.HistoryID)
+	if err := execSQL(ctx, db, `INSERT INTO task_execution (task_id, history_id, root_task_id, relation) VALUES ($1, $2, $1, 'TASK_RELATION_ROOT')`, task.ID, task.HistoryID); err != nil {
+		return err
+	}
+	return refreshTaskCatalogMetadata(ctx, db, task.HistoryID, task.ID, 0, nil)
 }
 
 // readCheckpoint reads an owned checkpoint, optionally restricted to one lifecycle state.

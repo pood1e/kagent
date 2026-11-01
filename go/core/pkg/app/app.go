@@ -68,6 +68,7 @@ import (
 	"github.com/kagent-dev/kagent/go/core/internal/service/scheduledrun"
 	sessionsvc "github.com/kagent-dev/kagent/go/core/internal/service/session"
 	systemservice "github.com/kagent-dev/kagent/go/core/internal/service/system"
+	"github.com/kagent-dev/kagent/go/core/internal/service/taskcatalog"
 	"github.com/kagent-dev/kagent/go/core/internal/service/taskstore"
 	toolservice "github.com/kagent-dev/kagent/go/core/internal/service/tool"
 	"github.com/kagent-dev/kagent/go/core/internal/substrate"
@@ -484,6 +485,7 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 		MemoryService:         memory,
 		InventoryService:      inventory.NewService(store, authorizer),
 		ExecutionService:      executions,
+		TaskCatalogService:    taskcatalog.NewService(store, sessions),
 		TaskStoreService:      runtimeTasks,
 		SessionService:        sessions,
 		ScheduledRunService:   schedules,
