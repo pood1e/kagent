@@ -37,6 +37,7 @@ import (
 	"github.com/kagent-dev/kagent/go/core/internal/service/scheduledrun"
 	sessionsvc "github.com/kagent-dev/kagent/go/core/internal/service/session"
 	systemservice "github.com/kagent-dev/kagent/go/core/internal/service/system"
+	"github.com/kagent-dev/kagent/go/core/internal/service/taskcatalog"
 	"github.com/kagent-dev/kagent/go/core/internal/service/taskstore"
 	toolservice "github.com/kagent-dev/kagent/go/core/internal/service/tool"
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
@@ -52,6 +53,7 @@ const (
 type Config struct {
 	InventoryService       *inventory.Service
 	ExecutionService       *execution.Service
+	TaskCatalogService     *taskcatalog.Service
 	SandboxService         *sandbox.Service
 	BindAddress            string
 	MaxMessageBytes        int
@@ -153,6 +155,9 @@ func New(config Config) (*Server, error) {
 	}
 	if config.ExecutionService != nil {
 		apiv1.RegisterExecutionServiceServer(grpcServer, &executionServer{service: config.ExecutionService})
+	}
+	if config.TaskCatalogService != nil {
+		apiv1.RegisterTaskCatalogServiceServer(grpcServer, &taskCatalogServer{service: config.TaskCatalogService})
 	}
 	runtimev1.RegisterMemoryServiceServer(grpcServer, newMemoryServer(config.MemoryService))
 	runtimev1.RegisterTaskStoreServiceServer(grpcServer, &taskStoreServer{service: config.TaskStoreService})

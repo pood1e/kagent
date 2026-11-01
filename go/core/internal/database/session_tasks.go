@@ -346,10 +346,13 @@ func (c *Client) writeRuntimeTask(ctx context.Context, sessionID string, expecte
 				return err
 			}
 		}
-		return execSQL(ctx, tx, `
+		if err := execSQL(ctx, tx, `
 			UPDATE session_task_event SET expected_version = $2, mutation_hash = $3, quiescence_pending = CASE WHEN $4 THEN TRUE ELSE NULL END
 			WHERE sequence = $1
-		`, version, expectedVersion, mutationHash, boundary)
+		`, version, expectedVersion, mutationHash, boundary); err != nil {
+			return err
+		}
+		return refreshTaskCatalogMetadata(ctx, tx, session.HistoryID, string(task.ID), expectedVersion, stored)
 	})
 	if err != nil {
 		return 0, fmt.Errorf("update Session task %s: %w", task.ID, err)
