@@ -64,7 +64,7 @@ jobs:
             ./core/internal/mcp ./core/internal/translator/adkconfig ./core/internal/substrate \
             ./core/internal/translator ./core/internal/utils \
             ./core/internal/service/inventory ./core/internal/service/system \
-            ./core/pkg/config ./core/pkg/env ./core/pkg/app ./pkg/telemetry/... ./pkg/tracing
+            ./core/pkg/config ./core/pkg/env ./core/pkg/app ./core/pkg/postgressetup ./pkg/telemetry/... ./pkg/tracing
           go test -race -count=1 ./core/internal/translator/claude ./core/internal/translator/codex \
             ./harness/... ./adk/pkg/a2a/... ./adk/pkg/config ./adk/pkg/declarative ./adk/pkg/tools ./adk/pkg/controllerclient ./adk/pkg/taskstore \
             ./adk/pkg/embedding ./adk/pkg/nativeagent ./adk/pkg/agent ./adk/pkg/runner ./adk/pkg/mcp

@@ -28,6 +28,9 @@ detail views include canonical payloads. Agent activity aggregates indexed facts
 
 ## Publication and authority
 
+The administrator's PostgreSQL setup installs shared `pg_trgm` search support.
+Schema-owner migrations reuse its installed operator classes across core schemas.
+
 TaskStore updates prompt, pending interaction, and tool-call indexes in the
 transaction that publishes task state and history. Ordinary narration reuses
 retained history indexes. Session creation, naming, lifecycle, and fork operations

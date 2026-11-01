@@ -109,3 +109,6 @@ BEGIN
     EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA %I GRANT USAGE ON TYPES TO %I', owner_role, schema_name, readwrite_role);
 END
 $setup$;
+
+-- The administrator installs shared search support before schema-owner migrations.
+CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;

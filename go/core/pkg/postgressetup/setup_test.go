@@ -153,6 +153,13 @@ func testSetupScript(t *testing.T, container *tcpostgres.PostgresContainer, admi
 			t.Fatalf("setup run %d: %v", i+1, err)
 		}
 	}
+	var sharedSearch, databaseCreate bool
+	if err := admin.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM pg_extension WHERE extname='pg_trgm'),has_database_privilege($1,current_database(),'CREATE')`, config.OwnerRole).Scan(&sharedSearch, &databaseCreate); err != nil {
+		t.Fatal(err)
+	}
+	if !sharedSearch || databaseCreate {
+		t.Fatalf("search bootstrap = %v, schema owner database CREATE = %v", sharedSearch, databaseCreate)
+	}
 
 	loginURL := func(user, password string) string {
 		t.Helper()
