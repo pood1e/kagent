@@ -254,8 +254,8 @@ func (c *Client) UpdateSessionName(ctx context.Context, id, userID, name string)
 			return err
 		}
 		tag, err := tx.Exec(ctx, `
-			UPDATE session SET data = $1 WHERE id = $2
-		`, data, row.ID)
+			UPDATE session SET data = $1, name = $3, updated_at = $4 WHERE id = $2
+		`, data, row.ID, session.Name, session.UpdatedAt.AsTime())
 		if err != nil {
 			return err
 		}
@@ -330,9 +330,9 @@ func insertSessionRecords(ctx context.Context, db pgx.Tx, session *apiv1.Session
 		return sessionRow{}, err
 	}
 	if err := execSQL(ctx, db, `
-		INSERT INTO session (id, context_id, history_id, source_checkpoint_id, pinned_checkpoint_id, data)
-		VALUES ($1, $2, $3, $4, $4, $5)
-	`, session.Id, session.ContextId, historyID, sourceCheckpointID, data); err != nil {
+		INSERT INTO session (id, context_id, history_id, source_checkpoint_id, pinned_checkpoint_id, data, name, updated_at)
+		VALUES ($1, $2, $3, $4, $4, $5, $6, $7)
+	`, session.Id, session.ContextId, historyID, sourceCheckpointID, data, session.Name, catalogSessionUpdatedAt(session)); err != nil {
 		return sessionRow{}, err
 	}
 	if err := insertSessionAuthority(ctx, db, session); err != nil {

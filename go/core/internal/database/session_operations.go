@@ -77,7 +77,7 @@ func beginSessionOperation(ctx context.Context, tx pgx.Tx, row sessionRow, kind 
 		if err != nil {
 			return nil, err
 		}
-		if err := execSQL(ctx, tx, `UPDATE session SET data = $2 WHERE id = $1`, row.ID, data); err != nil {
+		if err := execSQL(ctx, tx, `UPDATE session SET data = $2, name = $3, updated_at = $4 WHERE id = $1`, row.ID, data, operation.Instance.Name, operation.Instance.UpdatedAt.AsTime()); err != nil {
 			return nil, err
 		}
 	}
@@ -169,10 +169,10 @@ func (c *Client) FinishSessionOperation(ctx context.Context, sessionID string, i
 			return err
 		}
 		tag, err := tx.Exec(ctx, `
-            UPDATE session SET data = $2,
+            UPDATE session SET data = $2, name = $5, updated_at = $6,
                 actor_uid = CASE WHEN $4 THEN $3 ELSE actor_uid END
             WHERE id = $1 AND ($3::text = '' OR actor_uid = $3 OR (actor_uid IS NULL AND $4))
-        `, row.ID, row.Data, actorUID, failure == "" && row.Operation == apiv1.RuntimeOperation_RUNTIME_OPERATION_CREATE.String())
+        `, row.ID, row.Data, actorUID, failure == "" && row.Operation == apiv1.RuntimeOperation_RUNTIME_OPERATION_CREATE.String(), result.Name, result.UpdatedAt.AsTime())
 		if err != nil {
 			return err
 		}
