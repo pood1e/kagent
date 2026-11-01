@@ -12,6 +12,8 @@ and permitted Session IDs. PostgreSQL applies this boundary before activity
 aggregation, literal-substring search, deterministic ordering, and keyset paging.
 Counts and page contents share a read-only repeatable-read transaction.
 Page tokens bind the current authorized scope and selection.
+The transaction selects PostgreSQL custom plans for parameter-sensitive scopes
+and nested tree functions; its planning setting expires with the transaction.
 
 Group anchors use the requested boundary Agents. Descendant traversal retains
 the complete authorized execution tree, including nested groups and background

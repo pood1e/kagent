@@ -7,11 +7,11 @@ WITH RECURSIVE visible AS MATERIALIZED (
     SELECT task_id, session_id, namespace, agent_name, state, status_timestamp,
         parent_task_id, background, pending_tool_approval, pending_user_input
     FROM catalog_tasks(ns,owner_id,other_id,tree_root,allowed_ids)
-    WHERE root_task_id=ANY(ARRAY(SELECT DISTINCT e.root_task_id FROM task_execution e WHERE e.task_id=ANY(anchors)))
+    WHERE root_task_id IN (SELECT e.root_task_id FROM task_execution e JOIN unnest(anchors) a(task_id) ON a.task_id=e.task_id)
 ), walk AS (
     SELECT v.task_id AS anchor_id, v.task_id, NOT COALESCE(v.background,FALSE) AS foreground,
         ARRAY[v.task_id] AS path
-    FROM visible v WHERE v.task_id=ANY(anchors)
+    FROM visible v WHERE v.task_id IN (SELECT unnest(anchors))
     UNION ALL
     SELECT w.anchor_id,c.task_id,w.foreground AND NOT COALESCE(c.background,FALSE),w.path||c.task_id
     FROM walk w JOIN visible c ON c.parent_task_id=w.task_id
@@ -60,15 +60,19 @@ WITH RECURSIVE mode AS MATERIALIZED (
     SELECT * FROM active
     UNION
     SELECT p.task_id,p.parent_task_id FROM ancestors a
-    JOIN catalog_tasks(ns,owner_id,other_id,tree_root,allowed_ids) p ON p.task_id=a.parent_task_id
-), candidates AS (
-    SELECT task_id FROM catalog_tasks(ns,owner_id,other_id,tree_root,allowed_ids) WHERE NOT (SELECT active_only FROM mode)
-    UNION ALL
-    SELECT task_id FROM ancestors WHERE (SELECT active_only FROM mode)
+    JOIN LATERAL (
+        SELECT task_id,parent_task_id FROM catalog_tasks(ns,owner_id,other_id,tree_root,allowed_ids)
+        WHERE task_id=a.parent_task_id LIMIT 1
+    ) p ON TRUE WHERE a.parent_task_id IS NOT NULL
 ), visible AS MATERIALIZED (
     SELECT task_id,session_id,parent_task_id,namespace||'/'||agent_name AS agent,initial_prompt
-    FROM catalog_tasks(ns,owner_id,other_id,tree_root,allowed_ids)
-    WHERE task_id=ANY(ARRAY(SELECT task_id FROM candidates))
+    FROM catalog_tasks(ns,owner_id,other_id,tree_root,allowed_ids) WHERE NOT (SELECT active_only FROM mode)
+    UNION ALL
+    SELECT p.task_id,p.session_id,p.parent_task_id,p.namespace||'/'||p.agent_name,p.initial_prompt
+    FROM ancestors a JOIN LATERAL (
+        SELECT task_id,session_id,parent_task_id,namespace,agent_name,initial_prompt
+        FROM catalog_tasks(ns,owner_id,other_id,tree_root,allowed_ids) WHERE task_id=a.task_id LIMIT 1
+    ) p ON TRUE WHERE (SELECT active_only FROM mode)
 ), roots AS (
     SELECT v.task_id,v.session_id,
         CASE WHEN p.agent=ANY(boundaries) THEN p.task_id END AS initiator_id,

@@ -14,14 +14,14 @@ WITH RECURSIVE candidates AS (
     WHERE t.namespace||'/'||t.agent_name=target_agent AND needle<>'' AND lower(t.initial_prompt) LIKE needle ESCAPE E'\\'
 ), sessions AS MATERIALIZED (
     SELECT * FROM catalog_sessions(ns,owner_id,other_id,tree_root,allowed_ids) s
-    WHERE s.session_id=ANY(ARRAY(SELECT session_id FROM candidates))
+    WHERE s.session_id IN (SELECT session_id FROM candidates)
 ), visible AS MATERIALIZED (
     SELECT task_id,session_id,parent_task_id,state,status_timestamp,created_at,
         pending_tool_approval,background,initial_prompt
     FROM catalog_tasks(ns,owner_id,other_id,tree_root,allowed_ids)
-    WHERE root_task_id=ANY(ARRAY(
-        SELECT DISTINCT t.root_task_id FROM catalog_tasks(ns,owner_id,other_id,tree_root,allowed_ids) t
-        WHERE t.session_id=ANY(ARRAY(SELECT session_id FROM sessions))))
+    WHERE root_task_id IN (
+        SELECT t.root_task_id FROM catalog_tasks(ns,owner_id,other_id,tree_root,allowed_ids) t
+        WHERE t.session_id IN (SELECT session_id FROM sessions))
 ), reach AS (
     SELECT s.session_id,t.task_id FROM sessions s JOIN visible t ON t.session_id=s.session_id
     UNION

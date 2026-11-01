@@ -72,7 +72,14 @@ func catalogFilters(filters []CatalogFilter) (string, error) {
 }
 
 func catalogRead(ctx context.Context, client *Client, fn func(pgx.Tx) error) error {
-	return pgx.BeginTxFunc(ctx, client.db, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly}, fn)
+	return pgx.BeginTxFunc(ctx, client.db, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly}, func(tx pgx.Tx) error {
+		// Authorized forests range from empty to many thousands of anchors. Bind
+		// cardinalities when planning nested SQL functions as well as the page.
+		if _, err := tx.Exec(ctx, `SET LOCAL plan_cache_mode = force_custom_plan`); err != nil {
+			return fmt.Errorf("configure catalog query planning: %w", err)
+		}
+		return fn(tx)
+	})
 }
 
 // CatalogHasRenewableSession observes whether this scope contains caller-initiated
