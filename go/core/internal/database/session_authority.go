@@ -15,6 +15,7 @@ import (
 type authorityRow struct {
 	SessionID       uuid.UUID
 	InitiatorID     string
+	WorkspaceUID    string
 	ParentSessionID *uuid.UUID
 	RootSessionID   uuid.UUID
 	Scopes          []string
@@ -23,7 +24,7 @@ type authorityRow struct {
 }
 
 func (a authorityRow) authority() *apiv1.SessionAuthority {
-	result := &apiv1.SessionAuthority{SessionId: a.SessionID.String(), InitiatorId: a.InitiatorID, RootSessionId: a.RootSessionID.String(), ScopeCeiling: &apiv1.ScopeCeiling{Scopes: a.Scopes}}
+	result := &apiv1.SessionAuthority{SessionId: a.SessionID.String(), InitiatorId: a.InitiatorID, WorkspaceUid: a.WorkspaceUID, RootSessionId: a.RootSessionID.String(), ScopeCeiling: &apiv1.ScopeCeiling{Scopes: a.Scopes}}
 	if a.ParentSessionID != nil {
 		result.ParentSessionId = a.ParentSessionID.String()
 	}
@@ -38,12 +39,12 @@ func (a authorityRow) authority() *apiv1.SessionAuthority {
 func readAuthorityChain(ctx context.Context, db dbExecutor, id string) ([]authorityRow, error) {
 	rows, err := queryMany(ctx, db, `
  WITH RECURSIVE ancestors AS (
- SELECT session_id, initiator_id, parent_session_id, root_session_id, scopes, expires_at, revoked, 1 AS depth
+ SELECT session_id, initiator_id, workspace_uid, parent_session_id, root_session_id, scopes, expires_at, revoked, 1 AS depth
  FROM session_authority WHERE session_id = $1
  UNION ALL
- SELECT p.session_id, p.initiator_id, p.parent_session_id, p.root_session_id, p.scopes, p.expires_at, p.revoked, a.depth + 1
+ SELECT p.session_id, p.initiator_id, p.workspace_uid, p.parent_session_id, p.root_session_id, p.scopes, p.expires_at, p.revoked, a.depth + 1
  FROM session_authority p JOIN ancestors a ON p.session_id = a.parent_session_id WHERE a.depth < 32
- ) SELECT session_id, initiator_id, parent_session_id, root_session_id, scopes, expires_at, revoked FROM ancestors ORDER BY depth
+ ) SELECT session_id, initiator_id, workspace_uid, parent_session_id, root_session_id, scopes, expires_at, revoked FROM ancestors ORDER BY depth
  `, pgx.RowToStructByName[authorityRow], id)
 	if err != nil {
 		return nil, err
@@ -56,7 +57,7 @@ func readAuthorityChain(ctx context.Context, db dbExecutor, id string) ([]author
 		return nil, ErrFailedPrecondition
 	}
 	for _, row := range rows {
-		if row.InitiatorID != root.InitiatorID || row.RootSessionID != root.SessionID {
+		if row.InitiatorID != root.InitiatorID || row.RootSessionID != root.SessionID || row.WorkspaceUID != root.WorkspaceUID {
 			return nil, ErrFailedPrecondition
 		}
 	}
@@ -132,7 +133,7 @@ func insertSessionAuthority(ctx context.Context, tx pgx.Tx, session *apiv1.Sessi
 			return err
 		}
 		parent := chain[0]
-		if !authorityActive(chain) || len(chain) >= 32 || grant.RootSessionId != parent.RootSessionID.String() || grant.InitiatorId != parent.InitiatorID {
+		if !authorityActive(chain) || len(chain) >= 32 || grant.RootSessionId != parent.RootSessionID.String() || grant.InitiatorId != parent.InitiatorID || grant.WorkspaceUid != parent.WorkspaceUID {
 			return ErrFailedPrecondition
 		}
 		if (parent.ExpiresAt == nil) != (grant.ExpiresAt == nil) ||
@@ -166,9 +167,9 @@ func insertSessionAuthority(ctx context.Context, tx pgx.Tx, session *apiv1.Sessi
 		scopes = []string{}
 	}
 	return execSQL(ctx, tx, `
- INSERT INTO session_authority (session_id, initiator_id, parent_session_id, root_session_id, scopes, expires_at)
- VALUES ($1, $2, NULLIF($3::text, '')::uuid, $4, $5, $6)
- `, session.Id, grant.InitiatorId, grant.ParentSessionId, grant.RootSessionId, scopes, expiry)
+ INSERT INTO session_authority (session_id, initiator_id, parent_session_id, root_session_id, scopes, expires_at, workspace_uid)
+ VALUES ($1, $2, NULLIF($3::text, '')::uuid, $4, $5, $6, $7)
+ `, session.Id, grant.InitiatorId, grant.ParentSessionId, grant.RootSessionId, scopes, expiry, grant.WorkspaceUid)
 }
 
 func allScopesWithin(scopes, ceiling []string) bool {

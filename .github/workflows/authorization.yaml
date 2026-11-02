@@ -1,0 +1,50 @@
+name: Resource authorization
+
+on:
+  pull_request:
+    branches: [main, dev, "release/**"]
+  push:
+    branches: [main, dev, "release/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  authorization:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go/go.mod
+          cache: true
+          cache-dependency-path: go/go.sum
+      - name: Install pinned official OpenFGA tools
+        working-directory: ${{ runner.temp }}
+        run: |
+          curl --fail --location --retry 3 --output fga.tar.gz https://github.com/openfga/cli/releases/download/v0.8.2/fga_0.8.2_linux_amd64.tar.gz
+          echo 'e48c4a73cf68031fe9fc0827f1462a9b2d6981e3d2e9b82f1e1c2e120c293443  fga.tar.gz' | sha256sum --check
+          tar -xzf fga.tar.gz fga
+          curl --fail --location --retry 3 --output openfga.tar.gz https://github.com/openfga/openfga/releases/download/v1.22.1/openfga_1.22.1_linux_amd64.tar.gz
+          echo '80d2d4b582762c02dc86b1246f7f6f54d6854259727b36e5b5c43ba90792814a  openfga.tar.gz' | sha256sum --check
+          tar -xzf openfga.tar.gz openfga
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - name: Check model and native permission catalog
+        run: make authorization-model-check
+      - name: Test authenticated native API against OpenFGA and PostgreSQL
+        env:
+          KAGENT_TEST_OPENFGA_URL: http://127.0.0.1:18284
+          TESTCONTAINERS_RYUK_DISABLED: "true"
+        run: |
+          openfga run --datastore-engine memory --http-addr 127.0.0.1:18284 --grpc-addr 127.0.0.1:18285 --playground-enabled=false --metrics-enabled=false > "$RUNNER_TEMP/openfga.log" 2>&1 &
+          server=$!
+          trap 'kill "$server"; wait "$server" || true; cat "$RUNNER_TEMP/openfga.log"' EXIT
+          for _ in $(seq 1 60); do
+            if curl --fail --silent "$KAGENT_TEST_OPENFGA_URL/healthz"; then break; fi
+            sleep 1
+          done
+          curl --fail --silent "$KAGENT_TEST_OPENFGA_URL/healthz"
+          cd go
+          go test -race ./core/internal/authorization ./core/internal/grpcserver -run 'TestNativeOpenFGAAuthorizationAPI|^TestModelCoversNativePermissionAndRoleCatalog$' -count=1

@@ -112,6 +112,7 @@ cleanup. Session lifecycle workers independently pause/suspend idle Actors.
 - [A2A push notifications](a2a-push-notifications.md)
 - [A2A metadata](a2a-metadata.md)
 - [OIDC proxy authentication](oidc-proxy-authentication.md)
+- [Resource authorization](resource-authorization.md)
 - [Persistence, checkpoints, and forks](persistence-checkpoints-and-forks.md)
 - [Published task catalog](task-catalog.md)
 - [MCP](mcp.md)

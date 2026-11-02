@@ -27,6 +27,7 @@ import (
 	runtimev1 "github.com/kagent-dev/kagent/go/api/gen/kagent/runtime/v1"
 	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 	"github.com/kagent-dev/kagent/go/core/internal/service/agentidentity"
+	"github.com/kagent-dev/kagent/go/core/internal/authorization"
 	"github.com/kagent-dev/kagent/go/core/internal/service/checkpoint"
 	"github.com/kagent-dev/kagent/go/core/internal/service/execution"
 	"github.com/kagent-dev/kagent/go/core/internal/service/inventory"
@@ -54,6 +55,7 @@ const (
 
 type Config struct {
 	WorkflowService        *workflowservice.Service
+	AuthorizationService   *authorization.Service
 	InventoryService       *inventory.Service
 	ExecutionService       *execution.Service
 	TaskCatalogService     *taskcatalog.Service
@@ -143,6 +145,7 @@ func New(config Config) (*Server, error) {
 	healthServer := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
 	apiv1.RegisterSystemServiceServer(grpcServer, newSystemServer(config.SystemService, config.MaxMessageBytes))
+	apiv1.RegisterAuthorizationServiceServer(grpcServer, &authorizationServer{service: config.AuthorizationService})
 	apiv1.RegisterAgentServiceServer(grpcServer, newAgentServer(config.AgentService, config.MaxMessageBytes, config.InventoryService))
 	apiv1.RegisterAgentIdentityServiceServer(grpcServer, &agentIdentityServer{service: config.AgentIdentityService})
 	if config.WorkflowService != nil {
