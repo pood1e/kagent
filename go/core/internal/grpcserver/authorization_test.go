@@ -29,6 +29,7 @@ import (
 	"github.com/kagent-dev/kagent/go/core/internal/dbtest"
 	authimpl "github.com/kagent-dev/kagent/go/core/internal/httpserver/auth"
 	"github.com/kagent-dev/kagent/go/core/internal/jwttest"
+	toolservice "github.com/kagent-dev/kagent/go/core/internal/service/tool"
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
 	"github.com/kagent-dev/kagent/go/core/pkg/env"
 )
@@ -83,16 +84,25 @@ func TestNativeOpenFGAAuthorizationAPI(t *testing.T) {
 		&v1alpha3.Agent{ObjectMeta: metav1.ObjectMeta{Name: "assistant", Namespace: "team", UID: "agent-1"}},
 		&v1alpha3.Harness{ObjectMeta: metav1.ObjectMeta{Name: "runtime", Namespace: "team", UID: "harness-1"}},
 		&v1alpha3.ModelConfig{ObjectMeta: metav1.ObjectMeta{Name: "primary", Namespace: "team", UID: "model-1"}},
-		&v1alpha3.RemoteMCPServer{ObjectMeta: metav1.ObjectMeta{Name: "tools", Namespace: "team", UID: "mcp-1"}},
+		&v1alpha3.RemoteMCPServer{
+			ObjectMeta: metav1.ObjectMeta{Name: "tools", Namespace: "team", UID: "mcp-1"},
+			Status: v1alpha3.RemoteMCPServerStatus{DiscoveredTools: []*v1alpha3.MCPTool{
+				{Name: "move_task", Description: "Move a task"}, {Name: "delete", Description: "Delete a task"},
+			}},
+		},
+		&v1alpha3.RemoteMCPServer{ObjectMeta: metav1.ObjectMeta{Name: "tools", Namespace: "other-team", UID: "other-mcp"}},
 	).Build()
 	connStr := dbtest.StartT(ctx, t)
 	dbtest.MigrateT(t, connStr, false)
 	pool, err := database.Connect(ctx, &database.PostgresConfig{Pool: dbtest.PoolConfig(connStr), Schema: "public", VectorSchema: "public"})
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
+	resources := database.NewClient(pool, "public")
+	require.NoError(t, resources.RefreshToolServer(ctx, &database.ToolServer{Name: "team/tools", GroupKind: "RemoteMCPServer.api.kagent.dev"},
+		&v1alpha3.MCPTool{Name: "move_task"}, &v1alpha3.MCPTool{Name: "delete"}))
 	service, err := authorization.NewService(authorization.Config{
 		OpenFGA:    &configv1.OpenFGAConfig{ApiUrl: endpoint, StoreId: store.Id, AuthorizationModelId: written.AuthorizationModelId, GroupClaim: "groups"},
-		Kubernetes: kube, Store: database.NewClient(pool, "public"), Issuer: issuer.URL,
+		Kubernetes: kube, Store: resources, Issuer: issuer.URL,
 	})
 	require.NoError(t, err)
 	t.Cleanup(service.Close)
@@ -100,6 +110,7 @@ func TestNativeOpenFGAAuthorizationAPI(t *testing.T) {
 	connection := newConfigurationConnection(t, kube, func(config *Config) {
 		config.Authenticator = provider
 		config.AuthorizationService = service
+		config.ToolService = toolservice.NewService(kube, resources, service, "team", &toolGRPCMCPClient{})
 	})
 	client := apiv1.NewAuthorizationServiceClient(connection)
 	identity := func(id string, groups []string) context.Context {
@@ -307,4 +318,7 @@ func TestNativeOpenFGAAuthorizationAPI(t *testing.T) {
 		Workspace: workspace.GetWorkspace(), Scope: agent, Page: &apiv1.PageRequest{PageToken: page.Page.NextPageToken},
 	})
 	assertGRPCCode(t, err, codes.InvalidArgument)
+	t.Run("MCP business entry points", func(t *testing.T) {
+		verifyNativeMCPPermissions(t, client, apiv1.NewToolServiceClient(connection), kube, admin, alice, subject("alice"), workspace.GetWorkspace())
+	})
 }

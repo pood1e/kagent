@@ -52,8 +52,8 @@ Pass scopes as ordinary function arguments. Do not place policy decisions in req
 
 - `Agent`, `AgentTemplate`, `Harness`, and `SandboxTemplate` use `kubecrud.NewService` with a required `CollectionAuthorizer`.
 - `ModelConfig` and `ModelProviderConfig` use separate typed CRUD services and resource types. Configured-provider reads and refresh are authorized independently from ModelConfig operations.
-- Prompt libraries, tool discovery, and WorkerPool summary rows use `kubeauth.CollectionMatcher` for custom collection projection.
-- Flat tool discovery must filter through the same exact owning-server identities as server discovery.
+- Prompt libraries and WorkerPool summary rows use `kubeauth.CollectionMatcher` for custom collection projection.
+- MCP discovery and connection operations use the native `CheckPermissions` contract, with batched server-read checks and UID-fenced catalog projection. MCP App calls check the exact tool-call action before resolving the authorized server UID.
 - `GetSubstrateSummary` requires `Check(VerbGet, Resource{Type: "SystemSummary"})` before any resource reads; denial fails the whole request with permission denied. WorkerPool rows then use their own `VerbList` scope.
 - The summary capability covers its ATE inventory. Dedicated actor and worker endpoints independently require `Check(VerbGet, Resource{Type: "Substrate"})`. Both capabilities have empty namespace/name; neither uses `Scope(VerbGet, ...)`.
 - Static provider definitions and supported tool-server types expose no configured object and remain available after authentication.

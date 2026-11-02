@@ -25,6 +25,12 @@ scopes use their current Kubernetes UIDs. An MCP tool scope hashes its server's
 UID-bound object key and exact, case-sensitive tool name. A server use binding
 covers its tools; a tool use binding covers that name within one server
 incarnation. Model credentials retain their Secret boundary.
+`ToolService` checks server read/manage actions for catalog and connection
+operations, and the exact tool-call action for MCP Apps. Permission checks precede
+outbound calls. The authorized server UID accompanies resolution and deletion;
+catalog projection also verifies the current UID and observed discovery generation.
+The application injects its configured native authorization engine into this
+service. Engine configuration enables its protected resource operations.
 Namespace-scoped installations include a namespace-reader ClusterRole restricted
 to `get` on the configured namespace names, providing their stable identities.
 `ListWorkspaces` enumerates observed namespaces, checks `member` against each
