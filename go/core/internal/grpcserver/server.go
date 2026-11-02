@@ -40,6 +40,7 @@ import (
 	"github.com/kagent-dev/kagent/go/core/internal/service/taskcatalog"
 	"github.com/kagent-dev/kagent/go/core/internal/service/taskstore"
 	toolservice "github.com/kagent-dev/kagent/go/core/internal/service/tool"
+	workflowservice "github.com/kagent-dev/kagent/go/core/internal/service/workflow"
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
 	"github.com/kagent-dev/kagent/go/pkg/logging"
 )
@@ -51,6 +52,7 @@ const (
 )
 
 type Config struct {
+	WorkflowService        *workflowservice.Service
 	InventoryService       *inventory.Service
 	ExecutionService       *execution.Service
 	TaskCatalogService     *taskcatalog.Service
@@ -140,6 +142,9 @@ func New(config Config) (*Server, error) {
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
 	apiv1.RegisterSystemServiceServer(grpcServer, newSystemServer(config.SystemService, config.MaxMessageBytes))
 	apiv1.RegisterAgentServiceServer(grpcServer, newAgentServer(config.AgentService, config.MaxMessageBytes, config.InventoryService))
+	if config.WorkflowService != nil {
+		apiv1.RegisterWorkflowServiceServer(grpcServer, &workflowServer{service: config.WorkflowService, maxMessageBytes: config.MaxMessageBytes})
+	}
 	apiv1.RegisterAgentTemplateServiceServer(grpcServer, newAgentTemplateServer(config.AgentTemplateService, config.MaxMessageBytes))
 	apiv1.RegisterHarnessServiceServer(grpcServer, newHarnessServer(config.HarnessService, config.MaxMessageBytes))
 	apiv1.RegisterSandboxServiceServer(grpcServer, &sandboxServer{service: config.SandboxService})

@@ -356,6 +356,23 @@ The controller:
 4. records the ConfigMap in the revision provenance, so editing the document
    prepares a new revision.
 
+### Authoring API
+
+`WorkflowService.GetWorkflowSchema` exports the authoring schema generated from
+the native document types and node field rules. `make proto-generate` also writes
+`go/adk/pkg/declarative/schema.json` for downstream type and form generation.
+
+`ValidateWorkflow` overlays the candidate document and optional referenced
+AgentTemplate in a read-only compilation snapshot. It uses the Harness compiler
+and offline ADK graph construction, then returns the compiled revision identity.
+Authorization matches Agent creation. `GetWorkflowRevision` authorizes an Agent
+read and resolves the current persisted revision, including that Agent's identity
+and dependencies.
+
+Each newly prepared workflow revision records its canonical document and digest
+in the existing source snapshot. `GetSessionWorkflow` authorizes the Session
+before returning its pinned definition, independently of later publications.
+
 Failures that are the document's fault report `Compatible=False` with reason
 `UnsupportedConfiguration` and the validation message. A missing ConfigMap or key
 is an ordinary reference failure and is retried.
@@ -383,9 +400,12 @@ that runtime registers:
   `template:tools` offers every bound server as one toolset, so a document
   stays valid when a platform binds servers under deployment-specific names.
   `mcp_servers` is for BYO images.
-- Function, dynamic and registered-tool nodes and Hook functions need Go code
-  and are rejected. So are `hitl` nodes and bindings that require approval,
-  because the runtime does not pause a workflow.
+- Function, dynamic and registered-tool nodes and Hook functions use Go registries
+  supplied by a BYO image. The standard runtime provides CEL, declarative graphs,
+  LLMs, bound MCP tools and native Agent delegation.
+- `hitl` nodes pause through the native human-question bridge. Root workflow tools
+  use approval-free bindings; actions requiring confirmation run in delegated
+  Agents with their own tool approval bindings.
 - The document declares the agents and outputs, so the template sets no output
   schema, subagent tools, skills or plugins.
 

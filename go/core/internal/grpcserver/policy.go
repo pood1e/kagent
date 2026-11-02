@@ -16,6 +16,10 @@ type MethodPolicies map[string]auth.AccessMode
 
 func DefaultMethodPolicies() MethodPolicies {
 	policies := MethodPolicies{
+		apiv1.WorkflowService_GetWorkflowSchema_FullMethodName:              auth.AccessRead,
+		apiv1.WorkflowService_GetWorkflowRevision_FullMethodName:            auth.AccessRead,
+		apiv1.WorkflowService_ValidateWorkflow_FullMethodName:               auth.AccessCreate,
+		apiv1.WorkflowService_GetSessionWorkflow_FullMethodName:             auth.AccessRead,
 		apiv1.ExecutionService_GetSessionAuthority_FullMethodName:           auth.AccessRead,
 		apiv1.ExecutionService_RevokeSessionAuthority_FullMethodName:        auth.AccessUpdate,
 		apiv1.ExecutionService_GetDelegationCredentialStatus_FullMethodName: auth.AccessRead,
