@@ -98,7 +98,7 @@ func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	normalized := &executionauth.Provider{Users: userProvider, Authority: authority}
 	provider := runtimeauth.NewProvider(normalized, verifier, store, actors.URL, authority)
 	policy := runtimeauth.NewAuthorizer(&executionauth.Policy{Base: auth.NoopAuthorizer{}, Config: cfg}, store, authority)
-	sessions := sessionsvc.NewService(store, policy, authorityWorkflow{store: store}, sessionsvc.WithExecutionAuthority(authority))
+	sessions := sessionsvc.NewService(store, policy, authorityWorkflow{store: store}, sessionsvc.WithExecutionAuthority(authority), sessionsvc.WithWorkspaceIdentity(testWorkspaceReader(t)))
 	executions := executionsvc.NewService(store, sessions, authority)
 	connection := newConfigurationConnection(t, nil, func(config *Config) {
 		config.Authenticator, config.SessionService, config.ExecutionService = provider, sessions, executions

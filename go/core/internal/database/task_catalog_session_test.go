@@ -24,7 +24,7 @@ func TestCatalogSessionActivitySearchPagingAndObservedState(t *testing.T) {
 	turn := catalogQueryTask(t, client, searched, "searched", "SeArCh %_", at.Add(time.Second), a2a.TaskStateWorking, nil)
 	turn.History = append(turn.History, a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart("later-only text")))
 	catalogQueryState(t, client, turn, a2a.TaskStateWorking, at.Add(time.Second))
-	query := CatalogTaskQuery{Scope: CatalogScope{Namespace: "team-a", OwnerID: "alice"}, Agent: empty.GetAgent().GetRef(), Limit: 100}
+	query := CatalogTaskQuery{Scope: CatalogScope{Namespace: "team-a", WorkspaceUID: "team-a-uid", OwnerID: "alice"}, Agent: empty.GetAgent().GetRef(), Limit: 100}
 	all, err := client.ListCatalogSessionActivity(t.Context(), query)
 	require.NoError(t, err)
 	require.Equal(t, 4, all.Total)
@@ -72,7 +72,7 @@ func TestCatalogSessionActivitySearchPagingAndObservedState(t *testing.T) {
 		require.ElementsMatch(t, test.ids, got)
 	}
 	records, err := client.ListCatalogTaskRecords(t.Context(), CatalogTaskQuery{
-		Scope: CatalogScope{Namespace: "team-a", SessionIDs: []string{unknown.Id}}, Limit: 10,
+		Scope: CatalogScope{Namespace: "team-a", WorkspaceUID: "team-a-uid", SessionIDs: []string{unknown.Id}}, Limit: 10,
 	})
 	require.NoError(t, err)
 	require.Equal(t, a2apb.TaskState_TASK_STATE_UNSPECIFIED, records.Tasks[0].Task.Status.State)
@@ -87,11 +87,12 @@ func TestCatalogSessionActivityPreservesMissingTimestamp(t *testing.T) {
 				Id: id, ContextId: id, Creator: "alice", Name: "retained session",
 				Agent: &apiv1.AgentProvenance{Ref: &apiv1.ResourceReference{Namespace: "team-a", Name: "worker"}}, PreparedRevision: "team-a-worker",
 				State: apiv1.RuntimeState_RUNTIME_STATE_CREATING, Operation: apiv1.RuntimeOperation_RUNTIME_OPERATION_CREATE,
+				Authority: catalogAuthority(id, "alice", "team-a"),
 			}, uuid.NewString(), uuid.New(), nil)
 			return err
 		}))
 	}
-	query := CatalogTaskQuery{Scope: CatalogScope{Namespace: "team-a", OwnerID: "alice"}, Agent: &apiv1.ResourceReference{Namespace: "team-a", Name: "worker"}, Limit: 1}
+	query := CatalogTaskQuery{Scope: CatalogScope{Namespace: "team-a", WorkspaceUID: "team-a-uid", OwnerID: "alice"}, Agent: &apiv1.ResourceReference{Namespace: "team-a", Name: "worker"}, Limit: 1}
 	first, err := client.ListCatalogSessionActivity(t.Context(), query)
 	require.NoError(t, err)
 	require.Equal(t, 2, first.Total)
@@ -114,13 +115,13 @@ func TestCatalogSessionActivityLatestTurnUsesCreationTime(t *testing.T) {
 	catalogQueryTask(t, client, session, "older-turn", "older", latestStatus, a2a.TaskStateCompleted, nil)
 	catalogQueryTask(t, client, session, "newer-turn", "newer", latestStatus.Add(-time.Hour), a2a.TaskStateFailed, nil)
 	page, err := client.ListCatalogSessionActivity(t.Context(), CatalogTaskQuery{
-		Scope: CatalogScope{Namespace: "team-a", OwnerID: "alice"}, Agent: session.GetAgent().GetRef(), Limit: 10,
+		Scope: CatalogScope{Namespace: "team-a", WorkspaceUID: "team-a-uid", OwnerID: "alice"}, Agent: session.GetAgent().GetRef(), Limit: 10,
 	})
 	require.NoError(t, err)
 	require.Len(t, page.Sessions, 1)
 	require.Equal(t, a2apb.TaskState_TASK_STATE_FAILED, page.Sessions[0].Activity.GetState())
 	require.Equal(t, latestStatus, page.Sessions[0].Activity.UpdatedAt.AsTime())
-	activity, err := client.ListCatalogAgentActivity(t.Context(), CatalogScope{Namespace: "team-a", OwnerID: "alice"})
+	activity, err := client.ListCatalogAgentActivity(t.Context(), CatalogScope{Namespace: "team-a", WorkspaceUID: "team-a-uid", OwnerID: "alice"})
 	require.NoError(t, err)
 	require.Len(t, activity, 1)
 	require.Zero(t, activity[0].ActiveTasks)

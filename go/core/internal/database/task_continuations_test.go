@@ -16,10 +16,11 @@ import (
 func continuationSession(t *testing.T, client *Client, parent ...*apiv1.Session) *apiv1.Session {
 	t.Helper()
 	request := newSessionRequest(uuid.NewString(), "assistant", "kagent", "")
+	request.Authority = catalogAuthority(request.Id, request.Creator, request.GetAgent().GetRef().GetNamespace())
 	if len(parent) > 0 {
 		grant, _, err := client.GetSessionAuthority(t.Context(), parent[0].Id)
 		require.NoError(t, err)
-		request.Authority = &apiv1.SessionAuthority{SessionId: request.Id, InitiatorId: grant.InitiatorId, ParentSessionId: parent[0].Id, RootSessionId: grant.RootSessionId, ScopeCeiling: grant.ScopeCeiling, ExpiresAt: grant.ExpiresAt}
+		request.Authority = &apiv1.SessionAuthority{SessionId: request.Id, InitiatorId: grant.InitiatorId, ParentSessionId: parent[0].Id, RootSessionId: grant.RootSessionId, ScopeCeiling: grant.ScopeCeiling, ExpiresAt: grant.ExpiresAt, WorkspaceUid: grant.WorkspaceUid}
 	}
 	session, _, err := client.CreateSession(t.Context(), request, uuid.NewString())
 	require.NoError(t, err)

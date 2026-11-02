@@ -35,18 +35,27 @@ func catalogQueryAgent(t testing.TB, client *Client, namespace, agent string) {
 	}, RecordRevisionOptions{Ready: true})))
 }
 
+func catalogAuthority(id, owner, namespace string) *apiv1.SessionAuthority {
+	return &apiv1.SessionAuthority{
+		SessionId: id, InitiatorId: owner, RootSessionId: id,
+		WorkspaceUid: namespace + "-uid", ScopeCeiling: &apiv1.ScopeCeiling{},
+	}
+}
+
 func catalogQuerySession(t testing.TB, client *Client, namespace, agent, owner, name string, parent *apiv1.Session) *apiv1.Session {
 	t.Helper()
 	request := &apiv1.Session{
 		Id: uuid.NewString(), Creator: owner, Name: name,
 		Agent: &apiv1.AgentProvenance{Ref: &apiv1.ResourceReference{Namespace: namespace, Name: agent}},
 	}
+	request.Authority = catalogAuthority(request.Id, owner, namespace)
 	if parent != nil {
 		grant, _, err := client.GetSessionAuthority(t.Context(), parent.Id)
 		require.NoError(t, err)
 		request.Authority = &apiv1.SessionAuthority{
 			SessionId: request.Id, InitiatorId: grant.InitiatorId, RootSessionId: grant.RootSessionId,
 			ParentSessionId: parent.Id, ScopeCeiling: grant.ScopeCeiling, ExpiresAt: grant.ExpiresAt,
+			WorkspaceUid: grant.WorkspaceUid,
 		}
 	}
 	session, _, err := client.CreateSession(t.Context(), request, uuid.NewString())

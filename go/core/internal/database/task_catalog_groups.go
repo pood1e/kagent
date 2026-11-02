@@ -53,7 +53,7 @@ func (c *Client) ListCatalogTaskGroups(ctx context.Context, q CatalogTaskQuery) 
 		agent = q.Agent.Namespace + "/" + q.Agent.Name
 	}
 	args := append(q.Scope.args(), boundaries, agent, catalogPattern(q.Query), filters)
-	err = catalogRead(ctx, c, func(tx pgx.Tx) error {
+	err = catalogRead(ctx, c, q.Scope, func(tx pgx.Tx) error {
 		total, err := queryOne(ctx, tx, `
  SELECT count(*) FROM catalog_task_groups($1,$2,$3,$4,$5,$6,$7,$8,$9)
  `, pgx.RowTo[int], args...)

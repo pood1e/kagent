@@ -68,7 +68,7 @@ func TestNativeAuthorityRFC8693RefreshRecoveryAndRevocation(t *testing.T) {
 	normalized := &executionauth.Provider{Users: f.users, Authority: authority}
 	provider := runtimeauth.NewProvider(normalized, controlVerifier, store, actors.URL, authority)
 	policy := runtimeauth.NewAuthorizer(&executionauth.Policy{Base: auth.NoopAuthorizer{}, Config: cfg}, store, authority)
-	sessions := sessionsvc.NewService(store, policy, authorityWorkflow{store: store}, sessionsvc.WithExecutionAuthority(authority))
+	sessions := sessionsvc.NewService(store, policy, authorityWorkflow{store: store}, sessionsvc.WithExecutionAuthority(authority), sessionsvc.WithWorkspaceIdentity(testWorkspaceReader(t)))
 	executions := executionsvc.NewService(store, sessions, authority)
 	connection := newConfigurationConnection(t, nil, func(config *Config) {
 		config.Authenticator, config.SessionService, config.ExecutionService = provider, sessions, executions
@@ -112,7 +112,7 @@ func TestNativeAuthorityRFC8693RefreshRecoveryAndRevocation(t *testing.T) {
 		users := &executionauth.Provider{Users: f.users, Authority: fresh}
 		authn := runtimeauth.NewProvider(users, gatewayVerifier, store, actors.URL, fresh)
 		grants := runtimeauth.NewAuthorizer(&executionauth.Policy{Base: auth.NoopAuthorizer{}, Config: cfg}, store, fresh)
-		api := sessionsvc.NewService(store, grants, authorityWorkflow{store: store}, sessionsvc.WithExecutionAuthority(fresh))
+		api := sessionsvc.NewService(store, grants, authorityWorkflow{store: store}, sessionsvc.WithExecutionAuthority(fresh), sessionsvc.WithWorkspaceIdentity(testWorkspaceReader(t)))
 		httpService := executionsvc.NewService(store, api, fresh)
 		current.Store(auth.AuthnMiddleware(authn)(http.HandlerFunc(httpService.RuntimeAuthorization)))
 	}

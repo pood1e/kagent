@@ -63,7 +63,7 @@ func TestTaskCatalogGeneratedClientReadsPublishedForestAfterRootDeletion(t *test
 	childTask, _ := catalogRPCTask(t, store, child.Id, &database.DispatchOrigin{SessionID: root.Id, Background: true}, "100%_literal RCA")
 	_, _ = catalogRPCTask(t, store, foreign.Id, nil, "foreign prompt")
 	policy := catalogRPCPolicy{allowed: child.Id}
-	sessions := sessionsvc.NewService(store, policy, nil)
+	sessions := sessionsvc.NewService(store, policy, nil, sessionsvc.WithWorkspaceIdentity(testWorkspaceReader(t)))
 	connection := newConfigurationConnection(t, nil, func(config *Config) {
 		config.Authenticator = authimpl.NewProxyAuthenticator("sub")
 		config.SessionService = sessions
@@ -150,8 +150,10 @@ func TestTaskCatalogGeneratedClientReadsPublishedForestAfterRootDeletion(t *test
 func catalogRPCSession(t *testing.T, store *database.Client, parent *apiv1.Session, creator string) *apiv1.Session {
 	t.Helper()
 	request := &apiv1.Session{Id: uuid.NewString(), Creator: creator, Agent: &apiv1.AgentProvenance{Ref: &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}}}
+	request.Authority = &apiv1.SessionAuthority{SessionId: request.Id, InitiatorId: creator, RootSessionId: request.Id, WorkspaceUid: "team-a-uid", ScopeCeiling: &apiv1.ScopeCeiling{}}
 	if parent != nil {
-		request.Authority = &apiv1.SessionAuthority{SessionId: request.Id, InitiatorId: creator, ParentSessionId: parent.Id, RootSessionId: parent.Id, ScopeCeiling: &apiv1.ScopeCeiling{}}
+		request.Authority.ParentSessionId = parent.Id
+		request.Authority.RootSessionId = parent.Id
 	}
 	session, _, err := store.CreateSession(t.Context(), request, uuid.NewString())
 	require.NoError(t, err)

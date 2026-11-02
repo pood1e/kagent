@@ -32,10 +32,11 @@ func TestTaskCatalogMetadataForkRebuildsPublishedHistory(t *testing.T) {
 	require.NoError(t, err)
 	_, err = client.UpdateCheckpointName(t.Context(), checkpoint.Id, "alice", "fork display")
 	require.NoError(t, err)
-	fork, _, err := client.ForkSession(t.Context(), checkpoint.Id, "alice", "fork", uuid.NewString(), nil)
+	forkID := uuid.NewString()
+	fork, _, err := client.ForkSession(t.Context(), checkpoint.Id, "alice", "fork", forkID, catalogAuthority(forkID, "alice", "team-a"))
 	require.NoError(t, err)
 	records, err := client.ListCatalogTaskRecords(t.Context(), CatalogTaskQuery{
-		Scope: CatalogScope{Namespace: "team-a", SessionIDs: []string{fork.Id}}, Limit: 100,
+		Scope: CatalogScope{Namespace: "team-a", WorkspaceUID: "team-a-uid", SessionIDs: []string{fork.Id}}, Limit: 100,
 		View: apiv1.TaskCatalogView_TASK_CATALOG_VIEW_DETAILS,
 	})
 	require.NoError(t, err)
@@ -45,7 +46,7 @@ func TestTaskCatalogMetadataForkRebuildsPublishedHistory(t *testing.T) {
 	require.False(t, records.Tasks[0].PendingToolApproval)
 	require.EqualValues(t, 1, catalogCalls(t, client, fork.Id))
 	page, err := client.ListCatalogSessionActivity(t.Context(), CatalogTaskQuery{
-		Scope: CatalogScope{Namespace: "team-a", SessionIDs: []string{fork.Id}}, Agent: fork.GetAgent().GetRef(),
+		Scope: CatalogScope{Namespace: "team-a", WorkspaceUID: "team-a-uid", SessionIDs: []string{fork.Id}}, Agent: fork.GetAgent().GetRef(),
 		Query: "fork", Limit: 10,
 	})
 	require.NoError(t, err)
@@ -59,10 +60,12 @@ func TestTaskCatalogMetadataForkRebuildsPublishedHistory(t *testing.T) {
 func TestTaskCatalogSessionMetadataFollowsRenameAndLifecycle(t *testing.T) {
 	client := NewClient(setupTestDB(t), "public")
 	sessionFixture(t, client, t.Context(), "team-a", "revision", "assistant", "kagent")
-	session, _, err := client.CreateSession(t.Context(), newSessionRequest(uuid.NewString(), "assistant", "kagent", "original name"), uuid.NewString())
+	request := newSessionRequest(uuid.NewString(), "assistant", "kagent", "original name")
+	request.Authority = catalogAuthority(request.Id, request.Creator, request.GetAgent().GetRef().GetNamespace())
+	session, _, err := client.CreateSession(t.Context(), request, uuid.NewString())
 	require.NoError(t, err)
 	query := CatalogTaskQuery{
-		Scope: CatalogScope{Namespace: "team-a", SessionIDs: []string{session.Id}}, Agent: session.GetAgent().GetRef(), Query: "original", Limit: 10,
+		Scope: CatalogScope{Namespace: "team-a", WorkspaceUID: "team-a-uid", SessionIDs: []string{session.Id}}, Agent: session.GetAgent().GetRef(), Query: "original", Limit: 10,
 	}
 	created, err := client.ListCatalogSessionActivity(t.Context(), query)
 	require.NoError(t, err)

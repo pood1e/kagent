@@ -20,7 +20,10 @@ func (c *Client) ListCatalogAgentActivity(ctx context.Context, scope CatalogScop
 		PendingToolApproval bool
 		Interrupted         bool
 	}
-	rows, err := queryMany(ctx, c.db, `
+	var rows []row
+	err := catalogRead(ctx, c, scope, func(tx pgx.Tx) error {
+		var err error
+		rows, err = queryMany(ctx, tx, `
  SELECT namespace,agent_name,
  count(*) FILTER(WHERE state NOT IN ('TASK_STATE_COMPLETED','TASK_STATE_FAILED','TASK_STATE_CANCELED','TASK_STATE_REJECTED')) AS active_tasks,
  COALESCE(sum(tool_call_count),0)::bigint AS tool_calls,
@@ -29,6 +32,8 @@ func (c *Client) ListCatalogAgentActivity(ctx context.Context, scope CatalogScop
  bool_or(state IN ('TASK_STATE_INPUT_REQUIRED','TASK_STATE_AUTH_REQUIRED')) AS interrupted
  FROM catalog_tasks($1,$2,$3,$4,$5) GROUP BY namespace,agent_name ORDER BY namespace,agent_name
  `, pgx.RowToStructByName[row], scope.args()...)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
