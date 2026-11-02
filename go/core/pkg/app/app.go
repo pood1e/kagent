@@ -345,7 +345,7 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 	if cfg.Authorization != nil {
 		resourceAuthorization, err = authorization.NewService(authorization.Config{
 			OpenFGA: cfg.Authorization, Kubernetes: manager.GetAPIReader(), Store: store,
-			Issuer: cfg.GetServer().GetAuth().GetOidc().GetIssuer(),
+			Issuer: cfg.GetServer().GetAuth().GetOidc().GetIssuer(), WatchNamespaces: watchNamespaces,
 		})
 		if err != nil {
 			return fmt.Errorf("configure resource authorization: %w", err)
