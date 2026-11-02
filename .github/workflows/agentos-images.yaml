@@ -2,7 +2,7 @@ name: AgentOS images
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
   workflow_dispatch:
 
@@ -15,7 +15,7 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io/${{ github.repository }}
-  VERSION: 0.0.0-main.g${{ github.sha }}
+  VERSION: 0.0.0-${{ github.ref_name == 'dev' && 'dev' || 'main' }}.g${{ github.sha }}
 
 jobs:
   verify:
@@ -100,7 +100,7 @@ jobs:
           retention-days: 1
 
   images:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
     needs: verify
     runs-on: ubuntu-24.04
     permissions:
@@ -147,12 +147,12 @@ jobs:
           provenance: false
           tags: |
             ${{ env.REGISTRY }}/${{ matrix.component }}:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ matrix.component }}:main
+            ${{ env.REGISTRY }}/${{ matrix.component }}:${{ github.ref_name }}
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.version=${{ env.VERSION }}
-            org.opencontainers.image.ref.name=main
+            org.opencontainers.image.ref.name=${{ github.ref_name }}
       - name: Verify the published entrypoint
         run: docker run --rm --entrypoint '${{ matrix.entrypoint }}' "${REGISTRY}/${{ matrix.component }}@${{ steps.build.outputs.digest }}" --help
       - run: echo "${REGISTRY}/${{ matrix.component }}@${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
@@ -173,7 +173,7 @@ jobs:
           retention-days: 1
 
   charts:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
     needs: images
     runs-on: ubuntu-24.04
     permissions:
