@@ -132,8 +132,10 @@ type SessionAuthority struct {
 	RootSessionId   string                 `protobuf:"bytes,4,opt,name=root_session_id,json=rootSessionId,proto3" json:"root_session_id,omitempty"`
 	ExpiresAt       *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	ScopeCeiling    *ScopeCeiling          `protobuf:"bytes,7,opt,name=scope_ceiling,json=scopeCeiling,proto3" json:"scope_ceiling,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Immutable Kubernetes namespace UID captured by the native Session service.
+	WorkspaceUid  string `protobuf:"bytes,8,opt,name=workspace_uid,json=workspaceUid,proto3" json:"workspace_uid,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SessionAuthority) Reset() {
@@ -206,6 +208,13 @@ func (x *SessionAuthority) GetScopeCeiling() *ScopeCeiling {
 		return x.ScopeCeiling
 	}
 	return nil
+}
+
+func (x *SessionAuthority) GetWorkspaceUid() string {
+	if x != nil {
+		return x.WorkspaceUid
+	}
+	return ""
 }
 
 type GetSessionAuthorityRequest struct {
@@ -1164,7 +1173,7 @@ const file_kagent_api_v1_execution_proto_rawDesc = "" +
 	"\n" +
 	"\x1dkagent/api/v1/execution.proto\x12\rkagent.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1akagent/api/v1/common.proto\"C\n" +
 	"\fScopeCeiling\x123\n" +
-	"\x06scopes\x18\x01 \x03(\tB\x1b\xbaH\x18\x92\x01\x15\x10\x80\x02\x18\x01\"\x0er\f\x10\x01\x18\x80\x022\x05^\\S+$R\x06scopes\"\xb3\x02\n" +
+	"\x06scopes\x18\x01 \x03(\tB\x1b\xbaH\x18\x92\x01\x15\x10\x80\x02\x18\x01\"\x0er\f\x10\x01\x18\x80\x022\x05^\\S+$R\x06scopes\"\xd8\x02\n" +
 	"\x10SessionAuthority\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12!\n" +
@@ -1173,7 +1182,8 @@ const file_kagent_api_v1_execution_proto_rawDesc = "" +
 	"\x0froot_session_id\x18\x04 \x01(\tR\rrootSessionId\x129\n" +
 	"\n" +
 	"expires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12@\n" +
-	"\rscope_ceiling\x18\a \x01(\v2\x1b.kagent.api.v1.ScopeCeilingR\fscopeCeilingJ\x04\b\x05\x10\x06R\x06scopes\"E\n" +
+	"\rscope_ceiling\x18\a \x01(\v2\x1b.kagent.api.v1.ScopeCeilingR\fscopeCeiling\x12#\n" +
+	"\rworkspace_uid\x18\b \x01(\tR\fworkspaceUidJ\x04\b\x05\x10\x06R\x06scopes\"E\n" +
 	"\x1aGetSessionAuthorityRequest\x12'\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tsessionId\"v\n" +

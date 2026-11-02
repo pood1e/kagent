@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	utilvalidation "k8s.io/apimachinery/pkg/util/validation"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
@@ -70,6 +71,7 @@ type Service struct {
 	workflow    sessionWorkflow
 	shareMaxTTL time.Duration
 	authority   *executionauth.Service
+	workspaces  client.Reader
 }
 
 type Option func(*Service)
@@ -122,6 +124,9 @@ func (s *Service) Create(ctx context.Context, agent *apiv1.ResourceReference, re
 		if err != nil {
 			return nil, serviceerrors.NewPermissionDenied("Cannot establish execution authority", err)
 		}
+	}
+	if err := s.bindWorkspace(ctx, agent.Namespace, grant); err != nil {
+		return nil, err
 	}
 	session, _, err := s.store.CreateSession(ctx, &apiv1.Session{
 		Id: id.String(), Creator: creator, Name: name,

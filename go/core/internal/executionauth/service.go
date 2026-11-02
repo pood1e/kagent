@@ -162,6 +162,7 @@ func (s *Service) Bind(ctx context.Context, id, creator string, ceiling *apiv1.S
 			return nil, fmt.Errorf("execution storage owner mismatch")
 		}
 		grant.InitiatorId, grant.ParentSessionId, grant.RootSessionId = authority.InitiatorId, binding.SessionID, authority.RootSessionId
+		grant.WorkspaceUid = authority.WorkspaceUid
 		grant.ScopeCeiling.Scopes = slices.Clone(parent.Principal().Scopes)
 		// A forwarded human credential may narrow its originating runtime further.
 		if principal.ID == authority.InitiatorId {

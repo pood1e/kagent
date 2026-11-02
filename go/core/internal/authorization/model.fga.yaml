@@ -1,0 +1,331 @@
+name: Native resource authorization
+model_file: ./model.fga
+tuples:
+- user: workspace:red
+  relation: workspace
+  object: agent:a1
+- user: workspace:red
+  relation: workspace
+  object: agent_template:tpl1
+- user: workspace:red
+  relation: workspace
+  object: session:s1
+- user: workspace:red
+  relation: workspace
+  object: session:s2
+- user: principal:alice
+  relation: owner
+  object: session:s1
+- user: principal:alice
+  relation: owner
+  object: session:s2
+- user: session:s1
+  relation: session
+  object: task:t1
+- user: session:s2
+  relation: session
+  object: task:t2
+tests:
+- name: owner
+  tuples:
+  - user: principal:alice
+    relation: member
+    object: workspace:red
+  check:
+  - user: principal:alice
+    object: session:s1
+    assertions:
+      can_session_read: true
+      can_session_send: true
+      can_session_share: true
+      can_session_delete: true
+  - user: principal:alice
+    object: task:t1
+    assertions:
+      can_task_read: true
+      can_task_cancel: true
+      can_task_respond: true
+- name: definition editor
+  tuples:
+  - user: principal:editor
+    relation: member
+    object: workspace:red
+  - user: principal:editor
+    relation: definition_editor
+    object: workspace:red
+  check:
+  - user: principal:editor
+    object: agent:a1
+    assertions:
+      can_agent_read: true
+      can_agent_update: true
+      can_agent_invoke: false
+      can_workflow_publish: false
+  - user: principal:editor
+    object: agent_template:tpl1
+    assertions:
+      can_template_update: true
+      can_template_use: false
+  - user: principal:editor
+    object: session:s1
+    assertions:
+      can_session_read: false
+- name: workflow editor
+  tuples:
+  - user: principal:editor
+    relation: member
+    object: workspace:red
+  - user: principal:editor
+    relation: workflow_editor
+    object: workspace:red
+  check:
+  - user: principal:editor
+    object: agent:a1
+    assertions:
+      can_workflow_read: true
+      can_workflow_edit: true
+      can_workflow_publish: false
+      can_agent_update: false
+      can_agent_invoke: false
+- name: publisher
+  tuples:
+  - user: principal:publisher
+    relation: member
+    object: workspace:red
+  - user: principal:publisher
+    relation: workflow_publisher
+    object: workspace:red
+  check:
+  - user: principal:publisher
+    object: agent_template:tpl1
+    assertions:
+      can_workflow_read: true
+      can_workflow_publish: true
+      can_template_update: false
+      can_workflow_execute: false
+  - user: principal:publisher
+    object: session:s1
+    assertions:
+      can_session_read: false
+- name: executor
+  tuples:
+  - user: principal:runner
+    relation: member
+    object: workspace:red
+  - user: principal:runner
+    relation: executor
+    object: workspace:red
+  check:
+  - user: principal:runner
+    object: agent:a1
+    assertions:
+      can_agent_invoke: true
+      can_workflow_execute: true
+      can_agent_read: false
+      can_workflow_publish: false
+  - user: principal:runner
+    object: session:s1
+    assertions:
+      can_session_read: false
+- name: session viewer
+  tuples:
+  - user: principal:bob
+    relation: member
+    object: workspace:red
+  - user: principal:bob
+    relation: viewer
+    object: session:s1
+  check:
+  - user: principal:bob
+    object: session:s1
+    assertions:
+      can_session_read: true
+      can_session_send: false
+      can_session_share: false
+  - user: principal:bob
+    object: task:t1
+    assertions:
+      can_task_read: true
+      can_task_cancel: false
+      can_task_respond: false
+  - user: principal:bob
+    object: task:t2
+    assertions:
+      can_task_read: false
+- name: single task controller
+  tuples:
+  - user: principal:bob
+    relation: member
+    object: workspace:red
+  - user: principal:bob
+    relation: controller
+    object: task:t1
+  check:
+  - user: principal:bob
+    object: task:t1
+    assertions:
+      can_task_read: true
+      can_task_cancel: true
+      can_task_respond: false
+  - user: principal:bob
+    object: session:s1
+    assertions:
+      can_session_read: false
+  - user: principal:bob
+    object: task:t2
+    assertions:
+      can_task_read: false
+- name: group
+  tuples:
+  - user: principal:charlie
+    relation: member
+    object: group:ops
+  - user: group:ops#member
+    relation: member
+    object: workspace:red
+  - user: group:ops#member
+    relation: viewer
+    object: session:s1
+  check:
+  - user: principal:charlie
+    object: task:t1
+    assertions:
+      can_task_read: true
+      can_task_cancel: false
+  - user: principal:outsider
+    object: task:t1
+    assertions:
+      can_task_read: false
+- name: workspace gate
+  tuples:
+  - user: principal:outsider
+    relation: member
+    object: workspace:blue
+  - user: principal:outsider
+    relation: viewer
+    object: session:s1
+  - user: principal:outsider
+    relation: executor
+    object: agent:a1
+  check:
+  - user: principal:outsider
+    object: task:t1
+    assertions:
+      can_task_read: false
+  - user: principal:outsider
+    object: agent:a1
+    assertions:
+      can_agent_invoke: false
+- name: auditor
+  tuples:
+  - user: principal:audit
+    relation: member
+    object: workspace:red
+  - user: principal:audit
+    relation: auditor
+    object: workspace:red
+  check:
+  - user: principal:audit
+    object: session:s1
+    assertions:
+      can_session_read: true
+      can_session_send: false
+  - user: principal:audit
+    object: task:t1
+    assertions:
+      can_task_read: true
+      can_task_cancel: false
+      can_task_respond: false
+- name: operator
+  tuples:
+  - user: principal:operator
+    relation: member
+    object: workspace:red
+  - user: principal:operator
+    relation: operator
+    object: workspace:red
+  check:
+  - user: principal:operator
+    object: task:t1
+    assertions:
+      can_task_read: true
+      can_task_cancel: true
+      can_task_respond: false
+  - user: principal:operator
+    object: session:s1
+    assertions:
+      can_session_send: false
+- name: machine
+  tuples:
+  - user: principal:bot
+    relation: member
+    object: workspace:red
+  - user: principal:bot
+    relation: owner
+    object: session:s1
+  check:
+  - user: principal:bot
+    object: task:t1
+    assertions:
+      can_task_read: true
+      can_task_cancel: true
+- name: read-only share
+  tuples:
+  - user: session_share:link1
+    relation: token_reader
+    object: session:s1
+  check:
+  - user: session_share:link1
+    object: task:t1
+    assertions:
+      can_task_read: true
+      can_task_cancel: false
+      can_task_respond: false
+  - user: session_share:link1
+    object: session:s1
+    assertions:
+      can_session_send: false
+  - user: session_share:link1
+    object: task:t2
+    assertions:
+      can_task_read: false
+- name: removed membership
+  tuples: []
+  check:
+  - user: principal:alice
+    object: session:s1
+    assertions:
+      can_session_read: false
+      can_session_send: false
+  - user: principal:alice
+    object: task:t1
+    assertions:
+      can_task_cancel: false
+- name: remaining authorization path
+  tuples:
+  - user: principal:bob
+    relation: member
+    object: workspace:red
+  - user: principal:bob
+    relation: auditor
+    object: workspace:red
+  check:
+  - user: principal:bob
+    object: task:t1
+    assertions:
+      can_task_read: true
+- name: access admin
+  tuples:
+  - user: principal:admin
+    relation: member
+    object: workspace:red
+  - user: principal:admin
+    relation: access_admin
+    object: workspace:red
+  check:
+  - user: principal:admin
+    object: agent:a1
+    assertions:
+      can_access_manage: true
+      can_agent_read: false
+      can_agent_invoke: false
