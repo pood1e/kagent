@@ -99,6 +99,7 @@ func TestListWorkspacesUsesVerifiedGroupsAndObservedNamespaces(t *testing.T) {
 			"result": map[string]any{check.CorrelationId: map[string]bool{"allowed": true}},
 		}))
 	})
+	addWorkspace(t, service, "dev", "workspace-2")
 	service.watchNamespaces = []string{"missing", "team", "team"}
 	principal := auth.Principal{ID: "alice", Claims: map[string]any{"iss": testIssuer, "groups": []string{"ops"}}}
 	ctx := auth.AuthSessionTo(t.Context(), auth.NewCredentialSession(principal, nil))
