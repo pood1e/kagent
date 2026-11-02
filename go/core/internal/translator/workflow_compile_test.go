@@ -231,8 +231,8 @@ func TestCompileAgentRunsWorkflowOnKagent(t *testing.T) {
 	require.Equal(t, "gpt-4o", workflow.Models["default-model"].Model)
 	require.Equal(t, "gpt-4o-mini", workflow.Models["review-model"].Model)
 	require.Equal(t, "incidents", config.Agent.HttpTools[0].Name, "the document names the server of the binding")
-	require.Equal(t, []corev1.LocalObjectReference{{Name: "default-model"}, {Name: "review-model"}}, revision.Models, "the gateway admits every model the document names")
-	require.Contains(t, string(revision.Provenance), `"name":"review-model"`)
+	require.Equal(t, []string{"default-model", "review-model"}, dependencyModels(revision.Dependencies.Direct), "the gateway admits every model the document names")
+	require.Contains(t, string(revision.Provenance), `"name":"test/review-model"`)
 	require.Contains(t, string(revision.Provenance), "workflows-uid")
 }
 
@@ -252,7 +252,7 @@ agents:
 	var config configv1.ADKConfig
 	require.NoError(t, runtimeconfig.Unmarshal(revision.ConfigJSON, &config))
 	require.Equal(t, "gpt-4o", config.Agent.Workflow.Models["template:model"].Model, "the template's own ModelConfig")
-	require.Equal(t, []corev1.LocalObjectReference{{Name: "default-model"}}, revision.Models)
+	require.Equal(t, []string{"default-model"}, dependencyModels(revision.Dependencies.Direct))
 }
 
 func TestCompileAgentRejectsKagentWorkflowsItCannotBuild(t *testing.T) {

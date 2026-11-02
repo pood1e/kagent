@@ -18,7 +18,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/emptypb"
-	corev1 "k8s.io/api/core/v1"
 
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	configv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/config/v1"
@@ -42,6 +41,9 @@ type authorityWorkflow struct {
 }
 
 func (w authorityWorkflow) Create(ctx context.Context, session *apiv1.Session) (*apiv1.Session, error) {
+	if session.State == apiv1.RuntimeState_RUNTIME_STATE_READY {
+		return session, nil
+	}
 	operation, err := w.store.BeginSessionOperation(ctx, session.Id, apiv1.RuntimeOperation_RUNTIME_OPERATION_CREATE)
 	if err != nil {
 		return nil, err
@@ -50,7 +52,7 @@ func (w authorityWorkflow) Create(ctx context.Context, session *apiv1.Session) (
 	if _, err := w.store.ClaimSessionOperation(ctx, session.Id, operation.ID, owner); err != nil {
 		return nil, err
 	}
-	return w.store.FinishSessionOperation(ctx, session.Id, operation.ID, owner, substrate.ActorHost("team-a", substrate.ActorName(session.Id), ""), "actor-uid", "")
+	return w.store.FinishSessionOperation(ctx, session.Id, operation.ID, owner, substrate.ActorHost(session.GetAgent().GetRef().GetNamespace(), substrate.ActorName(session.Id), ""), "actor-uid", "")
 }
 
 type authorityTransport struct{ token string }
@@ -73,8 +75,7 @@ func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	require.NoError(t, err)
 	revision.Revision = "selected-targets"
 	revision.ActorTemplateName = "selected-targets"
-	revision.MCPTools = []v1alpha3.MCPToolBinding{{Server: corev1.TypedObjectReference{Kind: "RemoteMCPServer", Name: "native"}, Tools: []string{"read_nodes"}}}
-	revision.Models = []corev1.LocalObjectReference{{Name: "language"}}
+	revision.Dependencies = authorityTestDependencies("native", []string{"read_nodes"}, "language")
 	require.NoError(t, store.UpsertAgentDefinition(t.Context(), database.AgentDefinition{Namespace: revision.Namespace, AgentName: revision.AgentName, AgentUID: revision.AgentUID, DesiredRevision: revision.Revision}))
 	_, err = store.RecordRuntimeRevision(t.Context(), *revision, database.RecordRevisionOptions{Ready: true})
 	require.NoError(t, err)
@@ -98,8 +99,8 @@ func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	normalized := &executionauth.Provider{Users: userProvider, Authority: authority}
 	provider := runtimeauth.NewProvider(normalized, verifier, store, actors.URL, authority)
 	policy := runtimeauth.NewAuthorizer(&executionauth.Policy{Base: auth.NoopAuthorizer{}, Config: cfg}, store, authority)
-	sessions := sessionsvc.NewService(store, policy, authorityWorkflow{store: store}, sessionsvc.WithExecutionAuthority(authority), sessionsvc.WithWorkspaceIdentity(testWorkspaceReader(t)))
-	executions := executionsvc.NewService(store, sessions, authority)
+	sessions := sessionsvc.NewService(store, policy, authorityWorkflow{store: store}, sessionsvc.WithExecutionAuthority(authority), sessionsvc.WithWorkspaceIdentity(testWorkspaceReader(t)), sessionsvc.WithResourceAuthorization(authorityTestPermissions{}))
+	executions := executionsvc.NewService(store, sessions, authority, authorityTestPermissions{})
 	connection := newConfigurationConnection(t, nil, func(config *Config) {
 		config.Authenticator, config.SessionService, config.ExecutionService = provider, sessions, executions
 		config.TaskCatalogService = taskcatalog.NewService(store, sessions)
@@ -203,7 +204,7 @@ func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	t.Cleanup(callback.Close)
 	checkScope := func(raw, scope string, want int) {
 		t.Helper()
-		req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, callback.URL+"?scope="+scope, nil)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, callback.URL+"?workspace=team-a&scope="+scope, nil)
 		require.NoError(t, err)
 		req.Header.Set("Authorization", "Bearer "+raw)
 		res, err := callback.Client().Do(req)
@@ -235,14 +236,14 @@ func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	require.Equal(t, []string{"read_nodes"}, binding.Tools)
 	checkTarget("server=team-a/other", http.StatusForbidden)
 	checkTarget("server=team-b/native", http.StatusForbidden)
-	checkTarget("model=language", http.StatusOK)
-	checkTarget("model=other", http.StatusForbidden)
+	checkTarget("workspace=team-a&model=language", http.StatusOK)
+	checkTarget("workspace=team-a&model=other", http.StatusForbidden)
 	checkTarget("credential=subject_token", http.StatusBadRequest)
 	checkTarget("server=team-a/native&credential=actor_token", http.StatusBadRequest)
 	// Configuration edits affect future Sessions, not an existing Actor's grants.
 	revision.Revision = "changed-targets"
 	revision.ActorTemplateName = "changed-targets"
-	revision.MCPTools[0].Tools = []string{"delete_nodes"}
+	revision.Dependencies.Direct.Grants[0].Resource.GetMcpTool().Name = "delete_nodes"
 	require.NoError(t, store.UpsertAgentDefinition(t.Context(), database.AgentDefinition{Namespace: revision.Namespace, AgentName: revision.AgentName, AgentUID: revision.AgentUID, DesiredRevision: revision.Revision}))
 	_, err = store.RecordRuntimeRevision(t.Context(), *revision, database.RecordRevisionOptions{Ready: true})
 	require.NoError(t, err)
@@ -265,6 +266,18 @@ func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	selected = checkTarget("scope=write&server=team-a/native&credential=subject_token", http.StatusOK)
 	require.Equal(t, "Bearer "+rotated, selected.Header.Get("Authorization"))
 
+	_, err = client.CreateSession(actor, &apiv1.CreateSessionRequest{Agent: root.GetAgent().GetRef(), RequestId: uuid.NewString(), ScopeCeiling: &apiv1.ScopeCeiling{Scopes: []string{"read"}}})
+	assertGRPCCode(t, err, codes.PermissionDenied)
+	// Restore the previously prepared capability set for the remaining delegation checks.
+	prior, err := store.GetRuntimeRevision(t.Context(), root.PreparedRevision)
+	require.NoError(t, err)
+	require.NoError(t, store.UpsertAgentDefinition(t.Context(), database.AgentDefinition{Namespace: prior.Namespace, AgentName: prior.AgentName, AgentUID: prior.AgentUID, DesiredRevision: prior.Revision}))
+	_, err = store.RecordRuntimeRevision(t.Context(), *prior, database.RecordRevisionOptions{Ready: true})
+	require.NoError(t, err)
+	delegated, err := client.CreateSession(actor, &apiv1.CreateSessionRequest{Agent: root.GetAgent().GetRef(), RequestId: uuid.NewString(), ScopeCeiling: &apiv1.ScopeCeiling{Scopes: []string{"read"}}})
+	require.NoError(t, err)
+	require.Equal(t, root.Id, delegated.Session.Authority.ParentSessionId)
+	require.Equal(t, []string{"read"}, delegated.Session.Authority.ScopeCeiling.Scopes)
 	_, err = executionClient.RevokeSessionAuthority(actor, &apiv1.RevokeSessionAuthorityRequest{SessionId: root.Id})
 	assertGRPCCode(t, err, codes.PermissionDenied)
 	_, err = executionClient.RevokeSessionAuthority(user, &apiv1.RevokeSessionAuthorityRequest{SessionId: root.Id})

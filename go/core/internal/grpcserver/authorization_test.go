@@ -318,6 +318,9 @@ func TestNativeOpenFGAAuthorizationAPI(t *testing.T) {
 		Workspace: workspace.GetWorkspace(), Scope: agent, Page: &apiv1.PageRequest{PageToken: page.Page.NextPageToken},
 	})
 	assertGRPCCode(t, err, codes.InvalidArgument)
+	t.Run("runtime resource ceilings", func(t *testing.T) {
+		verifyNativeRuntimePermissions(t, client, service, resources, kube, provider, issuer, admin)
+	})
 	t.Run("MCP business entry points", func(t *testing.T) {
 		verifyNativeMCPPermissions(t, client, apiv1.NewToolServiceClient(connection), kube, admin, alice, subject("alice"), workspace.GetWorkspace())
 	})

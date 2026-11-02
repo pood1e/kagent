@@ -10,8 +10,10 @@ import (
 
 	runtimeconfig "github.com/kagent-dev/kagent/go/adk/pkg/config"
 	"github.com/kagent-dev/kagent/go/adk/pkg/declarative"
+	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	configv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/config/v1"
 	"github.com/kagent-dev/kagent/go/api/v1alpha3"
+	"github.com/kagent-dev/kagent/go/core/pkg/auth"
 )
 
 const nativeWorkflowYAML = `
@@ -80,4 +82,28 @@ func TestCompileNativeWorkflowRejectsMissingAndCyclicReferences(t *testing.T) {
 			require.ErrorContains(t, err, want)
 		})
 	}
+}
+
+func TestPreparedDependencyGraphPinsDelegatedAgentIdentity(t *testing.T) {
+	harness := kagentHarness()
+	harness.UID = "harness-1"
+	root := inlineAgent(harness, workflowTemplate(nil))
+	child := inlineAgent(harness, &v1alpha3.AgentTemplate{})
+	child.Name, child.UID = "analyst", "analyst-1"
+	compiled, err := compiler(t, harness, child, workflowConfigMap(nativeWorkflowYAML)).CompileAgent(t.Context(), root)
+	require.NoError(t, err)
+	resource := &apiv1.AuthorizationResource{Resource: &apiv1.AuthorizationResource_Kubernetes{Kubernetes: &apiv1.KubernetesAuthorizationReference{
+		Kind: apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_AGENT, Ref: &apiv1.ResourceReference{Namespace: child.Namespace, Name: child.Name}, Uid: string(child.UID),
+	}}}
+	require.True(t, auth.ResourceGrantAllows(compiled.Dependencies.Delegated, resource, apiv1.Permission_PERMISSION_AGENT_INVOKE))
+	require.False(t, auth.ResourceGrantAllows(compiled.Dependencies.Direct, resource, apiv1.Permission_PERMISSION_AGENT_INVOKE), "delegation does not expand the root Actor capabilities")
+	before, err := compiled.Digest()
+	require.NoError(t, err)
+	child.UID = "analyst-recreated"
+	rebuilt, err := compiler(t, harness, child, workflowConfigMap(nativeWorkflowYAML)).CompileAgent(t.Context(), root)
+	require.NoError(t, err)
+	after, err := rebuilt.Digest()
+	require.NoError(t, err)
+	require.NotEqual(t, before, after)
+	require.True(t, auth.ResourceGrantAllows(compiled.Dependencies.Delegated, resource, apiv1.Permission_PERMISSION_AGENT_INVOKE), "stored manifests own their resource identities")
 }

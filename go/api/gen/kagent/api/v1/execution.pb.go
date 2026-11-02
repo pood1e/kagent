@@ -79,8 +79,11 @@ func (TaskRelation) EnumDescriptor() ([]byte, []int) {
 // ScopeCeiling is an immutable upper bound. Absent means inherit; present and
 // empty means no scopes. Every use also applies the initiator's current scopes.
 type ScopeCeiling struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scopes        []string               `protobuf:"bytes,1,rep,name=scopes,proto3" json:"scopes,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Scopes []string               `protobuf:"bytes,1,rep,name=scopes,proto3" json:"scopes,omitempty"`
+	// Absent in a request inherits resolved dependencies; an empty set denies all.
+	// Persisted execution authority always records a UID-bound set.
+	Resources     *ResourceGrantSet `protobuf:"bytes,2,opt,name=resources,proto3" json:"resources,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -118,6 +121,13 @@ func (*ScopeCeiling) Descriptor() ([]byte, []int) {
 func (x *ScopeCeiling) GetScopes() []string {
 	if x != nil {
 		return x.Scopes
+	}
+	return nil
+}
+
+func (x *ScopeCeiling) GetResources() *ResourceGrantSet {
+	if x != nil {
+		return x.Resources
 	}
 	return nil
 }
@@ -818,58 +828,6 @@ func (x *IssueSessionCredentialResponse) GetExpiresAt() *timestamppb.Timestamp {
 	return nil
 }
 
-type TaskReference struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *TaskReference) Reset() {
-	*x = TaskReference{}
-	mi := &file_kagent_api_v1_execution_proto_msgTypes[16]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *TaskReference) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*TaskReference) ProtoMessage() {}
-
-func (x *TaskReference) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_api_v1_execution_proto_msgTypes[16]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use TaskReference.ProtoReflect.Descriptor instead.
-func (*TaskReference) Descriptor() ([]byte, []int) {
-	return file_kagent_api_v1_execution_proto_rawDescGZIP(), []int{16}
-}
-
-func (x *TaskReference) GetSessionId() string {
-	if x != nil {
-		return x.SessionId
-	}
-	return ""
-}
-
-func (x *TaskReference) GetTaskId() string {
-	if x != nil {
-		return x.TaskId
-	}
-	return ""
-}
-
 // TaskExecution is immutable. Message metadata and reference_task_ids never
 // establish ancestry. Cancellation follows these persisted relationships.
 type TaskExecution struct {
@@ -887,7 +845,7 @@ type TaskExecution struct {
 
 func (x *TaskExecution) Reset() {
 	*x = TaskExecution{}
-	mi := &file_kagent_api_v1_execution_proto_msgTypes[17]
+	mi := &file_kagent_api_v1_execution_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -899,7 +857,7 @@ func (x *TaskExecution) String() string {
 func (*TaskExecution) ProtoMessage() {}
 
 func (x *TaskExecution) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_api_v1_execution_proto_msgTypes[17]
+	mi := &file_kagent_api_v1_execution_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -912,7 +870,7 @@ func (x *TaskExecution) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaskExecution.ProtoReflect.Descriptor instead.
 func (*TaskExecution) Descriptor() ([]byte, []int) {
-	return file_kagent_api_v1_execution_proto_rawDescGZIP(), []int{17}
+	return file_kagent_api_v1_execution_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *TaskExecution) GetTask() *TaskReference {
@@ -966,7 +924,7 @@ type GetTaskExecutionRequest struct {
 
 func (x *GetTaskExecutionRequest) Reset() {
 	*x = GetTaskExecutionRequest{}
-	mi := &file_kagent_api_v1_execution_proto_msgTypes[18]
+	mi := &file_kagent_api_v1_execution_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -978,7 +936,7 @@ func (x *GetTaskExecutionRequest) String() string {
 func (*GetTaskExecutionRequest) ProtoMessage() {}
 
 func (x *GetTaskExecutionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_api_v1_execution_proto_msgTypes[18]
+	mi := &file_kagent_api_v1_execution_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -991,7 +949,7 @@ func (x *GetTaskExecutionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTaskExecutionRequest.ProtoReflect.Descriptor instead.
 func (*GetTaskExecutionRequest) Descriptor() ([]byte, []int) {
-	return file_kagent_api_v1_execution_proto_rawDescGZIP(), []int{18}
+	return file_kagent_api_v1_execution_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetTaskExecutionRequest) GetTaskId() string {
@@ -1014,7 +972,7 @@ type GetTaskExecutionResponse struct {
 
 func (x *GetTaskExecutionResponse) Reset() {
 	*x = GetTaskExecutionResponse{}
-	mi := &file_kagent_api_v1_execution_proto_msgTypes[19]
+	mi := &file_kagent_api_v1_execution_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1026,7 +984,7 @@ func (x *GetTaskExecutionResponse) String() string {
 func (*GetTaskExecutionResponse) ProtoMessage() {}
 
 func (x *GetTaskExecutionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_api_v1_execution_proto_msgTypes[19]
+	mi := &file_kagent_api_v1_execution_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1039,7 +997,7 @@ func (x *GetTaskExecutionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTaskExecutionResponse.ProtoReflect.Descriptor instead.
 func (*GetTaskExecutionResponse) Descriptor() ([]byte, []int) {
-	return file_kagent_api_v1_execution_proto_rawDescGZIP(), []int{19}
+	return file_kagent_api_v1_execution_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetTaskExecutionResponse) GetExecution() *TaskExecution {
@@ -1073,7 +1031,7 @@ type ListTaskExecutionsRequest struct {
 
 func (x *ListTaskExecutionsRequest) Reset() {
 	*x = ListTaskExecutionsRequest{}
-	mi := &file_kagent_api_v1_execution_proto_msgTypes[20]
+	mi := &file_kagent_api_v1_execution_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1085,7 +1043,7 @@ func (x *ListTaskExecutionsRequest) String() string {
 func (*ListTaskExecutionsRequest) ProtoMessage() {}
 
 func (x *ListTaskExecutionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_api_v1_execution_proto_msgTypes[20]
+	mi := &file_kagent_api_v1_execution_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1098,7 +1056,7 @@ func (x *ListTaskExecutionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTaskExecutionsRequest.ProtoReflect.Descriptor instead.
 func (*ListTaskExecutionsRequest) Descriptor() ([]byte, []int) {
-	return file_kagent_api_v1_execution_proto_rawDescGZIP(), []int{20}
+	return file_kagent_api_v1_execution_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ListTaskExecutionsRequest) GetRootTaskId() string {
@@ -1125,7 +1083,7 @@ type ListTaskExecutionsResponse struct {
 
 func (x *ListTaskExecutionsResponse) Reset() {
 	*x = ListTaskExecutionsResponse{}
-	mi := &file_kagent_api_v1_execution_proto_msgTypes[21]
+	mi := &file_kagent_api_v1_execution_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1137,7 +1095,7 @@ func (x *ListTaskExecutionsResponse) String() string {
 func (*ListTaskExecutionsResponse) ProtoMessage() {}
 
 func (x *ListTaskExecutionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_api_v1_execution_proto_msgTypes[21]
+	mi := &file_kagent_api_v1_execution_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1150,7 +1108,7 @@ func (x *ListTaskExecutionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTaskExecutionsResponse.ProtoReflect.Descriptor instead.
 func (*ListTaskExecutionsResponse) Descriptor() ([]byte, []int) {
-	return file_kagent_api_v1_execution_proto_rawDescGZIP(), []int{21}
+	return file_kagent_api_v1_execution_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ListTaskExecutionsResponse) GetExecutions() []*TaskExecution {
@@ -1171,9 +1129,10 @@ var File_kagent_api_v1_execution_proto protoreflect.FileDescriptor
 
 const file_kagent_api_v1_execution_proto_rawDesc = "" +
 	"\n" +
-	"\x1dkagent/api/v1/execution.proto\x12\rkagent.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1akagent/api/v1/common.proto\"C\n" +
+	"\x1dkagent/api/v1/execution.proto\x12\rkagent.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1akagent/api/v1/common.proto\x1a!kagent/api/v1/authorization.proto\"\x82\x01\n" +
 	"\fScopeCeiling\x123\n" +
-	"\x06scopes\x18\x01 \x03(\tB\x1b\xbaH\x18\x92\x01\x15\x10\x80\x02\x18\x01\"\x0er\f\x10\x01\x18\x80\x022\x05^\\S+$R\x06scopes\"\xd8\x02\n" +
+	"\x06scopes\x18\x01 \x03(\tB\x1b\xbaH\x18\x92\x01\x15\x10\x80\x02\x18\x01\"\x0er\f\x10\x01\x18\x80\x022\x05^\\S+$R\x06scopes\x12=\n" +
+	"\tresources\x18\x02 \x01(\v2\x1f.kagent.api.v1.ResourceGrantSetR\tresources\"\xd8\x02\n" +
 	"\x10SessionAuthority\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12!\n" +
@@ -1215,12 +1174,7 @@ const file_kagent_api_v1_execution_proto_rawDesc = "" +
 	"credential\x18\x01 \x01(\tR\n" +
 	"credential\x129\n" +
 	"\n" +
-	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"]\n" +
-	"\rTaskReference\x12'\n" +
-	"\n" +
-	"session_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tsessionId\x12#\n" +
-	"\atask_id\x18\x02 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\x80\x02R\x06taskId\"\xc3\x02\n" +
+	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\xc3\x02\n" +
 	"\rTaskExecution\x120\n" +
 	"\x04task\x18\x01 \x01(\v2\x1c.kagent.api.v1.TaskReferenceR\x04task\x124\n" +
 	"\x06parent\x18\x02 \x01(\v2\x1c.kagent.api.v1.TaskReferenceR\x06parent\x120\n" +
@@ -1277,7 +1231,7 @@ func file_kagent_api_v1_execution_proto_rawDescGZIP() []byte {
 }
 
 var file_kagent_api_v1_execution_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_kagent_api_v1_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_kagent_api_v1_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_kagent_api_v1_execution_proto_goTypes = []any{
 	(TaskRelation)(0),                             // 0: kagent.api.v1.TaskRelation
 	(*ScopeCeiling)(nil),                          // 1: kagent.api.v1.ScopeCeiling
@@ -1296,57 +1250,59 @@ var file_kagent_api_v1_execution_proto_goTypes = []any{
 	(*GetDelegationCredentialStatusResponse)(nil), // 14: kagent.api.v1.GetDelegationCredentialStatusResponse
 	(*IssueSessionCredentialRequest)(nil),         // 15: kagent.api.v1.IssueSessionCredentialRequest
 	(*IssueSessionCredentialResponse)(nil),        // 16: kagent.api.v1.IssueSessionCredentialResponse
-	(*TaskReference)(nil),                         // 17: kagent.api.v1.TaskReference
-	(*TaskExecution)(nil),                         // 18: kagent.api.v1.TaskExecution
-	(*GetTaskExecutionRequest)(nil),               // 19: kagent.api.v1.GetTaskExecutionRequest
-	(*GetTaskExecutionResponse)(nil),              // 20: kagent.api.v1.GetTaskExecutionResponse
-	(*ListTaskExecutionsRequest)(nil),             // 21: kagent.api.v1.ListTaskExecutionsRequest
-	(*ListTaskExecutionsResponse)(nil),            // 22: kagent.api.v1.ListTaskExecutionsResponse
+	(*TaskExecution)(nil),                         // 17: kagent.api.v1.TaskExecution
+	(*GetTaskExecutionRequest)(nil),               // 18: kagent.api.v1.GetTaskExecutionRequest
+	(*GetTaskExecutionResponse)(nil),              // 19: kagent.api.v1.GetTaskExecutionResponse
+	(*ListTaskExecutionsRequest)(nil),             // 20: kagent.api.v1.ListTaskExecutionsRequest
+	(*ListTaskExecutionsResponse)(nil),            // 21: kagent.api.v1.ListTaskExecutionsResponse
+	(*ResourceGrantSet)(nil),                      // 22: kagent.api.v1.ResourceGrantSet
 	(*timestamppb.Timestamp)(nil),                 // 23: google.protobuf.Timestamp
 	(*durationpb.Duration)(nil),                   // 24: google.protobuf.Duration
-	(*PageRequest)(nil),                           // 25: kagent.api.v1.PageRequest
-	(*PageResponse)(nil),                          // 26: kagent.api.v1.PageResponse
+	(*TaskReference)(nil),                         // 25: kagent.api.v1.TaskReference
+	(*PageRequest)(nil),                           // 26: kagent.api.v1.PageRequest
+	(*PageResponse)(nil),                          // 27: kagent.api.v1.PageResponse
 }
 var file_kagent_api_v1_execution_proto_depIdxs = []int32{
-	23, // 0: kagent.api.v1.SessionAuthority.expires_at:type_name -> google.protobuf.Timestamp
-	1,  // 1: kagent.api.v1.SessionAuthority.scope_ceiling:type_name -> kagent.api.v1.ScopeCeiling
-	2,  // 2: kagent.api.v1.GetSessionAuthorityResponse.authority:type_name -> kagent.api.v1.SessionAuthority
-	2,  // 3: kagent.api.v1.GetRuntimeAuthorityResponse.authority:type_name -> kagent.api.v1.SessionAuthority
-	24, // 4: kagent.api.v1.IssueSessionCredentialRequest.ttl:type_name -> google.protobuf.Duration
-	23, // 5: kagent.api.v1.IssueSessionCredentialResponse.expires_at:type_name -> google.protobuf.Timestamp
-	17, // 6: kagent.api.v1.TaskExecution.task:type_name -> kagent.api.v1.TaskReference
-	17, // 7: kagent.api.v1.TaskExecution.parent:type_name -> kagent.api.v1.TaskReference
-	17, // 8: kagent.api.v1.TaskExecution.root:type_name -> kagent.api.v1.TaskReference
-	0,  // 9: kagent.api.v1.TaskExecution.relation:type_name -> kagent.api.v1.TaskRelation
-	17, // 10: kagent.api.v1.TaskExecution.resumed_task:type_name -> kagent.api.v1.TaskReference
-	18, // 11: kagent.api.v1.GetTaskExecutionResponse.execution:type_name -> kagent.api.v1.TaskExecution
-	17, // 12: kagent.api.v1.GetTaskExecutionResponse.latest_task:type_name -> kagent.api.v1.TaskReference
-	25, // 13: kagent.api.v1.ListTaskExecutionsRequest.page:type_name -> kagent.api.v1.PageRequest
-	18, // 14: kagent.api.v1.ListTaskExecutionsResponse.executions:type_name -> kagent.api.v1.TaskExecution
-	26, // 15: kagent.api.v1.ListTaskExecutionsResponse.page:type_name -> kagent.api.v1.PageResponse
-	19, // 16: kagent.api.v1.ExecutionService.GetTaskExecution:input_type -> kagent.api.v1.GetTaskExecutionRequest
-	21, // 17: kagent.api.v1.ExecutionService.ListTaskExecutions:input_type -> kagent.api.v1.ListTaskExecutionsRequest
-	3,  // 18: kagent.api.v1.ExecutionService.GetSessionAuthority:input_type -> kagent.api.v1.GetSessionAuthorityRequest
-	5,  // 19: kagent.api.v1.ExecutionService.RevokeSessionAuthority:input_type -> kagent.api.v1.RevokeSessionAuthorityRequest
-	7,  // 20: kagent.api.v1.ExecutionService.GetRuntimeAuthority:input_type -> kagent.api.v1.GetRuntimeAuthorityRequest
-	9,  // 21: kagent.api.v1.ExecutionService.RegisterDelegationCredential:input_type -> kagent.api.v1.RegisterDelegationCredentialRequest
-	11, // 22: kagent.api.v1.ExecutionService.RevokeDelegationCredential:input_type -> kagent.api.v1.RevokeDelegationCredentialRequest
-	13, // 23: kagent.api.v1.ExecutionService.GetDelegationCredentialStatus:input_type -> kagent.api.v1.GetDelegationCredentialStatusRequest
-	15, // 24: kagent.api.v1.ExecutionService.IssueSessionCredential:input_type -> kagent.api.v1.IssueSessionCredentialRequest
-	20, // 25: kagent.api.v1.ExecutionService.GetTaskExecution:output_type -> kagent.api.v1.GetTaskExecutionResponse
-	22, // 26: kagent.api.v1.ExecutionService.ListTaskExecutions:output_type -> kagent.api.v1.ListTaskExecutionsResponse
-	4,  // 27: kagent.api.v1.ExecutionService.GetSessionAuthority:output_type -> kagent.api.v1.GetSessionAuthorityResponse
-	6,  // 28: kagent.api.v1.ExecutionService.RevokeSessionAuthority:output_type -> kagent.api.v1.RevokeSessionAuthorityResponse
-	8,  // 29: kagent.api.v1.ExecutionService.GetRuntimeAuthority:output_type -> kagent.api.v1.GetRuntimeAuthorityResponse
-	10, // 30: kagent.api.v1.ExecutionService.RegisterDelegationCredential:output_type -> kagent.api.v1.RegisterDelegationCredentialResponse
-	12, // 31: kagent.api.v1.ExecutionService.RevokeDelegationCredential:output_type -> kagent.api.v1.RevokeDelegationCredentialResponse
-	14, // 32: kagent.api.v1.ExecutionService.GetDelegationCredentialStatus:output_type -> kagent.api.v1.GetDelegationCredentialStatusResponse
-	16, // 33: kagent.api.v1.ExecutionService.IssueSessionCredential:output_type -> kagent.api.v1.IssueSessionCredentialResponse
-	25, // [25:34] is the sub-list for method output_type
-	16, // [16:25] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	22, // 0: kagent.api.v1.ScopeCeiling.resources:type_name -> kagent.api.v1.ResourceGrantSet
+	23, // 1: kagent.api.v1.SessionAuthority.expires_at:type_name -> google.protobuf.Timestamp
+	1,  // 2: kagent.api.v1.SessionAuthority.scope_ceiling:type_name -> kagent.api.v1.ScopeCeiling
+	2,  // 3: kagent.api.v1.GetSessionAuthorityResponse.authority:type_name -> kagent.api.v1.SessionAuthority
+	2,  // 4: kagent.api.v1.GetRuntimeAuthorityResponse.authority:type_name -> kagent.api.v1.SessionAuthority
+	24, // 5: kagent.api.v1.IssueSessionCredentialRequest.ttl:type_name -> google.protobuf.Duration
+	23, // 6: kagent.api.v1.IssueSessionCredentialResponse.expires_at:type_name -> google.protobuf.Timestamp
+	25, // 7: kagent.api.v1.TaskExecution.task:type_name -> kagent.api.v1.TaskReference
+	25, // 8: kagent.api.v1.TaskExecution.parent:type_name -> kagent.api.v1.TaskReference
+	25, // 9: kagent.api.v1.TaskExecution.root:type_name -> kagent.api.v1.TaskReference
+	0,  // 10: kagent.api.v1.TaskExecution.relation:type_name -> kagent.api.v1.TaskRelation
+	25, // 11: kagent.api.v1.TaskExecution.resumed_task:type_name -> kagent.api.v1.TaskReference
+	17, // 12: kagent.api.v1.GetTaskExecutionResponse.execution:type_name -> kagent.api.v1.TaskExecution
+	25, // 13: kagent.api.v1.GetTaskExecutionResponse.latest_task:type_name -> kagent.api.v1.TaskReference
+	26, // 14: kagent.api.v1.ListTaskExecutionsRequest.page:type_name -> kagent.api.v1.PageRequest
+	17, // 15: kagent.api.v1.ListTaskExecutionsResponse.executions:type_name -> kagent.api.v1.TaskExecution
+	27, // 16: kagent.api.v1.ListTaskExecutionsResponse.page:type_name -> kagent.api.v1.PageResponse
+	18, // 17: kagent.api.v1.ExecutionService.GetTaskExecution:input_type -> kagent.api.v1.GetTaskExecutionRequest
+	20, // 18: kagent.api.v1.ExecutionService.ListTaskExecutions:input_type -> kagent.api.v1.ListTaskExecutionsRequest
+	3,  // 19: kagent.api.v1.ExecutionService.GetSessionAuthority:input_type -> kagent.api.v1.GetSessionAuthorityRequest
+	5,  // 20: kagent.api.v1.ExecutionService.RevokeSessionAuthority:input_type -> kagent.api.v1.RevokeSessionAuthorityRequest
+	7,  // 21: kagent.api.v1.ExecutionService.GetRuntimeAuthority:input_type -> kagent.api.v1.GetRuntimeAuthorityRequest
+	9,  // 22: kagent.api.v1.ExecutionService.RegisterDelegationCredential:input_type -> kagent.api.v1.RegisterDelegationCredentialRequest
+	11, // 23: kagent.api.v1.ExecutionService.RevokeDelegationCredential:input_type -> kagent.api.v1.RevokeDelegationCredentialRequest
+	13, // 24: kagent.api.v1.ExecutionService.GetDelegationCredentialStatus:input_type -> kagent.api.v1.GetDelegationCredentialStatusRequest
+	15, // 25: kagent.api.v1.ExecutionService.IssueSessionCredential:input_type -> kagent.api.v1.IssueSessionCredentialRequest
+	19, // 26: kagent.api.v1.ExecutionService.GetTaskExecution:output_type -> kagent.api.v1.GetTaskExecutionResponse
+	21, // 27: kagent.api.v1.ExecutionService.ListTaskExecutions:output_type -> kagent.api.v1.ListTaskExecutionsResponse
+	4,  // 28: kagent.api.v1.ExecutionService.GetSessionAuthority:output_type -> kagent.api.v1.GetSessionAuthorityResponse
+	6,  // 29: kagent.api.v1.ExecutionService.RevokeSessionAuthority:output_type -> kagent.api.v1.RevokeSessionAuthorityResponse
+	8,  // 30: kagent.api.v1.ExecutionService.GetRuntimeAuthority:output_type -> kagent.api.v1.GetRuntimeAuthorityResponse
+	10, // 31: kagent.api.v1.ExecutionService.RegisterDelegationCredential:output_type -> kagent.api.v1.RegisterDelegationCredentialResponse
+	12, // 32: kagent.api.v1.ExecutionService.RevokeDelegationCredential:output_type -> kagent.api.v1.RevokeDelegationCredentialResponse
+	14, // 33: kagent.api.v1.ExecutionService.GetDelegationCredentialStatus:output_type -> kagent.api.v1.GetDelegationCredentialStatusResponse
+	16, // 34: kagent.api.v1.ExecutionService.IssueSessionCredential:output_type -> kagent.api.v1.IssueSessionCredentialResponse
+	26, // [26:35] is the sub-list for method output_type
+	17, // [17:26] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_kagent_api_v1_execution_proto_init() }
@@ -1355,13 +1311,14 @@ func file_kagent_api_v1_execution_proto_init() {
 		return
 	}
 	file_kagent_api_v1_common_proto_init()
+	file_kagent_api_v1_authorization_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_kagent_api_v1_execution_proto_rawDesc), len(file_kagent_api_v1_execution_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   22,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

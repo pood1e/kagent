@@ -166,7 +166,7 @@ func TestRuntimeTaskStoreThroughGRPC(t *testing.T) {
 		TaskStoreService: tasks,
 		MemoryService:    memoryservice.NewService(memories, policy),
 		SessionService:   sessionsvc.NewService(store, policy, nil),
-		ExecutionService: executionservice.NewService(store, sessionsvc.NewService(store, policy, nil), nil),
+		ExecutionService: executionservice.NewService(store, sessionsvc.NewService(store, policy, nil), nil, nil),
 	})
 	require.NoError(t, err)
 	serverCtx, stopServer := context.WithCancel(t.Context())

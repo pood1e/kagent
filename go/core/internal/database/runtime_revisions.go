@@ -10,9 +10,7 @@ import (
 	a2apb "github.com/a2aproject/a2a-go/v2/a2apb/v1"
 	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
-	corev1 "k8s.io/api/core/v1"
 
-	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 	"github.com/kagent-dev/kagent/go/core/internal/egress"
 	"github.com/kagent-dev/kagent/go/core/pkg/egresspolicy"
 )
@@ -118,11 +116,9 @@ func (c *Client) RecordRuntimeRevision(ctx context.Context, revision RuntimeRevi
 	if revision.AgentCard == nil {
 		return GoldenRetry{}, fmt.Errorf("runtime revision %s has no Agent Card", revision.Revision)
 	}
-	if revision.MCPTools == nil {
-		revision.MCPTools = []v1alpha3.MCPToolBinding{}
-	}
-	if revision.Models == nil {
-		revision.Models = []corev1.LocalObjectReference{}
+	dependencies, err := encodeDependencyManifest(revision.Dependencies)
+	if err != nil {
+		return GoldenRetry{}, fmt.Errorf("encode runtime dependencies: %w", err)
 	}
 	card, err := proto.Marshal(revision.AgentCard)
 	if err != nil {
@@ -147,9 +143,9 @@ func (c *Client) RecordRuntimeRevision(ctx context.Context, revision RuntimeRevi
 			return err
 		}
 		if err := execSQL(ctx, tx, `
-			INSERT INTO agent_revision (revision, agent_name, agent_uid, agent_card, mcp_tools, models)
-			VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (revision) DO NOTHING
-		`, revision.Revision, revision.AgentName, revision.AgentUID, card, revision.MCPTools, revision.Models); err != nil {
+			INSERT INTO agent_revision (revision, agent_name, agent_uid, agent_card, dependencies)
+			VALUES ($1, $2, $3, $4, $5) ON CONFLICT (revision) DO NOTHING
+		`, revision.Revision, revision.AgentName, revision.AgentUID, card, dependencies); err != nil {
 			return err
 		}
 		var err error
@@ -178,12 +174,31 @@ func (c *Client) GetRuntimeRevision(ctx context.Context, revision string) (*Runt
 		SELECT revision, namespace, agent_name, agent_uid,
 		    source_snapshot, egress_destinations, token_passthrough_targets, credentials, actor_template_atespace, actor_template_name, actor_template_uid,
 		    actor_template_spec_digest, agent_card, deleted_at,
- (SELECT mcp_tools FROM agent_revision a WHERE a.revision = agent_runtime_revision.revision) AS mcp_tools,
- (SELECT models FROM agent_revision a WHERE a.revision = agent_runtime_revision.revision) AS models
+ (SELECT dependencies FROM agent_revision a WHERE a.revision = agent_runtime_revision.revision) AS dependencies
  FROM agent_runtime_revision WHERE revision = $1
 	`, pgx.RowToStructByName[runtimeRevisionRow], revision)
 	if err != nil {
 		return nil, fmt.Errorf("get runtime revision %s: %w", revision, notFoundOr(err))
+	}
+	return toRuntimeRevision(row)
+}
+
+// GetAgentRuntimeRevision reads an active Agent's latest successful immutable
+// inputs without locking. Session reservation must CAS the returned revision.
+// Missing or unprepared identities return ErrNotFound; callers authorize access.
+func (c *Client) GetAgentRuntimeRevision(ctx context.Context, namespace, name string) (*RuntimeRevision, error) {
+	row, err := queryOne(ctx, c.db, `
+ SELECT r.revision, r.namespace, r.agent_name, r.agent_uid,
+ r.source_snapshot, r.egress_destinations, r.token_passthrough_targets, r.credentials,
+ r.actor_template_atespace, r.actor_template_name, r.actor_template_uid, r.actor_template_spec_digest, r.agent_card, r.deleted_at,
+ a.dependencies
+ FROM agent_definition d
+ JOIN agent_runtime_revision r ON r.revision = d.latest_successful_revision
+ JOIN agent_revision a ON a.revision = r.revision
+ WHERE d.namespace = $1 AND d.agent_name = $2 AND d.retired_at IS NULL AND r.deleted_at IS NULL
+ `, pgx.RowToStructByName[runtimeRevisionRow], namespace, name)
+	if err != nil {
+		return nil, notFoundOr(err)
 	}
 	return toRuntimeRevision(row)
 }
@@ -203,11 +218,15 @@ func toRuntimeRevision(row runtimeRevisionRow) (*RuntimeRevision, error) {
 	if err != nil {
 		return nil, fmt.Errorf("decode runtime revision %s tokenPassthrough targets: %w", row.Revision, err)
 	}
+	dependencies, err := decodeDependencyManifest(row.Dependencies)
+	if err != nil {
+		return nil, fmt.Errorf("decode runtime dependency grants: %w", err)
+	}
 	return &RuntimeRevision{
 		Revision: row.Revision, Namespace: row.Namespace,
 		AgentName: row.AgentName, AgentUID: row.AgentUID,
 		SourceSnapshot: row.SourceSnapshot, AgentCard: card,
-		MCPTools: row.MCPTools, Models: row.Models,
+		Dependencies:            dependencies,
 		EgressDestinations:      row.EgressDestinations,
 		TokenPassthroughTargets: targets,
 		Credentials:             credentials,
@@ -260,8 +279,7 @@ func getAvailableRuntimeRevisionForUpdate(ctx context.Context, tx pgx.Tx, revisi
   SELECT revision, namespace, agent_name, agent_uid,
    source_snapshot, egress_destinations, token_passthrough_targets, credentials, actor_template_atespace, actor_template_name, actor_template_uid,
    actor_template_spec_digest, agent_card, deleted_at,
- (SELECT mcp_tools FROM agent_revision a WHERE a.revision = agent_runtime_revision.revision) AS mcp_tools,
- (SELECT models FROM agent_revision a WHERE a.revision = agent_runtime_revision.revision) AS models
+ (SELECT dependencies FROM agent_revision a WHERE a.revision = agent_runtime_revision.revision) AS dependencies
  FROM agent_runtime_revision WHERE revision = $1
  `, pgx.RowToStructByName[runtimeRevisionRow], revision)
 }
@@ -411,8 +429,7 @@ type runtimeRevisionRow struct {
 	ActorTemplateUID        string
 	ActorTemplateSpecDigest string
 	AgentCard               []byte
-	MCPTools                []v1alpha3.MCPToolBinding
-	Models                  []corev1.LocalObjectReference
+	Dependencies            []byte
 	DeletedAt               *time.Time
 }
 

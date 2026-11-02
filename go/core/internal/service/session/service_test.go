@@ -34,6 +34,9 @@ func (a serviceTestAuthorizer) Check(context.Context, auth.Principal, auth.Verb,
 }
 
 type serviceTestStore struct {
+	existing       *apiv1.Session
+	revisionErr    error
+	revisionCalls  int
 	createInput    *apiv1.Session
 	requestID      string
 	createErr      error
@@ -139,7 +142,7 @@ func serviceTestContext(userID string) context.Context {
 
 func TestServiceCreateUsesAuthenticatedOwnerAndGeneratedUUID(t *testing.T) {
 	store := &serviceTestStore{}
-	service := NewService(store, serviceTestAuthorizer{}, serviceTestWorkflow{})
+	service := createTestService(store, serviceTestAuthorizer{}, serviceTestWorkflow{})
 
 	session, err := service.Create(serviceTestContext("alice"), &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}, "request-1", "", nil)
 	if err != nil {
@@ -170,7 +173,7 @@ func TestServiceCreateMapsStoreErrors(t *testing.T) {
 		{name: "database failure", err: errors.New("database unavailable"), code: serviceerrors.CodeInternal},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			service := NewService(&serviceTestStore{createErr: test.err}, serviceTestAuthorizer{}, serviceTestWorkflow{})
+			service := createTestService(&serviceTestStore{createErr: test.err}, serviceTestAuthorizer{}, serviceTestWorkflow{})
 			_, err := service.Create(serviceTestContext("alice"), &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}, "request-1", "", nil)
 			if !serviceerrors.IsCode(err, test.code) {
 				t.Fatalf("Create() error = %v, want code %s", err, test.code)
@@ -356,7 +359,7 @@ func TestServiceCreateCarriesTheNameAndLeavesAnOmittedOneEmpty(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			store := &serviceTestStore{}
-			service := NewService(store, serviceTestAuthorizer{}, serviceTestWorkflow{})
+			service := createTestService(store, serviceTestAuthorizer{}, serviceTestWorkflow{})
 			session, err := service.Create(serviceTestContext("alice"), &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}, "request-1", test.given, nil)
 			if err != nil {
 				t.Fatal(err)

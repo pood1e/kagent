@@ -28,12 +28,37 @@ type relationCheck struct {
 }
 
 func (s *Service) CheckPermissions(ctx context.Context, request *apiv1.CheckPermissionsRequest) (*apiv1.CheckPermissionsResponse, error) {
-	if err := protovalidate.Validate(request); err != nil {
-		return nil, serviceerrors.NewInvalidArgument("Invalid permission checks", err)
-	}
 	principal, err := caller(ctx)
 	if err != nil {
 		return nil, err
+	}
+	return s.checkPermissions(ctx, principal, request)
+}
+
+// CheckExecutionPermissions evaluates a trusted, live initiator reconstructed by
+// executionauth.Resolve and intersects it with its durable resource ceiling.
+// This internal service boundary is separate from authorization-management RPCs.
+func (s *Service) CheckExecutionPermissions(ctx context.Context, principal auth.Principal, request *apiv1.CheckPermissionsRequest) (*apiv1.CheckPermissionsResponse, error) {
+	grant := principal.Execution
+	if grant == nil || grant.GetScopeCeiling().GetResources() == nil || principal.ID != grant.InitiatorId ||
+		grant.WorkspaceUid == "" || request.GetWorkspace().GetUid() != grant.WorkspaceUid || principal.RuntimeBinding != nil {
+		return nil, serviceerrors.NewPermissionDenied("Bound execution initiator required", nil)
+	}
+	response, err := s.checkPermissions(ctx, principal, request)
+	if err != nil {
+		return nil, err
+	}
+	for _, result := range response.Resources {
+		result.AllowedActions = slices.DeleteFunc(result.AllowedActions, func(permission apiv1.Permission) bool {
+			return !auth.ResourceGrantAllows(grant.ScopeCeiling.Resources, result.Resource, permission)
+		})
+	}
+	return response, nil
+}
+
+func (s *Service) checkPermissions(ctx context.Context, principal auth.Principal, request *apiv1.CheckPermissionsRequest) (*apiv1.CheckPermissionsResponse, error) {
+	if err := protovalidate.Validate(request); err != nil {
+		return nil, serviceerrors.NewInvalidArgument("Invalid permission checks", err)
 	}
 	response := &apiv1.CheckPermissionsResponse{}
 	var checks []checkedPermission

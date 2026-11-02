@@ -6,10 +6,8 @@ import (
 
 	a2apb "github.com/a2aproject/a2a-go/v2/a2apb/v1"
 	"github.com/pgvector/pgvector-go"
-	corev1 "k8s.io/api/core/v1"
 
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
-	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 	"github.com/kagent-dev/kagent/go/core/internal/egress"
 	"github.com/kagent-dev/kagent/go/core/pkg/egresspolicy"
 )
@@ -69,8 +67,7 @@ type RuntimeRevision struct {
 	AgentUID                string
 	SourceSnapshot          json.RawMessage
 	AgentCard               *a2apb.AgentCard
-	MCPTools                []v1alpha3.MCPToolBinding
-	Models                  []corev1.LocalObjectReference
+	Dependencies            *apiv1.ExecutionDependencyManifest
 	Credentials             []egress.Credential
 	EgressDestinations      []string
 	TokenPassthroughTargets []egresspolicy.GatewayTarget
