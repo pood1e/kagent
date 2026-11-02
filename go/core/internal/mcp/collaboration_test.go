@@ -12,6 +12,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/pgvector/pgvector-go"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -63,7 +64,7 @@ func TestNativeCollaborationThroughSDKClient(t *testing.T) {
 	}}}}}
 	catalog := kubecrud.NewService(kube, policy, &v1alpha3.Agent{}, &v1alpha3.AgentList{}, "Agent")
 	gateway := &fakeGateway{completeOnDrain: true}
-	handler, err := New(sessionsvc.NewService(store, auth.NoopAuthorizer{}, &fakeSessionWorkflow{}), testCheckpointService(), gateway, nil, nil,
+	handler, err := New(sessionsvc.NewService(store, auth.NoopAuthorizer{}, &fakeSessionWorkflow{}, sessionsvc.WithExecutionAuthority(collaborationAuthority{}), sessionsvc.WithResourceAuthorization(collaborationPermissions{})), testCheckpointService(), gateway, nil, nil,
 		&Collaboration{Agents: catalog, Memory: memoryservice.NewService(store, auth.NoopAuthorizer{}, memoryservice.WithEmbedder(store))})
 	require.NoError(t, err)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -134,4 +135,30 @@ func TestNativeCollaborationThroughSDKClient(t *testing.T) {
 	require.Equal(t, testTaskID, result.Content[0].(*mcp.TextContent).Text)
 	require.Equal(t, a2atype.TaskStateWorking, gateway.task.Status.State, "the observer must return before draining background work")
 	require.True(t, call("invoke_session", map[string]any{"session_id": testSessionID, "message": "background work", "background": true}).IsError)
+}
+
+// Adapter tests supply deterministic application authority; the native API suite
+// covers live OpenFGA and durable execution identities.
+type collaborationAuthority struct{}
+
+func (collaborationAuthority) Bind(_ context.Context, id, creator string, _ *apiv1.ScopeCeiling) (*apiv1.SessionAuthority, error) {
+	return &apiv1.SessionAuthority{SessionId: id, InitiatorId: creator, RootSessionId: id, WorkspaceUid: "workspace-1", ScopeCeiling: &apiv1.ScopeCeiling{}}, nil
+}
+func (collaborationAuthority) Resolve(context.Context, string) (auth.Session, error) {
+	panic("unexpected runtime resolution")
+}
+func (collaborationAuthority) Renew(context.Context) error                   { return nil }
+func (collaborationAuthority) RevokeAuthority(context.Context, string) error { return nil }
+
+type collaborationPermissions struct{}
+
+func (collaborationPermissions) CheckPermissions(_ context.Context, request *apiv1.CheckPermissionsRequest) (*apiv1.CheckPermissionsResponse, error) {
+	result := &apiv1.CheckPermissionsResponse{}
+	for _, grant := range request.Checks {
+		result.Resources = append(result.Resources, &apiv1.ResourceAccess{Resource: proto.CloneOf(grant.Resource), AllowedActions: grant.Permissions})
+	}
+	return result, nil
+}
+func (collaborationPermissions) CheckExecutionPermissions(context.Context, auth.Principal, *apiv1.CheckPermissionsRequest) (*apiv1.CheckPermissionsResponse, error) {
+	panic("unexpected execution check")
 }

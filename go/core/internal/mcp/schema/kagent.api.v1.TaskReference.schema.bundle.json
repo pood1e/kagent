@@ -1,0 +1,39 @@
+{
+  "$defs": {
+    "kagent.api.v1.TaskReference.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^(sessionId)$": {
+          "default": "",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "type": "string"
+        },
+        "^(taskId)$": {
+          "default": "",
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "properties": {
+        "session_id": {
+          "default": "",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "type": "string"
+        },
+        "task_id": {
+          "default": "",
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "title": "Task Reference",
+      "type": "object"
+    }
+  },
+  "$id": "kagent.api.v1.TaskReference.schema.bundle.json",
+  "$ref": "#/$defs/kagent.api.v1.TaskReference.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

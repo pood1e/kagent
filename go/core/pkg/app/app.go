@@ -373,7 +373,7 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 	resourceNamespace := cfg.GetKubernetes().GetNamespace()
 	admission := admission.NewService(manager.GetClient(), cfg.GetRuntimeDefaults(), cfg.GetHarnessImages())
 	models := modelservice.NewService(manager.GetClient(), authorizer, resourceNamespace, modelservice.WithAdmission(admission))
-	var toolPermissions toolservice.PermissionChecker
+	var toolPermissions sessionsvc.ResourcePermissions
 	if resourceAuthorization != nil {
 		toolPermissions = resourceAuthorization
 	}
@@ -399,7 +399,7 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 		return fmt.Errorf("register session expiration worker: %w", err)
 	}
 	shareMaxTTL := cfg.GetSessions().GetShareMaxTtl().AsDuration()
-	sessions := sessionsvc.NewService(store, authorizer, sessionWorkflow, sessionsvc.WithShareMaxTTL(shareMaxTTL), sessionsvc.WithExecutionAuthority(executionAuthority), sessionsvc.WithWorkspaceIdentity(manager.GetAPIReader()))
+	sessions := sessionsvc.NewService(store, authorizer, sessionWorkflow, sessionsvc.WithShareMaxTTL(shareMaxTTL), sessionsvc.WithExecutionAuthority(executionAuthority), sessionsvc.WithWorkspaceIdentity(manager.GetAPIReader()), sessionsvc.WithResourceAuthorization(toolPermissions))
 	checkpoints := checkpoint.NewService(store, authorizer, actors, sessionWorkflow, executionAuthority)
 	gatewayDialer, err := a2agateway.NewRuntimeDialer(
 		cfg.GetSubstrate().GetRouterUrl(),
@@ -471,7 +471,7 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 	if err != nil {
 		return err
 	}
-	executions := execution.NewService(store, sessions, executionAuthority)
+	executions := execution.NewService(store, sessions, executionAuthority, toolPermissions)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)

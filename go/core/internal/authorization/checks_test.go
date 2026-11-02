@@ -199,3 +199,33 @@ func TestBoundIdentitiesCannotManageAuthorization(t *testing.T) {
 		require.True(t, serviceerrors.IsCode(err, serviceerrors.CodePermissionDenied))
 	}
 }
+
+func TestExecutionChecksApplyTrustedInitiatorAndImmutableResourceCeiling(t *testing.T) {
+	service, _ := testService(t, func(writer http.ResponseWriter, request *http.Request) {
+		var body fga.BatchCheckRequest
+		require.NoError(t, json.NewDecoder(request.Body).Decode(&body))
+		user, err := principalSubject("alice")
+		require.NoError(t, err)
+		for _, check := range body.Checks {
+			require.Equal(t, user, check.TupleKey.User)
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		_, err = writer.Write([]byte(`{"result":{"0":{"allowed":true},"1":{"allowed":true}}}`))
+		require.NoError(t, err)
+	})
+	request := agentPermissionRequest()
+	request.Workspace.Uid = "workspace-1"
+	exact := agentReference()
+	exact.GetKubernetes().Uid = "agent-1"
+	principal := auth.Principal{ID: "alice", Execution: &apiv1.SessionAuthority{SessionId: testSessionID, InitiatorId: "alice", WorkspaceUid: "workspace-1", ScopeCeiling: &apiv1.ScopeCeiling{Resources: &apiv1.ResourceGrantSet{Grants: []*apiv1.ResourceGrant{{Resource: exact, Permissions: []apiv1.Permission{apiv1.Permission_PERMISSION_AGENT_INVOKE}}}}}}}
+	result, err := service.CheckExecutionPermissions(t.Context(), principal, request)
+	require.NoError(t, err)
+	require.Equal(t, []apiv1.Permission{apiv1.Permission_PERMISSION_AGENT_INVOKE}, result.Resources[0].AllowedActions)
+	principal.Execution.ScopeCeiling.Resources = &apiv1.ResourceGrantSet{}
+	result, err = service.CheckExecutionPermissions(t.Context(), principal, request)
+	require.NoError(t, err)
+	require.Empty(t, result.Resources[0].AllowedActions, "a new live role never widens an existing execution")
+	principal.Execution.ScopeCeiling.Resources = nil
+	_, err = service.CheckExecutionPermissions(t.Context(), principal, request)
+	require.True(t, serviceerrors.IsCode(err, serviceerrors.CodePermissionDenied))
+}

@@ -12,7 +12,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file kagent/api/v1/common.proto.
  */
 export const file_kagent_api_v1_common: GenFile = /*@__PURE__*/
-  fileDesc("ChprYWdlbnQvYXBpL3YxL2NvbW1vbi5wcm90bxINa2FnZW50LmFwaS52MSJdChBTdHJ1Y3R1cmVkT2JqZWN0EhMKC2FwaV92ZXJzaW9uGAEgASgJEgwKBGtpbmQYAiABKAkSJgoFdmFsdWUYAyABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0IrABChFSZXNvdXJjZVJlZmVyZW5jZRI9CgluYW1lc3BhY2UYASABKAlCKrpIJ3IlEAEYPzIfXlthLXowLTldKFstYS16MC05XSpbYS16MC05XSk/JBJcCgRuYW1lGAIgASgJQk66SEtySRABGP0BMkJeW2EtejAtOV0oWy1hLXowLTldKlthLXowLTldKT8oWy5dW2EtejAtOV0oWy1hLXowLTldKlthLXowLTldKT8pKiQiOwoLUGFnZVJlcXVlc3QSGAoFbGltaXQYASABKAVCCbpIBhoEGGQoABISCgpwYWdlX3Rva2VuGAIgASgJIicKDFBhZ2VSZXNwb25zZRIXCg9uZXh0X3BhZ2VfdG9rZW4YASABKAlCPVo7Z2l0aHViLmNvbS9rYWdlbnQtZGV2L2thZ2VudC9nby9hcGkvZ2VuL2thZ2VudC9hcGkvdjE7YXBpdjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_struct]);
+  fileDesc("ChprYWdlbnQvYXBpL3YxL2NvbW1vbi5wcm90bxINa2FnZW50LmFwaS52MSJdChBTdHJ1Y3R1cmVkT2JqZWN0EhMKC2FwaV92ZXJzaW9uGAEgASgJEgwKBGtpbmQYAiABKAkSJgoFdmFsdWUYAyABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0IrABChFSZXNvdXJjZVJlZmVyZW5jZRI9CgluYW1lc3BhY2UYASABKAlCKrpIJ3IlEAEYPzIfXlthLXowLTldKFstYS16MC05XSpbYS16MC05XSk/JBJcCgRuYW1lGAIgASgJQk66SEtySRABGP0BMkJeW2EtejAtOV0oWy1hLXowLTldKlthLXowLTldKT8oWy5dW2EtejAtOV0oWy1hLXowLTldKlthLXowLTldKT8pKiQiOwoLUGFnZVJlcXVlc3QSGAoFbGltaXQYASABKAVCCbpIBhoEGGQoABISCgpwYWdlX3Rva2VuGAIgASgJIicKDFBhZ2VSZXNwb25zZRIXCg9uZXh0X3BhZ2VfdG9rZW4YASABKAkiSgoNVGFza1JlZmVyZW5jZRIcCgpzZXNzaW9uX2lkGAEgASgJQgi6SAVyA7ABARIbCgd0YXNrX2lkGAIgASgJQgq6SAdyBRABGIACQj1aO2dpdGh1Yi5jb20va2FnZW50LWRldi9rYWdlbnQvZ28vYXBpL2dlbi9rYWdlbnQvYXBpL3YxO2FwaXYxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_struct]);
 
 /**
  * @generated from message kagent.api.v1.StructuredObject
@@ -101,4 +101,26 @@ export type PageResponse = Message<"kagent.api.v1.PageResponse"> & {
  */
 export const PageResponseSchema: GenMessage<PageResponse> = /*@__PURE__*/
   messageDesc(file_kagent_api_v1_common, 3);
+
+/**
+ * @generated from message kagent.api.v1.TaskReference
+ */
+export type TaskReference = Message<"kagent.api.v1.TaskReference"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: string task_id = 2;
+   */
+  taskId: string;
+};
+
+/**
+ * Describes the message kagent.api.v1.TaskReference.
+ * Use `create(TaskReferenceSchema)` to create a new message.
+ */
+export const TaskReferenceSchema: GenMessage<TaskReference> = /*@__PURE__*/
+  messageDesc(file_kagent_api_v1_common, 4);
 

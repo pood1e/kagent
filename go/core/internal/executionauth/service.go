@@ -18,6 +18,7 @@ import (
 
 	"buf.build/go/protovalidate"
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
@@ -164,6 +165,7 @@ func (s *Service) Bind(ctx context.Context, id, creator string, ceiling *apiv1.S
 		grant.InitiatorId, grant.ParentSessionId, grant.RootSessionId = authority.InitiatorId, binding.SessionID, authority.RootSessionId
 		grant.WorkspaceUid = authority.WorkspaceUid
 		grant.ScopeCeiling.Scopes = slices.Clone(parent.Principal().Scopes)
+		grant.ScopeCeiling.Resources = proto.CloneOf(authority.GetScopeCeiling().GetResources())
 		// A forwarded human credential may narrow its originating runtime further.
 		if principal.ID == authority.InitiatorId {
 			grant.ScopeCeiling.Scopes = intersect(grant.ScopeCeiling.Scopes, principal.Scopes)

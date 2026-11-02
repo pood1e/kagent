@@ -105,38 +105,10 @@ func NewCompiler(ctx krt.HandlerContext, collections Collections, harnessCompile
 // CompileAgent resolves inline or referenced behavior with its referenced
 // platform-managed Harness.
 func (c *Compiler) CompileAgent(ctx context.Context, agent *v1alpha3.Agent) (*CompileResult, error) {
-	if (agent.Spec.Template.Inline == nil) == (agent.Spec.Template.Ref == nil) {
-		return nil, NewValidationError("Agent template requires exactly one of inline or ref")
+	harness, template, err := c.agentConfiguration(agent)
+	if err != nil {
+		return nil, err
 	}
-	if agent.Spec.Template.Ref != nil && agent.Spec.Template.Ref.Name == "" {
-		return nil, NewValidationError("Agent template ref.name must not be empty")
-	}
-	if agent.Spec.HarnessRef.Name == "" {
-		return nil, NewValidationError("Agent harnessRef.name must not be empty")
-	}
-	var template *TemplateConfiguration
-	if agent.Spec.Template.Inline != nil {
-		template = &TemplateConfiguration{Name: agent.Name, Namespace: agent.Namespace, Spec: *agent.Spec.Template.Inline.DeepCopy()}
-	} else {
-		key := types.NamespacedName{Namespace: agent.Namespace, Name: agent.Spec.Template.Ref.Name}
-		found := FetchOne(c.ctx, c.collections.AgentTemplates, krt.FilterObjectName(key))
-		if found == nil {
-			return nil, fmt.Errorf("resolve AgentTemplate %q: not found", key)
-		}
-		template = templateConfiguration(*found)
-	}
-	if agent.Spec.ModelConfigRef != nil {
-		if agent.Spec.ModelConfigRef.Name == "" {
-			return nil, NewValidationError("Agent modelConfigRef.name must not be empty")
-		}
-		template.Spec.ModelConfig = agent.Spec.ModelConfigRef.DeepCopy()
-	}
-	harnessKey := types.NamespacedName{Namespace: agent.Namespace, Name: agent.Spec.HarnessRef.Name}
-	foundHarness := FetchOne(c.ctx, c.collections.Harnesses, krt.FilterObjectName(harnessKey))
-	if foundHarness == nil {
-		return nil, fmt.Errorf("resolve Harness %q: not found", harnessKey)
-	}
-	harness := harnessConfiguration(*foundHarness)
 	result, err := c.compileConfiguration(ctx, agent, harness, template)
 	if err != nil {
 		return nil, err
@@ -163,6 +135,41 @@ func (c *Compiler) CompileAgent(ctx context.Context, agent *v1alpha3.Agent) (*Co
 		return nil, fmt.Errorf("encode Agent provenance: %w", err)
 	}
 	return result, nil
+}
+
+func (c *Compiler) agentConfiguration(agent *v1alpha3.Agent) (*HarnessConfiguration, *TemplateConfiguration, error) {
+	if (agent.Spec.Template.Inline == nil) == (agent.Spec.Template.Ref == nil) {
+		return nil, nil, NewValidationError("Agent template requires exactly one of inline or ref")
+	}
+	if agent.Spec.Template.Ref != nil && agent.Spec.Template.Ref.Name == "" {
+		return nil, nil, NewValidationError("Agent template ref.name must not be empty")
+	}
+	if agent.Spec.HarnessRef.Name == "" {
+		return nil, nil, NewValidationError("Agent harnessRef.name must not be empty")
+	}
+	var template *TemplateConfiguration
+	if agent.Spec.Template.Inline != nil {
+		template = &TemplateConfiguration{Name: agent.Name, Namespace: agent.Namespace, Spec: *agent.Spec.Template.Inline.DeepCopy()}
+	} else {
+		key := types.NamespacedName{Namespace: agent.Namespace, Name: agent.Spec.Template.Ref.Name}
+		found := FetchOne(c.ctx, c.collections.AgentTemplates, krt.FilterObjectName(key))
+		if found == nil {
+			return nil, nil, fmt.Errorf("resolve AgentTemplate %q: not found", key)
+		}
+		template = templateConfiguration(*found)
+	}
+	if agent.Spec.ModelConfigRef != nil {
+		if agent.Spec.ModelConfigRef.Name == "" {
+			return nil, nil, NewValidationError("Agent modelConfigRef.name must not be empty")
+		}
+		template.Spec.ModelConfig = agent.Spec.ModelConfigRef.DeepCopy()
+	}
+	harnessKey := types.NamespacedName{Namespace: agent.Namespace, Name: agent.Spec.HarnessRef.Name}
+	foundHarness := FetchOne(c.ctx, c.collections.Harnesses, krt.FilterObjectName(harnessKey))
+	if foundHarness == nil {
+		return nil, nil, fmt.Errorf("resolve Harness %q: not found", harnessKey)
+	}
+	return harnessConfiguration(*foundHarness), template, nil
 }
 
 // compileConfiguration resolves inputs and compiles configuration for the Agent.
@@ -192,7 +199,10 @@ func (c *Compiler) compileConfiguration(ctx context.Context, agent *v1alpha3.Age
 	if err != nil {
 		return nil, err
 	}
-	result.MCPTools, result.Models = runtimeTargets(input)
+	result.Dependencies, err = c.runtimeDependencies(ctx, agent, input)
+	if err != nil {
+		return nil, err
+	}
 	workerKey := types.NamespacedName{Namespace: harness.Namespace, Name: harness.Spec.Substrate.WorkerPoolRef.Name}
 	workerPool := FetchOne(c.ctx, c.collections.WorkerPools, krt.FilterObjectName(workerKey))
 	if workerPool == nil {

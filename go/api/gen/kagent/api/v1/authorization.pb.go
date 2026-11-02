@@ -911,6 +911,105 @@ func (x *ResourceGrant) GetPermissions() []Permission {
 	return nil
 }
 
+// ResourceGrantSet records exact resource identities and actions.
+type ResourceGrantSet struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Grants        []*ResourceGrant       `protobuf:"bytes,1,rep,name=grants,proto3" json:"grants,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResourceGrantSet) Reset() {
+	*x = ResourceGrantSet{}
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourceGrantSet) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourceGrantSet) ProtoMessage() {}
+
+func (x *ResourceGrantSet) ProtoReflect() protoreflect.Message {
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourceGrantSet.ProtoReflect.Descriptor instead.
+func (*ResourceGrantSet) Descriptor() ([]byte, []int) {
+	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ResourceGrantSet) GetGrants() []*ResourceGrant {
+	if x != nil {
+		return x.Grants
+	}
+	return nil
+}
+
+// ExecutionDependencyManifest separates direct runtime capabilities from
+// dependencies reachable only through explicitly configured Agent delegation.
+type ExecutionDependencyManifest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Direct        *ResourceGrantSet      `protobuf:"bytes,1,opt,name=direct,proto3" json:"direct,omitempty"`
+	Delegated     *ResourceGrantSet      `protobuf:"bytes,2,opt,name=delegated,proto3" json:"delegated,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExecutionDependencyManifest) Reset() {
+	*x = ExecutionDependencyManifest{}
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExecutionDependencyManifest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExecutionDependencyManifest) ProtoMessage() {}
+
+func (x *ExecutionDependencyManifest) ProtoReflect() protoreflect.Message {
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExecutionDependencyManifest.ProtoReflect.Descriptor instead.
+func (*ExecutionDependencyManifest) Descriptor() ([]byte, []int) {
+	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ExecutionDependencyManifest) GetDirect() *ResourceGrantSet {
+	if x != nil {
+		return x.Direct
+	}
+	return nil
+}
+
+func (x *ExecutionDependencyManifest) GetDelegated() *ResourceGrantSet {
+	if x != nil {
+		return x.Delegated
+	}
+	return nil
+}
+
 type ListAccessRolesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -919,7 +1018,7 @@ type ListAccessRolesRequest struct {
 
 func (x *ListAccessRolesRequest) Reset() {
 	*x = ListAccessRolesRequest{}
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[9]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -931,7 +1030,7 @@ func (x *ListAccessRolesRequest) String() string {
 func (*ListAccessRolesRequest) ProtoMessage() {}
 
 func (x *ListAccessRolesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[9]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -944,7 +1043,7 @@ func (x *ListAccessRolesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAccessRolesRequest.ProtoReflect.Descriptor instead.
 func (*ListAccessRolesRequest) Descriptor() ([]byte, []int) {
-	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{9}
+	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{11}
 }
 
 type ListAccessRolesResponse struct {
@@ -956,7 +1055,7 @@ type ListAccessRolesResponse struct {
 
 func (x *ListAccessRolesResponse) Reset() {
 	*x = ListAccessRolesResponse{}
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[10]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -968,7 +1067,7 @@ func (x *ListAccessRolesResponse) String() string {
 func (*ListAccessRolesResponse) ProtoMessage() {}
 
 func (x *ListAccessRolesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[10]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -981,7 +1080,7 @@ func (x *ListAccessRolesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAccessRolesResponse.ProtoReflect.Descriptor instead.
 func (*ListAccessRolesResponse) Descriptor() ([]byte, []int) {
-	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{10}
+	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ListAccessRolesResponse) GetRoles() []*AccessRoleDefinition {
@@ -1002,7 +1101,7 @@ type ListWorkspacesRequest struct {
 
 func (x *ListWorkspacesRequest) Reset() {
 	*x = ListWorkspacesRequest{}
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[11]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1014,7 +1113,7 @@ func (x *ListWorkspacesRequest) String() string {
 func (*ListWorkspacesRequest) ProtoMessage() {}
 
 func (x *ListWorkspacesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[11]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1027,7 +1126,7 @@ func (x *ListWorkspacesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWorkspacesRequest.ProtoReflect.Descriptor instead.
 func (*ListWorkspacesRequest) Descriptor() ([]byte, []int) {
-	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{11}
+	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ListWorkspacesRequest) GetPage() *PageRequest {
@@ -1055,7 +1154,7 @@ type ListWorkspacesResponse struct {
 
 func (x *ListWorkspacesResponse) Reset() {
 	*x = ListWorkspacesResponse{}
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[12]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1067,7 +1166,7 @@ func (x *ListWorkspacesResponse) String() string {
 func (*ListWorkspacesResponse) ProtoMessage() {}
 
 func (x *ListWorkspacesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[12]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1080,7 +1179,7 @@ func (x *ListWorkspacesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWorkspacesResponse.ProtoReflect.Descriptor instead.
 func (*ListWorkspacesResponse) Descriptor() ([]byte, []int) {
-	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{12}
+	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ListWorkspacesResponse) GetWorkspaces() []*WorkspaceAuthorizationReference {
@@ -1107,7 +1206,7 @@ type CheckPermissionsRequest struct {
 
 func (x *CheckPermissionsRequest) Reset() {
 	*x = CheckPermissionsRequest{}
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[13]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1119,7 +1218,7 @@ func (x *CheckPermissionsRequest) String() string {
 func (*CheckPermissionsRequest) ProtoMessage() {}
 
 func (x *CheckPermissionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[13]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1132,7 +1231,7 @@ func (x *CheckPermissionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckPermissionsRequest.ProtoReflect.Descriptor instead.
 func (*CheckPermissionsRequest) Descriptor() ([]byte, []int) {
-	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{13}
+	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *CheckPermissionsRequest) GetChecks() []*ResourceGrant {
@@ -1159,7 +1258,7 @@ type ResourceAccess struct {
 
 func (x *ResourceAccess) Reset() {
 	*x = ResourceAccess{}
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[14]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1171,7 +1270,7 @@ func (x *ResourceAccess) String() string {
 func (*ResourceAccess) ProtoMessage() {}
 
 func (x *ResourceAccess) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[14]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1184,7 +1283,7 @@ func (x *ResourceAccess) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceAccess.ProtoReflect.Descriptor instead.
 func (*ResourceAccess) Descriptor() ([]byte, []int) {
-	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{14}
+	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ResourceAccess) GetResource() *AuthorizationResource {
@@ -1211,7 +1310,7 @@ type CheckPermissionsResponse struct {
 
 func (x *CheckPermissionsResponse) Reset() {
 	*x = CheckPermissionsResponse{}
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[15]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1223,7 +1322,7 @@ func (x *CheckPermissionsResponse) String() string {
 func (*CheckPermissionsResponse) ProtoMessage() {}
 
 func (x *CheckPermissionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[15]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1236,7 +1335,7 @@ func (x *CheckPermissionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckPermissionsResponse.ProtoReflect.Descriptor instead.
 func (*CheckPermissionsResponse) Descriptor() ([]byte, []int) {
-	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{15}
+	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CheckPermissionsResponse) GetResources() []*ResourceAccess {
@@ -1257,7 +1356,7 @@ type ListRoleBindingsRequest struct {
 
 func (x *ListRoleBindingsRequest) Reset() {
 	*x = ListRoleBindingsRequest{}
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[16]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1269,7 +1368,7 @@ func (x *ListRoleBindingsRequest) String() string {
 func (*ListRoleBindingsRequest) ProtoMessage() {}
 
 func (x *ListRoleBindingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[16]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1282,7 +1381,7 @@ func (x *ListRoleBindingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRoleBindingsRequest.ProtoReflect.Descriptor instead.
 func (*ListRoleBindingsRequest) Descriptor() ([]byte, []int) {
-	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{16}
+	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ListRoleBindingsRequest) GetScope() *AuthorizationResource {
@@ -1316,7 +1415,7 @@ type ListRoleBindingsResponse struct {
 
 func (x *ListRoleBindingsResponse) Reset() {
 	*x = ListRoleBindingsResponse{}
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[17]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1328,7 +1427,7 @@ func (x *ListRoleBindingsResponse) String() string {
 func (*ListRoleBindingsResponse) ProtoMessage() {}
 
 func (x *ListRoleBindingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[17]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1341,7 +1440,7 @@ func (x *ListRoleBindingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRoleBindingsResponse.ProtoReflect.Descriptor instead.
 func (*ListRoleBindingsResponse) Descriptor() ([]byte, []int) {
-	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{17}
+	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ListRoleBindingsResponse) GetBindings() []*RoleBinding {
@@ -1369,7 +1468,7 @@ type GrantRoleRequest struct {
 
 func (x *GrantRoleRequest) Reset() {
 	*x = GrantRoleRequest{}
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[18]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1381,7 +1480,7 @@ func (x *GrantRoleRequest) String() string {
 func (*GrantRoleRequest) ProtoMessage() {}
 
 func (x *GrantRoleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[18]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1394,7 +1493,7 @@ func (x *GrantRoleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GrantRoleRequest.ProtoReflect.Descriptor instead.
 func (*GrantRoleRequest) Descriptor() ([]byte, []int) {
-	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{18}
+	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GrantRoleRequest) GetRequestId() string {
@@ -1427,7 +1526,7 @@ type GrantRoleResponse struct {
 
 func (x *GrantRoleResponse) Reset() {
 	*x = GrantRoleResponse{}
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[19]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1439,7 +1538,7 @@ func (x *GrantRoleResponse) String() string {
 func (*GrantRoleResponse) ProtoMessage() {}
 
 func (x *GrantRoleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[19]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1452,7 +1551,7 @@ func (x *GrantRoleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GrantRoleResponse.ProtoReflect.Descriptor instead.
 func (*GrantRoleResponse) Descriptor() ([]byte, []int) {
-	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{19}
+	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *GrantRoleResponse) GetBinding() *RoleBinding {
@@ -1473,7 +1572,7 @@ type RevokeRoleRequest struct {
 
 func (x *RevokeRoleRequest) Reset() {
 	*x = RevokeRoleRequest{}
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[20]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1485,7 +1584,7 @@ func (x *RevokeRoleRequest) String() string {
 func (*RevokeRoleRequest) ProtoMessage() {}
 
 func (x *RevokeRoleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[20]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1498,7 +1597,7 @@ func (x *RevokeRoleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeRoleRequest.ProtoReflect.Descriptor instead.
 func (*RevokeRoleRequest) Descriptor() ([]byte, []int) {
-	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{20}
+	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *RevokeRoleRequest) GetRequestId() string {
@@ -1530,7 +1629,7 @@ type RevokeRoleResponse struct {
 
 func (x *RevokeRoleResponse) Reset() {
 	*x = RevokeRoleResponse{}
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[21]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1542,7 +1641,7 @@ func (x *RevokeRoleResponse) String() string {
 func (*RevokeRoleResponse) ProtoMessage() {}
 
 func (x *RevokeRoleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kagent_api_v1_authorization_proto_msgTypes[21]
+	mi := &file_kagent_api_v1_authorization_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1555,14 +1654,14 @@ func (x *RevokeRoleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeRoleResponse.ProtoReflect.Descriptor instead.
 func (*RevokeRoleResponse) Descriptor() ([]byte, []int) {
-	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{21}
+	return file_kagent_api_v1_authorization_proto_rawDescGZIP(), []int{23}
 }
 
 var File_kagent_api_v1_authorization_proto protoreflect.FileDescriptor
 
 const file_kagent_api_v1_authorization_proto_rawDesc = "" +
 	"\n" +
-	"!kagent/api/v1/authorization.proto\x12\rkagent.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1akagent/api/v1/common.proto\x1a\x1dkagent/api/v1/execution.proto\"b\n" +
+	"!kagent/api/v1/authorization.proto\x12\rkagent.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1akagent/api/v1/common.proto\"b\n" +
 	"\rIdentityGroup\x125\n" +
 	"\x06issuer\x18\x01 \x01(\tB\x1d\xbaH\x1ar\x18(\xc0\x012\x10^https://[^?#]+$\x88\x01\x01R\x06issuer\x12\x1a\n" +
 	"\x02id\x18\x02 \x01(\tB\n" +
@@ -1606,7 +1705,12 @@ const file_kagent_api_v1_authorization_proto_rawDesc = "" +
 	"\x05scope\x18\x03 \x01(\v2$.kagent.api.v1.AuthorizationResourceB\x06\xbaH\x03\xc8\x01\x01R\x05scope\"\xad\x01\n" +
 	"\rResourceGrant\x12H\n" +
 	"\bresource\x18\x01 \x01(\v2$.kagent.api.v1.AuthorizationResourceB\x06\xbaH\x03\xc8\x01\x01R\bresource\x12R\n" +
-	"\vpermissions\x18\x02 \x03(\x0e2\x19.kagent.api.v1.PermissionB\x15\xbaH\x12\x92\x01\x0f\b\x01\x10\"\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\vpermissions\"\x18\n" +
+	"\vpermissions\x18\x02 \x03(\x0e2\x19.kagent.api.v1.PermissionB\x15\xbaH\x12\x92\x01\x0f\b\x01\x10\"\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\vpermissions\"S\n" +
+	"\x10ResourceGrantSet\x12?\n" +
+	"\x06grants\x18\x01 \x03(\v2\x1c.kagent.api.v1.ResourceGrantB\t\xbaH\x06\x92\x01\x03\x10\x80 R\x06grants\"\x9d\x01\n" +
+	"\x1bExecutionDependencyManifest\x12?\n" +
+	"\x06direct\x18\x01 \x01(\v2\x1f.kagent.api.v1.ResourceGrantSetB\x06\xbaH\x03\xc8\x01\x01R\x06direct\x12=\n" +
+	"\tdelegated\x18\x02 \x01(\v2\x1f.kagent.api.v1.ResourceGrantSetR\tdelegated\"\x18\n" +
 	"\x16ListAccessRolesRequest\"T\n" +
 	"\x17ListAccessRolesResponse\x129\n" +
 	"\x05roles\x18\x01 \x03(\v2#.kagent.api.v1.AccessRoleDefinitionR\x05roles\"\xaf\x02\n" +
@@ -1735,7 +1839,7 @@ func file_kagent_api_v1_authorization_proto_rawDescGZIP() []byte {
 }
 
 var file_kagent_api_v1_authorization_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_kagent_api_v1_authorization_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_kagent_api_v1_authorization_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_kagent_api_v1_authorization_proto_goTypes = []any{
 	(Permission)(0),                          // 0: kagent.api.v1.Permission
 	(AccessRole)(0),                          // 1: kagent.api.v1.AccessRole
@@ -1749,32 +1853,34 @@ var file_kagent_api_v1_authorization_proto_goTypes = []any{
 	(*AccessRoleDefinition)(nil),             // 9: kagent.api.v1.AccessRoleDefinition
 	(*RoleBinding)(nil),                      // 10: kagent.api.v1.RoleBinding
 	(*ResourceGrant)(nil),                    // 11: kagent.api.v1.ResourceGrant
-	(*ListAccessRolesRequest)(nil),           // 12: kagent.api.v1.ListAccessRolesRequest
-	(*ListAccessRolesResponse)(nil),          // 13: kagent.api.v1.ListAccessRolesResponse
-	(*ListWorkspacesRequest)(nil),            // 14: kagent.api.v1.ListWorkspacesRequest
-	(*ListWorkspacesResponse)(nil),           // 15: kagent.api.v1.ListWorkspacesResponse
-	(*CheckPermissionsRequest)(nil),          // 16: kagent.api.v1.CheckPermissionsRequest
-	(*ResourceAccess)(nil),                   // 17: kagent.api.v1.ResourceAccess
-	(*CheckPermissionsResponse)(nil),         // 18: kagent.api.v1.CheckPermissionsResponse
-	(*ListRoleBindingsRequest)(nil),          // 19: kagent.api.v1.ListRoleBindingsRequest
-	(*ListRoleBindingsResponse)(nil),         // 20: kagent.api.v1.ListRoleBindingsResponse
-	(*GrantRoleRequest)(nil),                 // 21: kagent.api.v1.GrantRoleRequest
-	(*GrantRoleResponse)(nil),                // 22: kagent.api.v1.GrantRoleResponse
-	(*RevokeRoleRequest)(nil),                // 23: kagent.api.v1.RevokeRoleRequest
-	(*RevokeRoleResponse)(nil),               // 24: kagent.api.v1.RevokeRoleResponse
-	(*ResourceReference)(nil),                // 25: kagent.api.v1.ResourceReference
-	(*TaskReference)(nil),                    // 26: kagent.api.v1.TaskReference
-	(*PageRequest)(nil),                      // 27: kagent.api.v1.PageRequest
-	(*PageResponse)(nil),                     // 28: kagent.api.v1.PageResponse
+	(*ResourceGrantSet)(nil),                 // 12: kagent.api.v1.ResourceGrantSet
+	(*ExecutionDependencyManifest)(nil),      // 13: kagent.api.v1.ExecutionDependencyManifest
+	(*ListAccessRolesRequest)(nil),           // 14: kagent.api.v1.ListAccessRolesRequest
+	(*ListAccessRolesResponse)(nil),          // 15: kagent.api.v1.ListAccessRolesResponse
+	(*ListWorkspacesRequest)(nil),            // 16: kagent.api.v1.ListWorkspacesRequest
+	(*ListWorkspacesResponse)(nil),           // 17: kagent.api.v1.ListWorkspacesResponse
+	(*CheckPermissionsRequest)(nil),          // 18: kagent.api.v1.CheckPermissionsRequest
+	(*ResourceAccess)(nil),                   // 19: kagent.api.v1.ResourceAccess
+	(*CheckPermissionsResponse)(nil),         // 20: kagent.api.v1.CheckPermissionsResponse
+	(*ListRoleBindingsRequest)(nil),          // 21: kagent.api.v1.ListRoleBindingsRequest
+	(*ListRoleBindingsResponse)(nil),         // 22: kagent.api.v1.ListRoleBindingsResponse
+	(*GrantRoleRequest)(nil),                 // 23: kagent.api.v1.GrantRoleRequest
+	(*GrantRoleResponse)(nil),                // 24: kagent.api.v1.GrantRoleResponse
+	(*RevokeRoleRequest)(nil),                // 25: kagent.api.v1.RevokeRoleRequest
+	(*RevokeRoleResponse)(nil),               // 26: kagent.api.v1.RevokeRoleResponse
+	(*ResourceReference)(nil),                // 27: kagent.api.v1.ResourceReference
+	(*TaskReference)(nil),                    // 28: kagent.api.v1.TaskReference
+	(*PageRequest)(nil),                      // 29: kagent.api.v1.PageRequest
+	(*PageResponse)(nil),                     // 30: kagent.api.v1.PageResponse
 }
 var file_kagent_api_v1_authorization_proto_depIdxs = []int32{
 	3,  // 0: kagent.api.v1.SubjectReference.group:type_name -> kagent.api.v1.IdentityGroup
 	2,  // 1: kagent.api.v1.KubernetesAuthorizationReference.kind:type_name -> kagent.api.v1.AuthorizationScopeKind
-	25, // 2: kagent.api.v1.KubernetesAuthorizationReference.ref:type_name -> kagent.api.v1.ResourceReference
+	27, // 2: kagent.api.v1.KubernetesAuthorizationReference.ref:type_name -> kagent.api.v1.ResourceReference
 	6,  // 3: kagent.api.v1.MCPToolAuthorizationReference.server:type_name -> kagent.api.v1.KubernetesAuthorizationReference
 	5,  // 4: kagent.api.v1.AuthorizationResource.workspace:type_name -> kagent.api.v1.WorkspaceAuthorizationReference
 	6,  // 5: kagent.api.v1.AuthorizationResource.kubernetes:type_name -> kagent.api.v1.KubernetesAuthorizationReference
-	26, // 6: kagent.api.v1.AuthorizationResource.task:type_name -> kagent.api.v1.TaskReference
+	28, // 6: kagent.api.v1.AuthorizationResource.task:type_name -> kagent.api.v1.TaskReference
 	7,  // 7: kagent.api.v1.AuthorizationResource.mcp_tool:type_name -> kagent.api.v1.MCPToolAuthorizationReference
 	1,  // 8: kagent.api.v1.AccessRoleDefinition.role:type_name -> kagent.api.v1.AccessRole
 	2,  // 9: kagent.api.v1.AccessRoleDefinition.scope_kinds:type_name -> kagent.api.v1.AuthorizationScopeKind
@@ -1783,43 +1889,46 @@ var file_kagent_api_v1_authorization_proto_depIdxs = []int32{
 	8,  // 12: kagent.api.v1.RoleBinding.scope:type_name -> kagent.api.v1.AuthorizationResource
 	8,  // 13: kagent.api.v1.ResourceGrant.resource:type_name -> kagent.api.v1.AuthorizationResource
 	0,  // 14: kagent.api.v1.ResourceGrant.permissions:type_name -> kagent.api.v1.Permission
-	9,  // 15: kagent.api.v1.ListAccessRolesResponse.roles:type_name -> kagent.api.v1.AccessRoleDefinition
-	27, // 16: kagent.api.v1.ListWorkspacesRequest.page:type_name -> kagent.api.v1.PageRequest
-	5,  // 17: kagent.api.v1.ListWorkspacesRequest.workspace:type_name -> kagent.api.v1.WorkspaceAuthorizationReference
-	5,  // 18: kagent.api.v1.ListWorkspacesResponse.workspaces:type_name -> kagent.api.v1.WorkspaceAuthorizationReference
-	28, // 19: kagent.api.v1.ListWorkspacesResponse.page:type_name -> kagent.api.v1.PageResponse
-	11, // 20: kagent.api.v1.CheckPermissionsRequest.checks:type_name -> kagent.api.v1.ResourceGrant
-	5,  // 21: kagent.api.v1.CheckPermissionsRequest.workspace:type_name -> kagent.api.v1.WorkspaceAuthorizationReference
-	8,  // 22: kagent.api.v1.ResourceAccess.resource:type_name -> kagent.api.v1.AuthorizationResource
-	0,  // 23: kagent.api.v1.ResourceAccess.allowed_actions:type_name -> kagent.api.v1.Permission
-	17, // 24: kagent.api.v1.CheckPermissionsResponse.resources:type_name -> kagent.api.v1.ResourceAccess
-	8,  // 25: kagent.api.v1.ListRoleBindingsRequest.scope:type_name -> kagent.api.v1.AuthorizationResource
-	27, // 26: kagent.api.v1.ListRoleBindingsRequest.page:type_name -> kagent.api.v1.PageRequest
-	5,  // 27: kagent.api.v1.ListRoleBindingsRequest.workspace:type_name -> kagent.api.v1.WorkspaceAuthorizationReference
-	10, // 28: kagent.api.v1.ListRoleBindingsResponse.bindings:type_name -> kagent.api.v1.RoleBinding
-	28, // 29: kagent.api.v1.ListRoleBindingsResponse.page:type_name -> kagent.api.v1.PageResponse
-	10, // 30: kagent.api.v1.GrantRoleRequest.binding:type_name -> kagent.api.v1.RoleBinding
-	5,  // 31: kagent.api.v1.GrantRoleRequest.workspace:type_name -> kagent.api.v1.WorkspaceAuthorizationReference
-	10, // 32: kagent.api.v1.GrantRoleResponse.binding:type_name -> kagent.api.v1.RoleBinding
-	10, // 33: kagent.api.v1.RevokeRoleRequest.binding:type_name -> kagent.api.v1.RoleBinding
-	5,  // 34: kagent.api.v1.RevokeRoleRequest.workspace:type_name -> kagent.api.v1.WorkspaceAuthorizationReference
-	12, // 35: kagent.api.v1.AuthorizationService.ListAccessRoles:input_type -> kagent.api.v1.ListAccessRolesRequest
-	14, // 36: kagent.api.v1.AuthorizationService.ListWorkspaces:input_type -> kagent.api.v1.ListWorkspacesRequest
-	16, // 37: kagent.api.v1.AuthorizationService.CheckPermissions:input_type -> kagent.api.v1.CheckPermissionsRequest
-	19, // 38: kagent.api.v1.AuthorizationService.ListRoleBindings:input_type -> kagent.api.v1.ListRoleBindingsRequest
-	21, // 39: kagent.api.v1.AuthorizationService.GrantRole:input_type -> kagent.api.v1.GrantRoleRequest
-	23, // 40: kagent.api.v1.AuthorizationService.RevokeRole:input_type -> kagent.api.v1.RevokeRoleRequest
-	13, // 41: kagent.api.v1.AuthorizationService.ListAccessRoles:output_type -> kagent.api.v1.ListAccessRolesResponse
-	15, // 42: kagent.api.v1.AuthorizationService.ListWorkspaces:output_type -> kagent.api.v1.ListWorkspacesResponse
-	18, // 43: kagent.api.v1.AuthorizationService.CheckPermissions:output_type -> kagent.api.v1.CheckPermissionsResponse
-	20, // 44: kagent.api.v1.AuthorizationService.ListRoleBindings:output_type -> kagent.api.v1.ListRoleBindingsResponse
-	22, // 45: kagent.api.v1.AuthorizationService.GrantRole:output_type -> kagent.api.v1.GrantRoleResponse
-	24, // 46: kagent.api.v1.AuthorizationService.RevokeRole:output_type -> kagent.api.v1.RevokeRoleResponse
-	41, // [41:47] is the sub-list for method output_type
-	35, // [35:41] is the sub-list for method input_type
-	35, // [35:35] is the sub-list for extension type_name
-	35, // [35:35] is the sub-list for extension extendee
-	0,  // [0:35] is the sub-list for field type_name
+	11, // 15: kagent.api.v1.ResourceGrantSet.grants:type_name -> kagent.api.v1.ResourceGrant
+	12, // 16: kagent.api.v1.ExecutionDependencyManifest.direct:type_name -> kagent.api.v1.ResourceGrantSet
+	12, // 17: kagent.api.v1.ExecutionDependencyManifest.delegated:type_name -> kagent.api.v1.ResourceGrantSet
+	9,  // 18: kagent.api.v1.ListAccessRolesResponse.roles:type_name -> kagent.api.v1.AccessRoleDefinition
+	29, // 19: kagent.api.v1.ListWorkspacesRequest.page:type_name -> kagent.api.v1.PageRequest
+	5,  // 20: kagent.api.v1.ListWorkspacesRequest.workspace:type_name -> kagent.api.v1.WorkspaceAuthorizationReference
+	5,  // 21: kagent.api.v1.ListWorkspacesResponse.workspaces:type_name -> kagent.api.v1.WorkspaceAuthorizationReference
+	30, // 22: kagent.api.v1.ListWorkspacesResponse.page:type_name -> kagent.api.v1.PageResponse
+	11, // 23: kagent.api.v1.CheckPermissionsRequest.checks:type_name -> kagent.api.v1.ResourceGrant
+	5,  // 24: kagent.api.v1.CheckPermissionsRequest.workspace:type_name -> kagent.api.v1.WorkspaceAuthorizationReference
+	8,  // 25: kagent.api.v1.ResourceAccess.resource:type_name -> kagent.api.v1.AuthorizationResource
+	0,  // 26: kagent.api.v1.ResourceAccess.allowed_actions:type_name -> kagent.api.v1.Permission
+	19, // 27: kagent.api.v1.CheckPermissionsResponse.resources:type_name -> kagent.api.v1.ResourceAccess
+	8,  // 28: kagent.api.v1.ListRoleBindingsRequest.scope:type_name -> kagent.api.v1.AuthorizationResource
+	29, // 29: kagent.api.v1.ListRoleBindingsRequest.page:type_name -> kagent.api.v1.PageRequest
+	5,  // 30: kagent.api.v1.ListRoleBindingsRequest.workspace:type_name -> kagent.api.v1.WorkspaceAuthorizationReference
+	10, // 31: kagent.api.v1.ListRoleBindingsResponse.bindings:type_name -> kagent.api.v1.RoleBinding
+	30, // 32: kagent.api.v1.ListRoleBindingsResponse.page:type_name -> kagent.api.v1.PageResponse
+	10, // 33: kagent.api.v1.GrantRoleRequest.binding:type_name -> kagent.api.v1.RoleBinding
+	5,  // 34: kagent.api.v1.GrantRoleRequest.workspace:type_name -> kagent.api.v1.WorkspaceAuthorizationReference
+	10, // 35: kagent.api.v1.GrantRoleResponse.binding:type_name -> kagent.api.v1.RoleBinding
+	10, // 36: kagent.api.v1.RevokeRoleRequest.binding:type_name -> kagent.api.v1.RoleBinding
+	5,  // 37: kagent.api.v1.RevokeRoleRequest.workspace:type_name -> kagent.api.v1.WorkspaceAuthorizationReference
+	14, // 38: kagent.api.v1.AuthorizationService.ListAccessRoles:input_type -> kagent.api.v1.ListAccessRolesRequest
+	16, // 39: kagent.api.v1.AuthorizationService.ListWorkspaces:input_type -> kagent.api.v1.ListWorkspacesRequest
+	18, // 40: kagent.api.v1.AuthorizationService.CheckPermissions:input_type -> kagent.api.v1.CheckPermissionsRequest
+	21, // 41: kagent.api.v1.AuthorizationService.ListRoleBindings:input_type -> kagent.api.v1.ListRoleBindingsRequest
+	23, // 42: kagent.api.v1.AuthorizationService.GrantRole:input_type -> kagent.api.v1.GrantRoleRequest
+	25, // 43: kagent.api.v1.AuthorizationService.RevokeRole:input_type -> kagent.api.v1.RevokeRoleRequest
+	15, // 44: kagent.api.v1.AuthorizationService.ListAccessRoles:output_type -> kagent.api.v1.ListAccessRolesResponse
+	17, // 45: kagent.api.v1.AuthorizationService.ListWorkspaces:output_type -> kagent.api.v1.ListWorkspacesResponse
+	20, // 46: kagent.api.v1.AuthorizationService.CheckPermissions:output_type -> kagent.api.v1.CheckPermissionsResponse
+	22, // 47: kagent.api.v1.AuthorizationService.ListRoleBindings:output_type -> kagent.api.v1.ListRoleBindingsResponse
+	24, // 48: kagent.api.v1.AuthorizationService.GrantRole:output_type -> kagent.api.v1.GrantRoleResponse
+	26, // 49: kagent.api.v1.AuthorizationService.RevokeRole:output_type -> kagent.api.v1.RevokeRoleResponse
+	44, // [44:50] is the sub-list for method output_type
+	38, // [38:44] is the sub-list for method input_type
+	38, // [38:38] is the sub-list for extension type_name
+	38, // [38:38] is the sub-list for extension extendee
+	0,  // [0:38] is the sub-list for field type_name
 }
 
 func init() { file_kagent_api_v1_authorization_proto_init() }
@@ -1828,7 +1937,6 @@ func file_kagent_api_v1_authorization_proto_init() {
 		return
 	}
 	file_kagent_api_v1_common_proto_init()
-	file_kagent_api_v1_execution_proto_init()
 	file_kagent_api_v1_authorization_proto_msgTypes[1].OneofWrappers = []any{
 		(*SubjectReference_PrincipalId)(nil),
 		(*SubjectReference_Group)(nil),
@@ -1846,7 +1954,7 @@ func file_kagent_api_v1_authorization_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_kagent_api_v1_authorization_proto_rawDesc), len(file_kagent_api_v1_authorization_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   22,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -9,7 +9,12 @@ initiator authority are separate values.
 `SessionAuthority.scope_ceiling` carries presence: absent inherits, an empty
 message denies all scopes, and a populated message bounds authority. Native
 Session creation materializes a ceiling from the authenticated initiator and
-parent before persistence; runtime grants always retain that explicit bound.
+parent before persistence; runtime grants retain that explicit bound.
+`scope_ceiling.resources` records exact UID-bound resource/action grants. Its
+request presence narrows the resolved dependencies; persisted executions retain
+an explicit set. The native authorization engine validates Session admission and
+each gateway callback. Active execution requires a prepared dependency manifest
+and a recorded resource ceiling.
 
 `server.auth.mode: oidc` verifies the provider signature, issuer, API audience,
 and expiry through the maintained `coreos/go-oidc` verifier. Principal IDs combine
@@ -127,12 +132,13 @@ vault. The independent initiator owns credential issuance and revocation.
 
 ## Gateway authorization
 
-`POST /authorize/runtime` checks live inherited authority and returns the model
-references selected by the calling Session's prepared revision. Gateway model
-policies match their fixed resource name against these references. The optional
-`server=<namespace/name>` selects one pinned MCP binding and returns the official
-`MCPToolBinding` representation: an omitted tool list selects every server tool.
-`model=<name>` checks one fixed ModelConfig reference. `scope=<configured-scope>`
+`POST /authorize/runtime` intersects live initiator permissions, inherited resource
+ceilings, and the calling Session's UID-bound prepared dependencies. It returns
+allowed model references for gateway model policies. The optional
+`server=<namespace/name>` returns an explicit `tools` array for one pinned MCP
+server. All-tools bindings use the exact names captured at Session creation.
+`workspace=<namespace>` binds model callbacks to the destination gateway
+workspace; `model=<name>` selects one fixed ModelConfig identity. `scope=<configured-scope>`
 adds a live scope requirement. `X-Kagent-Scopes` contains the effective scope array.
 
 The gateway sends its audience-specific Actor JWT as `Authorization`. The

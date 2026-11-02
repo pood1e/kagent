@@ -69,6 +69,7 @@ type gatewayTestStore struct {
 	unscoped         bool
 	settledRead      func() error
 	created          map[string]*apiv1.Session
+	createEnabled    bool
 }
 
 func (*gatewayTestStore) RequestTaskCancellation(context.Context, string, string) error { return nil }
@@ -106,6 +107,10 @@ func (s *gatewayTestStore) GetSession(_ context.Context, id, userID string) (*ap
 
 func (s *gatewayTestStore) CreateSession(_ context.Context, request *apiv1.Session, requestID string) (*apiv1.Session, bool, error) {
 	if s.created == nil {
+		if s.session != nil && s.err == nil {
+			s.session.Authority = proto.CloneOf(request.Authority)
+			s.session.Authority.SessionId, s.session.Authority.RootSessionId = s.session.Id, s.session.Id
+		}
 		return s.session, true, s.err
 	}
 	key := request.Creator + "/" + requestID
@@ -114,6 +119,7 @@ func (s *gatewayTestStore) CreateSession(_ context.Context, request *apiv1.Sessi
 	}
 	session := gatewayTestSession()
 	session.Id, session.ContextId, session.Agent, session.Creator = request.Id, request.Id, request.Agent, request.Creator
+	session.Authority, session.PreparedRevision = proto.CloneOf(request.Authority), request.PreparedRevision
 	s.created[key], s.session = session, session
 	return session, true, nil
 }

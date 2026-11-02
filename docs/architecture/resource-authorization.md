@@ -42,6 +42,23 @@ allowed actions in request order. Binding reads and mutations require their own
 permission; Session owners may share read access to their Session or Task.
 Bound runtime and share credentials use their dedicated native entry points.
 
+## Execution bounds
+
+The compiler includes UID-bound Agent, template, Harness, model, and MCP actions
+in the immutable revision digest. Its manifest separates direct runtime targets
+from dependencies of explicitly delegated Agents. Session admission checks their
+combined requirements,
+fixes an explicit `ScopeCeiling.resources`, and CAS-pins the checked revision.
+An all-tools binding snapshots discovered tool names for that server UID.
+Child ceilings narrow their complete ancestor chain. Creation retries recheck
+the original Session's fixed grants and originating authority.
+
+Gateway callbacks intersect the pinned targets, fixed ceiling, and live
+initiator permissions through `CheckExecutionPermissions`. MCP selections always
+carry an explicit tool list. Credential export follows authorization; engine
+failures return HTTP 503. `go/core/pkg/auth/resource_grants.go` owns canonical
+set and intersection semantics, and the native store persists their Proto form.
+
 ## Model and consistency
 
 `model.fga` is the model source; `model.json` is its embedded generated form.

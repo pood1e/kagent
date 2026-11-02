@@ -97,7 +97,7 @@ func authorityGatewayProof(t *testing.T, callback, token, wrongAudience, subject
 			"name": name, "matches": []any{map[string]any{"path": map[string]any{"pathPrefix": "/v1/" + name}}},
 			"policies": map[string]any{"extAuthz": map[string]any{
 				"host": strings.TrimPrefix(callback, "http://"), "failureMode": "deny", "includeRequestHeaders": []string{"x-substrate-actor-token"},
-				"protocol": map[string]any{"http": map[string]any{"path": "'/authorize/runtime'", "addRequestHeaders": map[string]string{"authorization": "request.headers['x-substrate-actor-token']"}, "metadata": map[string]string{"models": "json(response.body)"}}},
+				"protocol": map[string]any{"http": map[string]any{"path": "'/authorize/runtime?workspace=team-a'", "addRequestHeaders": map[string]string{"authorization": "request.headers['x-substrate-actor-token']"}, "metadata": map[string]string{"models": "json(response.body)"}}},
 			}},
 			"backends": []any{map[string]any{"host": strings.TrimPrefix(model.URL, "http://"), "policies": map[string]any{
 				"authorization":         map[string]any{"rules": []string{"!('x-substrate-actor-token' in request.headers) || extauthz.models.exists(m, m.name == '" + name + "')"}},
