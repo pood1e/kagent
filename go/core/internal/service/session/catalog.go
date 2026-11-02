@@ -26,6 +26,11 @@ func (s *Service) CatalogReadScope(ctx context.Context, request *apiv1.TaskCatal
 	if !ok {
 		return result, serviceerrors.NewUnauthenticated("Authentication is required", nil)
 	}
+	uid, err := s.workspaceUID(ctx, request.Namespace)
+	if err != nil {
+		return result, err
+	}
+	result.WorkspaceUID = uid
 	principal := caller.Principal()
 	if share, shared := auth.ShareContextFrom(ctx); shared {
 		if principal.RuntimeBinding != nil || principal.Execution != nil {
@@ -47,7 +52,7 @@ func (s *Service) CatalogReadScope(ctx context.Context, request *apiv1.TaskCatal
 		return result, nil
 	}
 	if principal.RuntimeBinding != nil || principal.Execution != nil {
-		return s.boundCatalogScope(ctx, request, principal)
+		return s.boundCatalogScope(ctx, request, principal, uid)
 	}
 	owner, err := s.authorize(ctx, auth.VerbGet, "")
 	if err != nil {
@@ -92,8 +97,8 @@ func (s *Service) CatalogReadScope(ctx context.Context, request *apiv1.TaskCatal
 	return result, nil
 }
 
-func (s *Service) boundCatalogScope(ctx context.Context, request *apiv1.TaskCatalogScope, principal auth.Principal) (database.CatalogScope, error) {
-	result := database.CatalogScope{Namespace: request.Namespace}
+func (s *Service) boundCatalogScope(ctx context.Context, request *apiv1.TaskCatalogScope, principal auth.Principal, uid string) (database.CatalogScope, error) {
+	result := database.CatalogScope{Namespace: request.Namespace, WorkspaceUID: uid}
 	id := principal.Execution.GetSessionId()
 	if principal.RuntimeBinding != nil {
 		id = principal.RuntimeBinding.SessionID

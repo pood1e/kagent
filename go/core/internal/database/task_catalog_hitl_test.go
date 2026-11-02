@@ -32,7 +32,7 @@ func TestCatalogGroupHITLPriorityAndORFilters(t *testing.T) {
 		Type: apia2a.HITLTypeToolApprovalRequest, Tools: []*apiv1.HitlTool{{Id: "tool", Name: "inspect"}},
 	}))
 	catalogQueryState(t, client, approval, a2a.TaskStateInputRequired, at.Add(3*time.Second))
-	query := CatalogTaskQuery{Scope: CatalogScope{Namespace: "team-a", OwnerID: "alice"}, Limit: 100}
+	query := CatalogTaskQuery{Scope: CatalogScope{Namespace: "team-a", WorkspaceUID: "team-a-uid", OwnerID: "alice"}, Limit: 100}
 	groups, err := client.ListCatalogTaskGroups(t.Context(), query)
 	require.NoError(t, err)
 	require.Len(t, groups.Groups, 1)

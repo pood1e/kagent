@@ -7,6 +7,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/emptypb"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/kagent-dev/kagent/go/api/authorization"
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
@@ -43,11 +47,22 @@ func ownedCatalogScope() *apiv1.TaskCatalogScope {
 	return &apiv1.TaskCatalogScope{Namespace: "team-a", Visibility: &apiv1.TaskCatalogScope_Owned{Owned: &emptypb.Empty{}}}
 }
 
+func catalogService(t *testing.T, storage store, authorizer auth.Authorizer) *Service {
+	t.Helper()
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	reader := fake.NewClientBuilder().WithScheme(scheme).WithObjects(
+		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "team-a", UID: "team-a-uid"}},
+	).Build()
+	return NewService(storage, authorizer, nil, WithWorkspaceIdentity(reader))
+}
+
 func TestCatalogScopePreservesOwnerAndObjectPolicy(t *testing.T) {
 	policy := &catalogAuthorizer{scope: authorization.AuthorizationScope{Kind: authorization.ScopeAll}}
-	s := NewService(&serviceTestStore{}, policy, nil)
+	s := catalogService(t, &serviceTestStore{}, policy)
 	result, err := s.CatalogReadScope(serviceTestContext("alice"), ownedCatalogScope())
 	require.NoError(t, err)
+	require.Equal(t, "team-a-uid", result.WorkspaceUID)
 	require.Equal(t, "alice", result.OwnerID)
 	require.Nil(t, result.SessionIDs)
 	policy.scope.Kind = authorization.ScopeNone
@@ -62,15 +77,21 @@ func TestCatalogScopePreservesOwnerAndObjectPolicy(t *testing.T) {
 
 	_, err = s.CatalogReadScope(t.Context(), ownedCatalogScope())
 	require.True(t, serviceerrors.IsCode(err, serviceerrors.CodeUnauthenticated))
-	s = NewService(&serviceTestStore{}, serviceTestAuthorizer{}, nil)
+	s = catalogService(t, &serviceTestStore{}, serviceTestAuthorizer{})
 	_, err = s.CatalogReadScope(serviceTestContext("alice"), ownedCatalogScope())
 	require.True(t, serviceerrors.IsCode(err, serviceerrors.CodeInternal), "collection policy is mandatory for an unbound collection")
+}
+
+func TestCatalogScopeRequiresCurrentWorkspaceIdentity(t *testing.T) {
+	s := NewService(&serviceTestStore{}, serviceTestAuthorizer{}, nil)
+	_, err := s.CatalogReadScope(serviceTestContext("alice"), ownedCatalogScope())
+	require.True(t, serviceerrors.IsCode(err, serviceerrors.CodeInternal))
 }
 
 func TestCatalogScopeUsesLiveAnchorInsteadOfDeletedRoot(t *testing.T) {
 	store := &serviceTestStore{getResult: &apiv1.Session{Id: catalogSessionID, Creator: "alice", Authority: &apiv1.SessionAuthority{RootSessionId: catalogRootID}}}
 	policy := &catalogAuthorizer{scope: authorization.AuthorizationScope{Kind: authorization.ScopeAll}}
-	s := NewService(store, policy, nil)
+	s := catalogService(t, store, policy)
 	request := &apiv1.TaskCatalogScope{Namespace: "team-a", Visibility: &apiv1.TaskCatalogScope_SessionTreeAnchor{SessionTreeAnchor: catalogSessionID}}
 	result, err := s.CatalogReadScope(serviceTestContext("alice"), request)
 	require.NoError(t, err)
@@ -85,7 +106,7 @@ func TestCatalogScopeUsesLiveAnchorInsteadOfDeletedRoot(t *testing.T) {
 
 func TestCatalogScopeOtherInitiatorsRequiresSeparateGrant(t *testing.T) {
 	policy := &catalogAuthorizer{scope: authorization.AuthorizationScope{Kind: authorization.ScopeAll}, deny: "SessionAllCreators"}
-	s := NewService(&serviceTestStore{}, policy, nil)
+	s := catalogService(t, &serviceTestStore{}, policy)
 	request := &apiv1.TaskCatalogScope{Namespace: "team-a", Visibility: &apiv1.TaskCatalogScope_OtherInitiators{OtherInitiators: &emptypb.Empty{}}}
 	_, err := s.CatalogReadScope(serviceTestContext("alice"), request)
 	require.True(t, serviceerrors.IsCode(err, serviceerrors.CodePermissionDenied))
@@ -109,7 +130,7 @@ func TestCatalogScopeSharedAndBoundCredentialsGrantOneSession(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			store := &serviceTestStore{getResult: &apiv1.Session{Id: catalogSessionID, Creator: "owner"}}
 			// Bound reads use the exact object grant; they do not need an empty-name collection grant.
-			s := NewService(store, serviceTestAuthorizer{}, nil)
+			s := catalogService(t, store, serviceTestAuthorizer{})
 			ctx := auth.AuthSessionTo(t.Context(), catalogIdentity{principal: test.principal})
 			if test.share {
 				ctx = auth.ShareContextTo(ctx, &auth.ShareContext{UserID: "owner", SessionID: catalogSessionID})

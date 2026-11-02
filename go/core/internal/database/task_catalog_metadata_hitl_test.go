@@ -19,7 +19,7 @@ func TestTaskCatalogMetadataHumanReplyBeforeWorking(t *testing.T) {
 	child := continuationSession(t, client, parent)
 	root := continuationTask(t, client, parent, "root")
 	callee := continuationTask(t, client, child, "child", &DispatchOrigin{SessionID: parent.Id})
-	query := CatalogTaskQuery{Scope: CatalogScope{Namespace: "team-a", OwnerID: "alice"}, Limit: 10}
+	query := CatalogTaskQuery{Scope: CatalogScope{Namespace: "team-a", WorkspaceUID: "team-a-uid", OwnerID: "alice"}, Limit: 10}
 	state := func() a2apb.TaskState {
 		groups, err := client.ListCatalogTaskGroups(t.Context(), query)
 		require.NoError(t, err)

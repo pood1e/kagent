@@ -20,17 +20,30 @@ func (s *Service) bindWorkspace(ctx context.Context, namespace string, grant *ap
 	if s.workspaces == nil {
 		return nil
 	}
-	var workspace corev1.Namespace
-	if err := s.workspaces.Get(ctx, types.NamespacedName{Name: namespace}, &workspace); err != nil {
-		return serviceerrors.NewUnavailable("Failed to resolve workspace identity", err)
+	uid, err := s.workspaceUID(ctx, namespace)
+	if err != nil {
+		return err
 	}
-	if workspace.UID == "" || grant == nil {
+	if grant == nil {
 		return serviceerrors.NewFailedPrecondition("Workspace and execution identities are required", nil)
 	}
-	uid := string(workspace.UID)
 	if grant.ParentSessionId != "" && grant.WorkspaceUid != uid {
 		return serviceerrors.NewPermissionDenied("Delegation must retain its workspace identity", nil)
 	}
 	grant.WorkspaceUid = uid
 	return nil
+}
+
+func (s *Service) workspaceUID(ctx context.Context, namespace string) (string, error) {
+	if s.workspaces == nil {
+		return "", serviceerrors.NewInternal("Workspace identity reader is required", nil)
+	}
+	var workspace corev1.Namespace
+	if err := s.workspaces.Get(ctx, types.NamespacedName{Name: namespace}, &workspace); err != nil {
+		return "", serviceerrors.NewUnavailable("Failed to resolve workspace identity", err)
+	}
+	if workspace.UID == "" {
+		return "", serviceerrors.NewFailedPrecondition("Workspace identity is required", nil)
+	}
+	return string(workspace.UID), nil
 }

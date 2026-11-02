@@ -111,7 +111,9 @@ func catalogRuntimeFixture(t *testing.T) (*Client, *apiv1.Session, *a2a.Task, in
 	t.Helper()
 	client := NewClient(setupTestDB(t), "public")
 	sessionFixture(t, client, t.Context(), "team-a", "revision", "assistant", "kagent")
-	session, _, err := client.CreateSession(t.Context(), newSessionRequest(uuid.NewString(), "assistant", "kagent", "conversation"), uuid.NewString())
+	request := newSessionRequest(uuid.NewString(), "assistant", "kagent", "conversation")
+	request.Authority = catalogAuthority(request.Id, request.Creator, request.Agent.Namespace)
+	session, _, err := client.CreateSession(t.Context(), request, uuid.NewString())
 	require.NoError(t, err)
 	session, err = markSessionReady(t.Context(), client, session.Id, "agent.example")
 	require.NoError(t, err)
@@ -126,7 +128,7 @@ func catalogRuntimeFixture(t *testing.T) (*Client, *apiv1.Session, *a2a.Task, in
 func catalogTask(t *testing.T, client *Client, sessionID, taskID string) *apiv1.CatalogTask {
 	t.Helper()
 	result, err := client.ListCatalogTaskRecords(t.Context(), CatalogTaskQuery{
-		Scope: CatalogScope{Namespace: "team-a", SessionIDs: []string{sessionID}}, Limit: 100,
+		Scope: CatalogScope{Namespace: "team-a", WorkspaceUID: "team-a-uid", SessionIDs: []string{sessionID}}, Limit: 100,
 		View: apiv1.TaskCatalogView_TASK_CATALOG_VIEW_SUMMARY,
 	})
 	require.NoError(t, err)
@@ -141,7 +143,7 @@ func catalogTask(t *testing.T, client *Client, sessionID, taskID string) *apiv1.
 
 func catalogCalls(t *testing.T, client *Client, sessionID string) uint64 {
 	t.Helper()
-	rows, err := client.ListCatalogAgentActivity(t.Context(), CatalogScope{Namespace: "team-a", SessionIDs: []string{sessionID}})
+	rows, err := client.ListCatalogAgentActivity(t.Context(), CatalogScope{Namespace: "team-a", WorkspaceUID: "team-a-uid", SessionIDs: []string{sessionID}})
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	return rows[0].ToolCalls

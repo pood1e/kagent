@@ -22,7 +22,7 @@ func (c *Client) ListCatalogTaskRecords(ctx context.Context, q CatalogTaskQuery)
 		agent = q.Agent.Namespace + "/" + q.Agent.Name
 	}
 	args := append(q.Scope.args(), agent, filters)
-	err = catalogRead(ctx, c, func(tx pgx.Tx) error {
+	err = catalogRead(ctx, c, q.Scope, func(tx pgx.Tx) error {
 		total, err := queryOne(ctx, tx, `
  SELECT count(*) FROM catalog_record_candidates($1,$2,$3,$4,$5,$6,$7) t
  `, pgx.RowTo[int], args...)
