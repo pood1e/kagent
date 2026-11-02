@@ -59,6 +59,7 @@ check="release defaults replace a stale source catalog"
 release helm-release
 archive="$output_dir/kagent-$version.tgz"
 test -f "$output_dir/kagent-crds-$version.tgz"
+diff "$root/go/core/internal/authorization/model.json" <(tar xOzf "$archive" kagent/files/authorization-model.json)
 render_images "$archive"
 jq -e --arg digest "$digest" --arg version "$version" '
   .release == $version and
@@ -180,6 +181,11 @@ for runtime in docker podman; do
     CLAUDE_HARNESS_IMG=other.example/team/claude:dev CODEX_HARNESS_IMAGE_NAME=my-codex
   diff "$scratch/container-before.log" "$CONTAINER_LOG"
   for chart in "$source_dir/kagent" "$output_dir/kagent-$version.tgz"; do
+    if [[ "$chart" == *.tgz ]]; then
+      diff "$root/go/core/internal/authorization/model.json" <(tar xOzf "$chart" kagent/files/authorization-model.json)
+    else
+      diff "$root/go/core/internal/authorization/model.json" "$chart/files/authorization-model.json"
+    fi
     render_images "$chart"
     jq -e --arg version "$version" \
       --arg digest 'sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' '
