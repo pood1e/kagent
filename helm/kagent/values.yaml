@@ -131,6 +131,7 @@ rbac:
   # If that is also unset, the chart creates cluster-scoped ClusterRole and
   # ClusterRoleBinding resources, and the controller watches all namespaces.
   # If set, the chart creates a Role and a RoleBinding per listed namespace.
+  # Namespace identity reads use a ClusterRole restricted to the same namespace names.
   # The controller watches the same list, unless config.kubernetes.watchNamespaces
   # overrides it.
   # An explicit empty list forces cluster-scoped RBAC, even under a parent that

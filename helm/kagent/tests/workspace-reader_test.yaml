@@ -1,0 +1,35 @@
+suite: workspace identity reads
+templates:
+  - rbac/workspace-reader-role.yaml
+  - rbac/workspace-reader-rolebinding.yaml
+tests:
+  - it: uses existing cluster read permissions in cluster-scoped mode
+    asserts:
+      - hasDocuments: {count: 0}
+  - it: limits namespace identity reads to the configured namespace names
+    set:
+      rbac.namespaces: [team-a, team-b]
+    asserts:
+      - template: rbac/workspace-reader-role.yaml
+        equal:
+          path: rules
+          value:
+            - apiGroups: [""]
+              resources: [namespaces]
+              resourceNames: [team-a, team-b]
+              verbs: [get]
+      - template: rbac/workspace-reader-rolebinding.yaml
+        equal:
+          path: subjects
+          value:
+            - kind: ServiceAccount
+              name: RELEASE-NAME-controller
+              namespace: NAMESPACE
+  - it: derives namespace identity reads from the same global watch scope
+    set:
+      global.watchNamespaces: [team-a]
+    template: rbac/workspace-reader-role.yaml
+    asserts:
+      - equal:
+          path: rules[0].resourceNames
+          value: [NAMESPACE, team-a]

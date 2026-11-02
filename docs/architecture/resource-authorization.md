@@ -20,6 +20,8 @@ facts. Workspace membership intersects named-principal access. Session ownership
 uses `SessionAuthority.initiator_id`; `workspace_uid` pins the original namespace
 incarnation. Task keys hash the canonical `TaskReference`. Group memberships use
 verified token claims qualified by their issuer.
+Namespace-scoped installations include a namespace-reader ClusterRole restricted
+to `get` on the configured namespace names, providing their stable identities.
 
 Every scoped RPC carries its workspace context. Checks return allowed actions in
 request order. Binding reads and mutations require their own permission; Session
