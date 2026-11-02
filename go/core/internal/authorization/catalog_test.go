@@ -20,7 +20,7 @@ func TestModelCoversNativePermissionAndRoleCatalog(t *testing.T) {
 	}
 	types := map[apiv1.AuthorizationScopeKind]string{
 		workspaceScope: "workspace", agentScope: "agent", templateScope: "agent_template",
-		sessionScope: "session", taskScope: "task",
+		sessionScope: "session", taskScope: "task", harnessScope: "harness", modelConnectionScope: "model_connection", mcpServerScope: "mcp_server", mcpToolScope: "mcp_tool",
 	}
 	for value, name := range apiv1.Permission_name {
 		if value == 0 {

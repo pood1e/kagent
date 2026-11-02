@@ -93,6 +93,9 @@ func testResources(t *testing.T) client.Client {
 	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(
 		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "team", UID: "workspace-1"}},
 		&v1alpha3.Agent{ObjectMeta: metav1.ObjectMeta{Namespace: "team", Name: "assistant", UID: "agent-1"}},
+		&v1alpha3.Harness{ObjectMeta: metav1.ObjectMeta{Namespace: "team", Name: "runtime", UID: "harness-1"}},
+		&v1alpha3.ModelConfig{ObjectMeta: metav1.ObjectMeta{Namespace: "team", Name: "primary", UID: "model-1"}},
+		&v1alpha3.RemoteMCPServer{ObjectMeta: metav1.ObjectMeta{Namespace: "team", Name: "tools", UID: "mcp-1"}},
 	).Build()
 }
 

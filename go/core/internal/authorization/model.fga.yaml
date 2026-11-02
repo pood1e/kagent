@@ -9,6 +9,21 @@ tuples:
   object: agent_template:tpl1
 - user: workspace:red
   relation: workspace
+  object: harness:h1
+- user: workspace:red
+  relation: workspace
+  object: model_connection:m1
+- user: workspace:red
+  relation: workspace
+  object: mcp_server:mcp1
+- user: mcp_server:mcp1
+  relation: server
+  object: mcp_tool:tool1
+- user: mcp_server:mcp1
+  relation: server
+  object: mcp_tool:tool2
+- user: workspace:red
+  relation: workspace
   object: session:s1
 - user: workspace:red
   relation: workspace
@@ -26,6 +41,130 @@ tuples:
   relation: session
   object: task:t2
 tests:
+- name: dependency permissions are distinct
+  tuples:
+  - user: principal:reader
+    relation: member
+    object: workspace:red
+  - user: principal:reader
+    relation: reader
+    object: harness:h1
+  - user: principal:consumer
+    relation: member
+    object: workspace:red
+  - user: principal:consumer
+    relation: consumer
+    object: model_connection:m1
+  - user: principal:consumer
+    relation: consumer
+    object: mcp_server:mcp1
+  - user: principal:manager
+    relation: member
+    object: workspace:red
+  - user: principal:manager
+    relation: dependency_manager
+    object: workspace:red
+  check:
+  - user: principal:reader
+    object: harness:h1
+    assertions:
+      can_harness_read: true
+      can_harness_use: false
+      can_harness_manage: false
+  - user: principal:reader
+    object: model_connection:m1
+    assertions:
+      can_model_connection_read: false
+  - user: principal:consumer
+    object: model_connection:m1
+    assertions:
+      can_model_connection_read: false
+      can_model_connection_use: true
+      can_model_connection_manage: false
+  - user: principal:consumer
+    object: harness:h1
+    assertions:
+      can_harness_use: false
+  - user: principal:consumer
+    object: mcp_server:mcp1
+    assertions:
+      can_mcp_server_read: false
+      can_mcp_server_use: true
+      can_mcp_server_manage: false
+  - user: principal:consumer
+    object: mcp_tool:tool1
+    assertions:
+      can_mcp_tool_call: true
+  - user: principal:manager
+    object: harness:h1
+    assertions:
+      can_harness_read: true
+      can_harness_use: false
+      can_harness_manage: true
+  - user: principal:manager
+    object: model_connection:m1
+    assertions:
+      can_model_connection_read: true
+      can_model_connection_manage: true
+  - user: principal:manager
+    object: mcp_server:mcp1
+    assertions:
+      can_mcp_server_read: true
+      can_mcp_server_use: false
+      can_mcp_server_manage: true
+- name: dependency grants require workspace membership
+  tuples:
+  - user: principal:outsider
+    relation: consumer
+    object: harness:h1
+  - user: principal:outsider
+    relation: manager
+    object: model_connection:m1
+  - user: principal:outsider
+    relation: consumer
+    object: mcp_server:mcp1
+  - user: principal:outsider
+    relation: caller
+    object: mcp_tool:tool1
+  check:
+  - user: principal:outsider
+    object: harness:h1
+    assertions:
+      can_harness_use: false
+  - user: principal:outsider
+    object: model_connection:m1
+    assertions:
+      can_model_connection_read: false
+      can_model_connection_manage: false
+  - user: principal:outsider
+    object: mcp_server:mcp1
+    assertions:
+      can_mcp_server_use: false
+  - user: principal:outsider
+    object: mcp_tool:tool1
+    assertions:
+      can_mcp_tool_call: false
+- name: individual MCP tool caller
+  tuples:
+  - user: principal:caller
+    relation: member
+    object: workspace:red
+  - user: principal:caller
+    relation: caller
+    object: mcp_tool:tool1
+  check:
+  - user: principal:caller
+    object: mcp_tool:tool1
+    assertions:
+      can_mcp_tool_call: true
+  - user: principal:caller
+    object: mcp_tool:tool2
+    assertions:
+      can_mcp_tool_call: false
+  - user: principal:caller
+    object: mcp_server:mcp1
+    assertions:
+      can_mcp_server_use: false
 - name: owner
   tuples:
   - user: principal:alice
