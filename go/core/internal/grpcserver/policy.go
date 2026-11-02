@@ -24,6 +24,7 @@ func DefaultMethodPolicies() MethodPolicies {
 		apiv1.WorkflowService_ValidateWorkflow_FullMethodName:               auth.AccessCreate,
 		apiv1.WorkflowService_GetSessionWorkflow_FullMethodName:             auth.AccessRead,
 		apiv1.AuthorizationService_ListAccessRoles_FullMethodName:           auth.AccessRead,
+		apiv1.AuthorizationService_ListWorkspaces_FullMethodName:            auth.AccessRead,
 		apiv1.AuthorizationService_CheckPermissions_FullMethodName:          auth.AccessRead,
 		apiv1.AuthorizationService_ListRoleBindings_FullMethodName:          auth.AccessRead,
 		apiv1.AuthorizationService_GrantRole_FullMethodName:                 auth.AccessCreate,

@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	AuthorizationService_ListAccessRoles_FullMethodName  = "/kagent.api.v1.AuthorizationService/ListAccessRoles"
+	AuthorizationService_ListWorkspaces_FullMethodName   = "/kagent.api.v1.AuthorizationService/ListWorkspaces"
 	AuthorizationService_CheckPermissions_FullMethodName = "/kagent.api.v1.AuthorizationService/CheckPermissions"
 	AuthorizationService_ListRoleBindings_FullMethodName = "/kagent.api.v1.AuthorizationService/ListRoleBindings"
 	AuthorizationService_GrantRole_FullMethodName        = "/kagent.api.v1.AuthorizationService/GrantRole"
@@ -33,6 +34,7 @@ const (
 // AuthorizationService manages resource-scoped access for authenticated principals.
 type AuthorizationServiceClient interface {
 	ListAccessRoles(ctx context.Context, in *ListAccessRolesRequest, opts ...grpc.CallOption) (*ListAccessRolesResponse, error)
+	ListWorkspaces(ctx context.Context, in *ListWorkspacesRequest, opts ...grpc.CallOption) (*ListWorkspacesResponse, error)
 	CheckPermissions(ctx context.Context, in *CheckPermissionsRequest, opts ...grpc.CallOption) (*CheckPermissionsResponse, error)
 	ListRoleBindings(ctx context.Context, in *ListRoleBindingsRequest, opts ...grpc.CallOption) (*ListRoleBindingsResponse, error)
 	GrantRole(ctx context.Context, in *GrantRoleRequest, opts ...grpc.CallOption) (*GrantRoleResponse, error)
@@ -51,6 +53,16 @@ func (c *authorizationServiceClient) ListAccessRoles(ctx context.Context, in *Li
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListAccessRolesResponse)
 	err := c.cc.Invoke(ctx, AuthorizationService_ListAccessRoles_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authorizationServiceClient) ListWorkspaces(ctx context.Context, in *ListWorkspacesRequest, opts ...grpc.CallOption) (*ListWorkspacesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListWorkspacesResponse)
+	err := c.cc.Invoke(ctx, AuthorizationService_ListWorkspaces_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -104,6 +116,7 @@ func (c *authorizationServiceClient) RevokeRole(ctx context.Context, in *RevokeR
 // AuthorizationService manages resource-scoped access for authenticated principals.
 type AuthorizationServiceServer interface {
 	ListAccessRoles(context.Context, *ListAccessRolesRequest) (*ListAccessRolesResponse, error)
+	ListWorkspaces(context.Context, *ListWorkspacesRequest) (*ListWorkspacesResponse, error)
 	CheckPermissions(context.Context, *CheckPermissionsRequest) (*CheckPermissionsResponse, error)
 	ListRoleBindings(context.Context, *ListRoleBindingsRequest) (*ListRoleBindingsResponse, error)
 	GrantRole(context.Context, *GrantRoleRequest) (*GrantRoleResponse, error)
@@ -120,6 +133,9 @@ type UnimplementedAuthorizationServiceServer struct{}
 
 func (UnimplementedAuthorizationServiceServer) ListAccessRoles(context.Context, *ListAccessRolesRequest) (*ListAccessRolesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListAccessRoles not implemented")
+}
+func (UnimplementedAuthorizationServiceServer) ListWorkspaces(context.Context, *ListWorkspacesRequest) (*ListWorkspacesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListWorkspaces not implemented")
 }
 func (UnimplementedAuthorizationServiceServer) CheckPermissions(context.Context, *CheckPermissionsRequest) (*CheckPermissionsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CheckPermissions not implemented")
@@ -168,6 +184,24 @@ func _AuthorizationService_ListAccessRoles_Handler(srv interface{}, ctx context.
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(AuthorizationServiceServer).ListAccessRoles(ctx, req.(*ListAccessRolesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthorizationService_ListWorkspaces_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListWorkspacesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthorizationServiceServer).ListWorkspaces(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthorizationService_ListWorkspaces_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthorizationServiceServer).ListWorkspaces(ctx, req.(*ListWorkspacesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -254,6 +288,10 @@ var AuthorizationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListAccessRoles",
 			Handler:    _AuthorizationService_ListAccessRoles_Handler,
+		},
+		{
+			MethodName: "ListWorkspaces",
+			Handler:    _AuthorizationService_ListWorkspaces_Handler,
 		},
 		{
 			MethodName: "CheckPermissions",

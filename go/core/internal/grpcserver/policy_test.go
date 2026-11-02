@@ -55,6 +55,10 @@ func TestSessionServicePoliciesMatchTheirEffect(t *testing.T) {
 	}
 }
 
+func TestAuthorizationWorkspaceDirectoryPolicy(t *testing.T) {
+	require.Equal(t, pkgauth.AccessRead, DefaultMethodPolicies()[apiv1.AuthorizationService_ListWorkspaces_FullMethodName])
+}
+
 // TestReadOnlyShareCannotRenameAConversation is the property the policy entry
 // exists for, measured through the interceptor rather than read off the table: a
 // read-only share link may open a conversation and must not be able to retitle

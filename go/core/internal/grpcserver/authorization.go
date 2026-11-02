@@ -30,6 +30,14 @@ func (s *authorizationServer) ListAccessRoles(ctx context.Context, _ *apiv1.List
 	return service.ListAccessRoles(ctx)
 }
 
+func (s *authorizationServer) ListWorkspaces(ctx context.Context, request *apiv1.ListWorkspacesRequest) (*apiv1.ListWorkspacesResponse, error) {
+	service, err := s.configured()
+	if err != nil {
+		return nil, err
+	}
+	return service.ListWorkspaces(ctx, request)
+}
+
 func (s *authorizationServer) CheckPermissions(ctx context.Context, request *apiv1.CheckPermissionsRequest) (*apiv1.CheckPermissionsResponse, error) {
 	service, err := s.configured()
 	if err != nil {

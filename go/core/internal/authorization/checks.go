@@ -21,6 +21,12 @@ type checkedPermission struct {
 	result     int
 }
 
+type relationCheck struct {
+	object   string
+	relation string
+	facts    []fga.TupleKey
+}
+
 func (s *Service) CheckPermissions(ctx context.Context, request *apiv1.CheckPermissionsRequest) (*apiv1.CheckPermissionsResponse, error) {
 	if err := protovalidate.Validate(request); err != nil {
 		return nil, serviceerrors.NewInvalidArgument("Invalid permission checks", err)
@@ -66,6 +72,18 @@ func (s *Service) CheckPermissions(ctx context.Context, request *apiv1.CheckPerm
 }
 
 func (s *Service) batchCheck(ctx context.Context, principal auth.Principal, checks []checkedPermission) ([]bool, error) {
+	items := make([]relationCheck, 0, len(checks))
+	for _, check := range checks {
+		relation, err := permissionRelation(check.resource.kind, check.permission)
+		if err != nil {
+			return nil, serviceerrors.NewInvalidArgument("Permission does not apply to resource", err)
+		}
+		items = append(items, relationCheck{object: check.resource.object, relation: relation, facts: check.resource.facts})
+	}
+	return s.batchRelations(ctx, principal, items)
+}
+
+func (s *Service) batchRelations(ctx context.Context, principal auth.Principal, checks []relationCheck) ([]bool, error) {
 	if len(checks) == 0 {
 		return nil, nil
 	}
@@ -79,13 +97,9 @@ func (s *Service) batchCheck(ctx context.Context, principal auth.Principal, chec
 	}
 	body := fgaclient.ClientBatchCheckRequest{}
 	for i, check := range checks {
-		relation, err := permissionRelation(check.resource.kind, check.permission)
-		if err != nil {
-			return nil, serviceerrors.NewInvalidArgument("Permission does not apply to resource", err)
-		}
 		body.Checks = append(body.Checks, fgaclient.ClientBatchCheckItem{
-			User: user, Relation: relation, Object: check.resource.object, CorrelationId: strconv.Itoa(i),
-			ContextualTuples: append(slices.Clone(groups), check.resource.facts...),
+			User: user, Relation: check.relation, Object: check.object, CorrelationId: strconv.Itoa(i),
+			ContextualTuples: append(slices.Clone(groups), check.facts...),
 		})
 	}
 	response, err := s.client.BatchCheck(ctx).Body(body).Options(fgaclient.BatchCheckOptions{
