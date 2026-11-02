@@ -36,7 +36,7 @@ func NewRuntimeMCPClient(kubeClient client.Client) *RuntimeMCPClient {
 func (c *RuntimeMCPClient) ListTools(ctx context.Context, ref MCPServerRef) ([]MCPAppTool, error) {
 	session, cleanup, err := c.connect(ctx, ref, true)
 	if err != nil {
-		return nil, serviceerrors.NewInternal("Failed to connect to MCP server", err)
+		return nil, normalizeMCPError("Failed to connect to MCP server", err)
 	}
 	defer cleanup()
 
@@ -64,7 +64,7 @@ func (c *RuntimeMCPClient) ListTools(ctx context.Context, ref MCPServerRef) ([]M
 func (c *RuntimeMCPClient) CallTool(ctx context.Context, ref MCPServerRef, toolName string, arguments any) (*mcp.CallToolResult, error) {
 	session, cleanup, err := c.connect(ctx, ref, false)
 	if err != nil {
-		return nil, serviceerrors.NewInternal("Failed to connect to MCP server", err)
+		return nil, normalizeMCPError("Failed to connect to MCP server", err)
 	}
 	defer cleanup()
 
@@ -92,7 +92,7 @@ func (c *RuntimeMCPClient) CallTool(ctx context.Context, ref MCPServerRef, toolN
 func (c *RuntimeMCPClient) ReadResource(ctx context.Context, ref MCPServerRef, uri string) (*mcp.ReadResourceResult, error) {
 	session, cleanup, err := c.connect(ctx, ref, true)
 	if err != nil {
-		return nil, serviceerrors.NewInternal("Failed to connect to MCP server", err)
+		return nil, normalizeMCPError("Failed to connect to MCP server", err)
 	}
 	defer cleanup()
 
@@ -117,6 +117,9 @@ func (c *RuntimeMCPClient) ResolveServer(ctx context.Context, ref MCPServerRef) 
 	}
 	if !found {
 		return nil, fmt.Errorf("no RemoteMCPServer %s found", ref.Ref.String())
+	}
+	if ref.UID != "" && server.UID != ref.UID {
+		return nil, serviceerrors.NewPermissionDenied("MCP server identity changed", nil)
 	}
 	return server, nil
 }

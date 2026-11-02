@@ -383,7 +383,11 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 	resourceNamespace := cfg.GetKubernetes().GetNamespace()
 	admission := admission.NewService(manager.GetClient(), cfg.GetRuntimeDefaults(), cfg.GetHarnessImages())
 	models := modelservice.NewService(manager.GetClient(), authorizer, resourceNamespace, modelservice.WithAdmission(admission))
-	tools := toolservice.NewService(manager.GetClient(), store, authorizer, resourceNamespace, mcpClient)
+	var toolPermissions toolservice.PermissionChecker
+	if resourceAuthorization != nil {
+		toolPermissions = resourceAuthorization
+	}
+	tools := toolservice.NewService(manager.GetClient(), store, toolPermissions, resourceNamespace, mcpClient)
 	prompts := prompttemplateservice.NewService(manager.GetClient(), authorizer)
 	system := systemservice.NewService(manager.GetClient(), watchNamespaces, authorizer, actors)
 	memory := memoryservice.NewService(store, authorizer)
