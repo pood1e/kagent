@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	fgaclient "github.com/openfga/go-sdk/client"
@@ -31,19 +32,21 @@ type Store interface {
 
 // Config binds trusted identity and resource sources to one immutable model.
 type Config struct {
-	OpenFGA    *configv1.OpenFGAConfig
-	Kubernetes client.Reader
-	Store      Store
-	Issuer     string
+	OpenFGA         *configv1.OpenFGAConfig
+	Kubernetes      client.Reader
+	Store           Store
+	Issuer          string
+	WatchNamespaces []string
 }
 
 type Service struct {
-	client    *fgaclient.OpenFgaClient
-	resolver  resolver
-	store     Store
-	config    *configv1.OpenFGAConfig
-	issuer    string
-	transport *http.Transport
+	client          *fgaclient.OpenFgaClient
+	resolver        resolver
+	store           Store
+	config          *configv1.OpenFGAConfig
+	issuer          string
+	watchNamespaces []string
+	transport       *http.Transport
 }
 
 func NewService(config Config) (*Service, error) {
@@ -58,6 +61,7 @@ func NewService(config Config) (*Service, error) {
 		client: sdk, transport: transport,
 		resolver: resolver{kube: config.Kubernetes, store: config.Store},
 		store:    config.Store, config: config.OpenFGA, issuer: config.Issuer,
+		watchNamespaces: slices.Clone(config.WatchNamespaces),
 	}, nil
 }
 

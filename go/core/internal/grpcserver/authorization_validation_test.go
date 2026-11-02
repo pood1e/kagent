@@ -18,6 +18,16 @@ import (
 func TestAuthorizationRequestValidation(t *testing.T) {
 	validator, err := protovalidate.New()
 	require.NoError(t, err)
+	require.NoError(t, validator.Validate(&apiv1.ListWorkspacesRequest{}))
+	require.NoError(t, validator.Validate(&apiv1.ListWorkspacesRequest{Page: &apiv1.PageRequest{Limit: 100}}))
+	_, err = protovalidatemiddleware.UnaryServerInterceptor(validator)(
+		t.Context(), &apiv1.ListWorkspacesRequest{Page: &apiv1.PageRequest{Limit: 101}}, &grpc.UnaryServerInfo{},
+		func(context.Context, any) (any, error) {
+			t.Fatal("invalid workspace query reached handler")
+			return nil, nil
+		},
+	)
+	assertGRPCCode(t, err, codes.InvalidArgument)
 	valid := &apiv1.GrantRoleRequest{
 		RequestId: uuid.NewString(), Workspace: &apiv1.WorkspaceAuthorizationReference{Namespace: "team"},
 		Binding: &apiv1.RoleBinding{
