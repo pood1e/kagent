@@ -68,6 +68,85 @@ func TestChecksUsePinnedModelAndTrustedFacts(t *testing.T) {
 	require.Equal(t, int32(1), calls.Load())
 }
 
+func TestDependencyChecksUseTypedUIDBoundResources(t *testing.T) {
+	service, _ := testService(t, func(writer http.ResponseWriter, request *http.Request) {
+		var body fga.BatchCheckRequest
+		require.NoError(t, json.NewDecoder(request.Body).Decode(&body))
+		require.Len(t, body.Checks, 3)
+		for i, expected := range []struct {
+			object   string
+			relation string
+		}{
+			{"harness:workspace-1/harness-1", "can_harness_use"},
+			{"model_connection:workspace-1/model-1", "can_model_connection_read"},
+			{"mcp_server:workspace-1/mcp-1", "can_mcp_server_use"},
+		} {
+			require.Equal(t, expected.object, body.Checks[i].TupleKey.Object)
+			require.Equal(t, expected.relation, body.Checks[i].TupleKey.Relation)
+			require.Equal(t, "workspace:workspace-1", body.Checks[i].ContextualTuples.TupleKeys[0].User)
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		_, err := writer.Write([]byte(`{"result":{"0":{"allowed":true},"1":{"allowed":true},"2":{"allowed":true}}}`))
+		require.NoError(t, err)
+	})
+	request := &apiv1.CheckPermissionsRequest{
+		Workspace: &apiv1.WorkspaceAuthorizationReference{Namespace: "team"},
+		Checks: []*apiv1.ResourceGrant{
+			{Resource: &apiv1.AuthorizationResource{Resource: &apiv1.AuthorizationResource_Kubernetes{
+				Kubernetes: &apiv1.KubernetesAuthorizationReference{Kind: harnessScope, Ref: &apiv1.ResourceReference{Namespace: "team", Name: "runtime"}},
+			}}, Permissions: []apiv1.Permission{apiv1.Permission_PERMISSION_HARNESS_USE}},
+			{Resource: &apiv1.AuthorizationResource{Resource: &apiv1.AuthorizationResource_Kubernetes{
+				Kubernetes: &apiv1.KubernetesAuthorizationReference{Kind: modelConnectionScope, Ref: &apiv1.ResourceReference{Namespace: "team", Name: "primary"}},
+			}}, Permissions: []apiv1.Permission{apiv1.Permission_PERMISSION_MODEL_CONNECTION_READ}},
+			{Resource: &apiv1.AuthorizationResource{Resource: &apiv1.AuthorizationResource_Kubernetes{
+				Kubernetes: &apiv1.KubernetesAuthorizationReference{Kind: mcpServerScope, Ref: &apiv1.ResourceReference{Namespace: "team", Name: "tools"}},
+			}}, Permissions: []apiv1.Permission{apiv1.Permission_PERMISSION_MCP_SERVER_USE}},
+		},
+	}
+	response, err := service.CheckPermissions(userContext(t, "alice"), request)
+	require.NoError(t, err)
+	require.Equal(t, "harness-1", response.Resources[0].Resource.GetKubernetes().Uid)
+	require.Equal(t, []apiv1.Permission{apiv1.Permission_PERMISSION_HARNESS_USE}, response.Resources[0].AllowedActions)
+	require.Equal(t, "model-1", response.Resources[1].Resource.GetKubernetes().Uid)
+	require.Equal(t, []apiv1.Permission{apiv1.Permission_PERMISSION_MODEL_CONNECTION_READ}, response.Resources[1].AllowedActions)
+	require.Equal(t, "mcp-1", response.Resources[2].Resource.GetKubernetes().Uid)
+	require.Equal(t, []apiv1.Permission{apiv1.Permission_PERMISSION_MCP_SERVER_USE}, response.Resources[2].AllowedActions)
+}
+
+func TestMCPToolCheckUsesServerFactAndExactToolIdentity(t *testing.T) {
+	service, _ := testService(t, func(writer http.ResponseWriter, request *http.Request) {
+		var body fga.BatchCheckRequest
+		require.NoError(t, json.NewDecoder(request.Body).Decode(&body))
+		require.Len(t, body.Checks, 1)
+		check := body.Checks[0]
+		require.Equal(t, "can_mcp_tool_call", check.TupleKey.Relation)
+		require.Len(t, check.ContextualTuples.TupleKeys, 2)
+		require.Equal(t, "workspace:workspace-1", check.ContextualTuples.TupleKeys[0].User)
+		require.Equal(t, "mcp_server:workspace-1/mcp-1", check.ContextualTuples.TupleKeys[1].User)
+		require.Equal(t, check.TupleKey.Object, check.ContextualTuples.TupleKeys[1].Object)
+		writer.Header().Set("Content-Type", "application/json")
+		_, err := writer.Write([]byte(`{"result":{"0":{"allowed":true}}}`))
+		require.NoError(t, err)
+	})
+	request := &apiv1.CheckPermissionsRequest{Workspace: &apiv1.WorkspaceAuthorizationReference{Namespace: "team"}, Checks: []*apiv1.ResourceGrant{{
+		Resource: &apiv1.AuthorizationResource{Resource: &apiv1.AuthorizationResource_McpTool{
+			McpTool: &apiv1.MCPToolAuthorizationReference{
+				Server: &apiv1.KubernetesAuthorizationReference{Kind: mcpServerScope, Ref: &apiv1.ResourceReference{Namespace: "team", Name: "tools"}},
+				Name:   "search",
+			},
+		}},
+		Permissions: []apiv1.Permission{apiv1.Permission_PERMISSION_MCP_TOOL_CALL},
+	}}}
+	response, err := service.CheckPermissions(userContext(t, "alice"), request)
+	require.NoError(t, err)
+	require.Equal(t, "mcp-1", response.Resources[0].Resource.GetMcpTool().Server.Uid)
+	require.Equal(t, []apiv1.Permission{apiv1.Permission_PERMISSION_MCP_TOOL_CALL}, response.Resources[0].AllowedActions)
+	request.Checks[0].Resource.GetMcpTool().Server.Uid = "old-mcp"
+	response, err = service.CheckPermissions(userContext(t, "alice"), request)
+	require.NoError(t, err)
+	require.Empty(t, response.Resources[0].AllowedActions)
+}
+
 func TestCheckFailuresNeverGrantPartialAccess(t *testing.T) {
 	for _, test := range []struct {
 		name   string

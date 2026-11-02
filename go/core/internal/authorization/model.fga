@@ -23,6 +23,9 @@ type workspace
     define auditor: [principal, group#member]
     define operator: [principal, group#member]
     define access_admin: [principal, group#member]
+    define dependency_reader: [principal, group#member]
+    define dependency_user: [principal, group#member]
+    define dependency_manager: [principal, group#member]
     define can_agent_read: (definition_reader or definition_editor or workflow_editor or workflow_publisher) and member
     define can_agent_create: (definition_editor) and member
     define can_agent_update: (definition_editor) and member
@@ -43,6 +46,16 @@ type workspace
     define can_task_cancel: (operator) and member
     define can_access_read: (access_admin) and member
     define can_access_manage: (access_admin) and member
+    define can_harness_read: (dependency_reader or dependency_manager) and member
+    define can_harness_use: dependency_user and member
+    define can_harness_manage: dependency_manager and member
+    define can_model_connection_read: (dependency_reader or dependency_manager) and member
+    define can_model_connection_use: dependency_user and member
+    define can_model_connection_manage: dependency_manager and member
+    define can_mcp_server_read: (dependency_reader or dependency_manager) and member
+    define can_mcp_server_use: dependency_user and member
+    define can_mcp_server_manage: dependency_manager and member
+    define can_mcp_tool_call: dependency_user and member
 
 type agent
   relations
@@ -83,6 +96,54 @@ type agent_template
     define can_workflow_execute: (executor or can_workflow_execute from workspace) and member
     define can_access_read: (can_access_read from workspace) and member
     define can_access_manage: (can_access_manage from workspace) and member
+
+type harness
+  relations
+    define workspace: [workspace]
+    define reader: [principal, group#member]
+    define consumer: [principal, group#member]
+    define manager: [principal, group#member]
+    define member: member from workspace
+    define can_harness_read: (reader or manager or can_harness_read from workspace) and member
+    define can_harness_use: (consumer or can_harness_use from workspace) and member
+    define can_harness_manage: (manager or can_harness_manage from workspace) and member
+    define can_access_read: (can_access_read from workspace) and member
+    define can_access_manage: (can_access_manage from workspace) and member
+
+type model_connection
+  relations
+    define workspace: [workspace]
+    define reader: [principal, group#member]
+    define consumer: [principal, group#member]
+    define manager: [principal, group#member]
+    define member: member from workspace
+    define can_model_connection_read: (reader or manager or can_model_connection_read from workspace) and member
+    define can_model_connection_use: (consumer or can_model_connection_use from workspace) and member
+    define can_model_connection_manage: (manager or can_model_connection_manage from workspace) and member
+    define can_access_read: (can_access_read from workspace) and member
+    define can_access_manage: (can_access_manage from workspace) and member
+
+type mcp_server
+  relations
+    define workspace: [workspace]
+    define reader: [principal, group#member]
+    define consumer: [principal, group#member]
+    define manager: [principal, group#member]
+    define member: member from workspace
+    define can_mcp_server_read: (reader or manager or can_mcp_server_read from workspace) and member
+    define can_mcp_server_use: (consumer or can_mcp_server_use from workspace) and member
+    define can_mcp_server_manage: (manager or can_mcp_server_manage from workspace) and member
+    define can_access_read: (can_access_read from workspace) and member
+    define can_access_manage: (can_access_manage from workspace) and member
+
+type mcp_tool
+  relations
+    define server: [mcp_server]
+    define caller: [principal, group#member]
+    define member: member from server
+    define can_mcp_tool_call: (caller or can_mcp_server_use from server) and member
+    define can_access_read: can_access_read from server
+    define can_access_manage: can_access_manage from server
 
 type session
   relations

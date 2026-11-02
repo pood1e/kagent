@@ -15,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file kagent/api/v1/authorization.proto.
  */
 export const file_kagent_api_v1_authorization: GenFile = /*@__PURE__*/
-  fileDesc("CiFrYWdlbnQvYXBpL3YxL2F1dGhvcml6YXRpb24ucHJvdG8SDWthZ2VudC5hcGkudjEiVgoNSWRlbnRpdHlHcm91cBItCgZpc3N1ZXIYASABKAlCHbpIGnIYKMABMhBeaHR0cHM6Ly9bXj8jXSskiAEBEhYKAmlkGAIgASgJQgq6SAdyBSABKIABIncKEFN1YmplY3RSZWZlcmVuY2USIgoMcHJpbmNpcGFsX2lkGAEgASgJQgq6SAdyBSABKIACSAASLQoFZ3JvdXAYAiABKAsyHC5rYWdlbnQuYXBpLnYxLklkZW50aXR5R3JvdXBIAEIQCgdzdWJqZWN0EgW6SAIIASJ3Ch9Xb3Jrc3BhY2VBdXRob3JpemF0aW9uUmVmZXJlbmNlEj0KCW5hbWVzcGFjZRgBIAEoCUIqukgnciUQARg/Mh9eW2EtejAtOV0oWy1hLXowLTldKlthLXowLTldKT8kEhUKA3VpZBgCIAEoCUIIukgFcgMYgAEisQEKIEt1YmVybmV0ZXNBdXRob3JpemF0aW9uUmVmZXJlbmNlEj8KBGtpbmQYASABKA4yJS5rYWdlbnQuYXBpLnYxLkF1dGhvcml6YXRpb25TY29wZUtpbmRCCrpIB4IBBBgCGAMSNQoDcmVmGAIgASgLMiAua2FnZW50LmFwaS52MS5SZXNvdXJjZVJlZmVyZW5jZUIGukgDyAEBEhUKA3VpZBgDIAEoCUIIukgFcgMYgAEihAIKFUF1dGhvcml6YXRpb25SZXNvdXJjZRJDCgl3b3Jrc3BhY2UYASABKAsyLi5rYWdlbnQuYXBpLnYxLldvcmtzcGFjZUF1dGhvcml6YXRpb25SZWZlcmVuY2VIABJFCgprdWJlcm5ldGVzGAIgASgLMi8ua2FnZW50LmFwaS52MS5LdWJlcm5ldGVzQXV0aG9yaXphdGlvblJlZmVyZW5jZUgAEh4KCnNlc3Npb25faWQYAyABKAlCCLpIBXIDsAEBSAASLAoEdGFzaxgEIAEoCzIcLmthZ2VudC5hcGkudjEuVGFza1JlZmVyZW5jZUgAQhEKCHJlc291cmNlEgW6SAIIASJ7ChRBY2Nlc3NSb2xlRGVmaW5pdGlvbhInCgRyb2xlGAEgASgOMhkua2FnZW50LmFwaS52MS5BY2Nlc3NSb2xlEjoKC3Njb3BlX2tpbmRzGAIgAygOMiUua2FnZW50LmFwaS52MS5BdXRob3JpemF0aW9uU2NvcGVLaW5kIrkBCgtSb2xlQmluZGluZxI4CgdzdWJqZWN0GAEgASgLMh8ua2FnZW50LmFwaS52MS5TdWJqZWN0UmVmZXJlbmNlQga6SAPIAQESMwoEcm9sZRgCIAEoDjIZLmthZ2VudC5hcGkudjEuQWNjZXNzUm9sZUIKukgHggEEEAEgABI7CgVzY29wZRgDIAEoCzIkLmthZ2VudC5hcGkudjEuQXV0aG9yaXphdGlvblJlc291cmNlQga6SAPIAQEilgEKDVJlc291cmNlR3JhbnQSPgoIcmVzb3VyY2UYASABKAsyJC5rYWdlbnQuYXBpLnYxLkF1dGhvcml6YXRpb25SZXNvdXJjZUIGukgDyAEBEkUKC3Blcm1pc3Npb25zGAIgAygOMhkua2FnZW50LmFwaS52MS5QZXJtaXNzaW9uQhW6SBKSAQ8IARAYGAEiB4IBBBABIAAiGAoWTGlzdEFjY2Vzc1JvbGVzUmVxdWVzdCJNChdMaXN0QWNjZXNzUm9sZXNSZXNwb25zZRIyCgVyb2xlcxgBIAMoCzIjLmthZ2VudC5hcGkudjEuQWNjZXNzUm9sZURlZmluaXRpb24ingIKFUxpc3RXb3Jrc3BhY2VzUmVxdWVzdBIoCgRwYWdlGAEgASgLMhoua2FnZW50LmFwaS52MS5QYWdlUmVxdWVzdBJBCgl3b3Jrc3BhY2UYAiABKAsyLi5rYWdlbnQuYXBpLnYxLldvcmtzcGFjZUF1dGhvcml6YXRpb25SZWZlcmVuY2U6lwG6SJMBGpABCh1saXN0X3dvcmtzcGFjZXMuZmlsdGVyX2N1cnNvchIod29ya3NwYWNlIGZpbHRlciBjYW5ub3QgdXNlIGEgcGFnZSB0b2tlbhpFIWhhcyh0aGlzLndvcmtzcGFjZSkgfHwgIWhhcyh0aGlzLnBhZ2UpIHx8IHRoaXMucGFnZS5wYWdlX3Rva2VuID09ICcnIocBChZMaXN0V29ya3NwYWNlc1Jlc3BvbnNlEkIKCndvcmtzcGFjZXMYASADKAsyLi5rYWdlbnQuYXBpLnYxLldvcmtzcGFjZUF1dGhvcml6YXRpb25SZWZlcmVuY2USKQoEcGFnZRgCIAEoCzIbLmthZ2VudC5hcGkudjEuUGFnZVJlc3BvbnNlIp4BChdDaGVja1Blcm1pc3Npb25zUmVxdWVzdBI4CgZjaGVja3MYASADKAsyHC5rYWdlbnQuYXBpLnYxLlJlc291cmNlR3JhbnRCCrpIB5IBBAgBEDISSQoJd29ya3NwYWNlGAIgASgLMi4ua2FnZW50LmFwaS52MS5Xb3Jrc3BhY2VBdXRob3JpemF0aW9uUmVmZXJlbmNlQga6SAPIAQEifAoOUmVzb3VyY2VBY2Nlc3MSNgoIcmVzb3VyY2UYASABKAsyJC5rYWdlbnQuYXBpLnYxLkF1dGhvcml6YXRpb25SZXNvdXJjZRIyCg9hbGxvd2VkX2FjdGlvbnMYAiADKA4yGS5rYWdlbnQuYXBpLnYxLlBlcm1pc3Npb24iTAoYQ2hlY2tQZXJtaXNzaW9uc1Jlc3BvbnNlEjAKCXJlc291cmNlcxgBIAMoCzIdLmthZ2VudC5hcGkudjEuUmVzb3VyY2VBY2Nlc3MiywEKF0xpc3RSb2xlQmluZGluZ3NSZXF1ZXN0EjsKBXNjb3BlGAEgASgLMiQua2FnZW50LmFwaS52MS5BdXRob3JpemF0aW9uUmVzb3VyY2VCBrpIA8gBARIoCgRwYWdlGAIgASgLMhoua2FnZW50LmFwaS52MS5QYWdlUmVxdWVzdBJJCgl3b3Jrc3BhY2UYAyABKAsyLi5rYWdlbnQuYXBpLnYxLldvcmtzcGFjZUF1dGhvcml6YXRpb25SZWZlcmVuY2VCBrpIA8gBASJzChhMaXN0Um9sZUJpbmRpbmdzUmVzcG9uc2USLAoIYmluZGluZ3MYASADKAsyGi5rYWdlbnQuYXBpLnYxLlJvbGVCaW5kaW5nEikKBHBhZ2UYAiABKAsyGy5rYWdlbnQuYXBpLnYxLlBhZ2VSZXNwb25zZSKwAQoQR3JhbnRSb2xlUmVxdWVzdBIcCgpyZXF1ZXN0X2lkGAEgASgJQgi6SAVyA7ABARIzCgdiaW5kaW5nGAIgASgLMhoua2FnZW50LmFwaS52MS5Sb2xlQmluZGluZ0IGukgDyAEBEkkKCXdvcmtzcGFjZRgDIAEoCzIuLmthZ2VudC5hcGkudjEuV29ya3NwYWNlQXV0aG9yaXphdGlvblJlZmVyZW5jZUIGukgDyAEBIkAKEUdyYW50Um9sZVJlc3BvbnNlEisKB2JpbmRpbmcYASABKAsyGi5rYWdlbnQuYXBpLnYxLlJvbGVCaW5kaW5nIrEBChFSZXZva2VSb2xlUmVxdWVzdBIcCgpyZXF1ZXN0X2lkGAEgASgJQgi6SAVyA7ABARIzCgdiaW5kaW5nGAIgASgLMhoua2FnZW50LmFwaS52MS5Sb2xlQmluZGluZ0IGukgDyAEBEkkKCXdvcmtzcGFjZRgDIAEoCzIuLmthZ2VudC5hcGkudjEuV29ya3NwYWNlQXV0aG9yaXphdGlvblJlZmVyZW5jZUIGukgDyAEBIhQKElJldm9rZVJvbGVSZXNwb25zZSrzBQoKUGVybWlzc2lvbhIaChZQRVJNSVNTSU9OX1VOU1BFQ0lGSUVEEAASGQoVUEVSTUlTU0lPTl9BR0VOVF9SRUFEEAESGwoXUEVSTUlTU0lPTl9BR0VOVF9DUkVBVEUQAhIbChdQRVJNSVNTSU9OX0FHRU5UX1VQREFURRADEhsKF1BFUk1JU1NJT05fQUdFTlRfREVMRVRFEAQSGwoXUEVSTUlTU0lPTl9BR0VOVF9JTlZPS0UQBRIcChhQRVJNSVNTSU9OX1RFTVBMQVRFX1JFQUQQBhIeChpQRVJNSVNTSU9OX1RFTVBMQVRFX0NSRUFURRAHEh4KGlBFUk1JU1NJT05fVEVNUExBVEVfVVBEQVRFEAgSHgoaUEVSTUlTU0lPTl9URU1QTEFURV9ERUxFVEUQCRIbChdQRVJNSVNTSU9OX1RFTVBMQVRFX1VTRRAKEhwKGFBFUk1JU1NJT05fV09SS0ZMT1dfUkVBRBALEhwKGFBFUk1JU1NJT05fV09SS0ZMT1dfRURJVBAMEh8KG1BFUk1JU1NJT05fV09SS0ZMT1dfUFVCTElTSBANEh8KG1BFUk1JU1NJT05fV09SS0ZMT1dfRVhFQ1VURRAOEhsKF1BFUk1JU1NJT05fU0VTU0lPTl9SRUFEEA8SHQoZUEVSTUlTU0lPTl9TRVNTSU9OX0NSRUFURRAQEhsKF1BFUk1JU1NJT05fU0VTU0lPTl9TRU5EEBESHAoYUEVSTUlTU0lPTl9TRVNTSU9OX1NIQVJFEBISHQoZUEVSTUlTU0lPTl9TRVNTSU9OX0RFTEVURRATEhgKFFBFUk1JU1NJT05fVEFTS19SRUFEEBQSGgoWUEVSTUlTU0lPTl9UQVNLX0NBTkNFTBAVEhsKF1BFUk1JU1NJT05fVEFTS19SRVNQT05EEBYSGgoWUEVSTUlTU0lPTl9BQ0NFU1NfUkVBRBAXEhwKGFBFUk1JU1NJT05fQUNDRVNTX01BTkFHRRAYKtYCCgpBY2Nlc3NSb2xlEhsKF0FDQ0VTU19ST0xFX1VOU1BFQ0lGSUVEEAASIAocQUNDRVNTX1JPTEVfV09SS1NQQUNFX01FTUJFUhABEiEKHUFDQ0VTU19ST0xFX0RFRklOSVRJT05fUkVBREVSEAISIQodQUNDRVNTX1JPTEVfREVGSU5JVElPTl9FRElUT1IQAxIfChtBQ0NFU1NfUk9MRV9XT1JLRkxPV19FRElUT1IQBBIiCh5BQ0NFU1NfUk9MRV9XT1JLRkxPV19QVUJMSVNIRVIQBRIYChRBQ0NFU1NfUk9MRV9FWEVDVVRPUhAGEiAKHEFDQ0VTU19ST0xFX0VYRUNVVElPTl9SRUFERVIQBxIkCiBBQ0NFU1NfUk9MRV9FWEVDVVRJT05fQ09OVFJPTExFUhAIEhwKGEFDQ0VTU19ST0xFX0FDQ0VTU19BRE1JThAJKoQCChZBdXRob3JpemF0aW9uU2NvcGVLaW5kEigKJEFVVEhPUklaQVRJT05fU0NPUEVfS0lORF9VTlNQRUNJRklFRBAAEiYKIkFVVEhPUklaQVRJT05fU0NPUEVfS0lORF9XT1JLU1BBQ0UQARIiCh5BVVRIT1JJWkFUSU9OX1NDT1BFX0tJTkRfQUdFTlQQAhIrCidBVVRIT1JJWkFUSU9OX1NDT1BFX0tJTkRfQUdFTlRfVEVNUExBVEUQAxIkCiBBVVRIT1JJWkFUSU9OX1NDT1BFX0tJTkRfU0VTU0lPThAEEiEKHUFVVEhPUklaQVRJT05fU0NPUEVfS0lORF9UQVNLEAUyxAQKFEF1dGhvcml6YXRpb25TZXJ2aWNlEmAKD0xpc3RBY2Nlc3NSb2xlcxIlLmthZ2VudC5hcGkudjEuTGlzdEFjY2Vzc1JvbGVzUmVxdWVzdBomLmthZ2VudC5hcGkudjEuTGlzdEFjY2Vzc1JvbGVzUmVzcG9uc2USXQoOTGlzdFdvcmtzcGFjZXMSJC5rYWdlbnQuYXBpLnYxLkxpc3RXb3Jrc3BhY2VzUmVxdWVzdBolLmthZ2VudC5hcGkudjEuTGlzdFdvcmtzcGFjZXNSZXNwb25zZRJjChBDaGVja1Blcm1pc3Npb25zEiYua2FnZW50LmFwaS52MS5DaGVja1Blcm1pc3Npb25zUmVxdWVzdBonLmthZ2VudC5hcGkudjEuQ2hlY2tQZXJtaXNzaW9uc1Jlc3BvbnNlEmMKEExpc3RSb2xlQmluZGluZ3MSJi5rYWdlbnQuYXBpLnYxLkxpc3RSb2xlQmluZGluZ3NSZXF1ZXN0Gicua2FnZW50LmFwaS52MS5MaXN0Um9sZUJpbmRpbmdzUmVzcG9uc2USTgoJR3JhbnRSb2xlEh8ua2FnZW50LmFwaS52MS5HcmFudFJvbGVSZXF1ZXN0GiAua2FnZW50LmFwaS52MS5HcmFudFJvbGVSZXNwb25zZRJRCgpSZXZva2VSb2xlEiAua2FnZW50LmFwaS52MS5SZXZva2VSb2xlUmVxdWVzdBohLmthZ2VudC5hcGkudjEuUmV2b2tlUm9sZVJlc3BvbnNlQj1aO2dpdGh1Yi5jb20va2FnZW50LWRldi9rYWdlbnQvZ28vYXBpL2dlbi9rYWdlbnQvYXBpL3YxO2FwaXYxYgZwcm90bzM", [file_buf_validate_validate, file_kagent_api_v1_common, file_kagent_api_v1_execution]);
+  fileDesc("CiFrYWdlbnQvYXBpL3YxL2F1dGhvcml6YXRpb24ucHJvdG8SDWthZ2VudC5hcGkudjEiVgoNSWRlbnRpdHlHcm91cBItCgZpc3N1ZXIYASABKAlCHbpIGnIYKMABMhBeaHR0cHM6Ly9bXj8jXSskiAEBEhYKAmlkGAIgASgJQgq6SAdyBSABKIABIncKEFN1YmplY3RSZWZlcmVuY2USIgoMcHJpbmNpcGFsX2lkGAEgASgJQgq6SAdyBSABKIACSAASLQoFZ3JvdXAYAiABKAsyHC5rYWdlbnQuYXBpLnYxLklkZW50aXR5R3JvdXBIAEIQCgdzdWJqZWN0EgW6SAIIASJ3Ch9Xb3Jrc3BhY2VBdXRob3JpemF0aW9uUmVmZXJlbmNlEj0KCW5hbWVzcGFjZRgBIAEoCUIqukgnciUQARg/Mh9eW2EtejAtOV0oWy1hLXowLTldKlthLXowLTldKT8kEhUKA3VpZBgCIAEoCUIIukgFcgMYgAEitwEKIEt1YmVybmV0ZXNBdXRob3JpemF0aW9uUmVmZXJlbmNlEkUKBGtpbmQYASABKA4yJS5rYWdlbnQuYXBpLnYxLkF1dGhvcml6YXRpb25TY29wZUtpbmRCELpIDYIBChgCGAMYBhgHGAgSNQoDcmVmGAIgASgLMiAua2FnZW50LmFwaS52MS5SZXNvdXJjZVJlZmVyZW5jZUIGukgDyAEBEhUKA3VpZBgDIAEoCUIIukgFcgMYgAEi1wEKHU1DUFRvb2xBdXRob3JpemF0aW9uUmVmZXJlbmNlEkcKBnNlcnZlchgBIAEoCzIvLmthZ2VudC5hcGkudjEuS3ViZXJuZXRlc0F1dGhvcml6YXRpb25SZWZlcmVuY2VCBrpIA8gBARIYCgRuYW1lGAIgASgJQgq6SAdyBRABGIABOlO6SFAaTgoUbWNwX3Rvb2wuc2VydmVyX2tpbmQSH01DUCB0b29sIHJlcXVpcmVzIGFuIE1DUCBzZXJ2ZXIaFXRoaXMuc2VydmVyLmtpbmQgPT0gOCLGAgoVQXV0aG9yaXphdGlvblJlc291cmNlEkMKCXdvcmtzcGFjZRgBIAEoCzIuLmthZ2VudC5hcGkudjEuV29ya3NwYWNlQXV0aG9yaXphdGlvblJlZmVyZW5jZUgAEkUKCmt1YmVybmV0ZXMYAiABKAsyLy5rYWdlbnQuYXBpLnYxLkt1YmVybmV0ZXNBdXRob3JpemF0aW9uUmVmZXJlbmNlSAASHgoKc2Vzc2lvbl9pZBgDIAEoCUIIukgFcgOwAQFIABIsCgR0YXNrGAQgASgLMhwua2FnZW50LmFwaS52MS5UYXNrUmVmZXJlbmNlSAASQAoIbWNwX3Rvb2wYBSABKAsyLC5rYWdlbnQuYXBpLnYxLk1DUFRvb2xBdXRob3JpemF0aW9uUmVmZXJlbmNlSABCEQoIcmVzb3VyY2USBbpIAggBInsKFEFjY2Vzc1JvbGVEZWZpbml0aW9uEicKBHJvbGUYASABKA4yGS5rYWdlbnQuYXBpLnYxLkFjY2Vzc1JvbGUSOgoLc2NvcGVfa2luZHMYAiADKA4yJS5rYWdlbnQuYXBpLnYxLkF1dGhvcml6YXRpb25TY29wZUtpbmQiuQEKC1JvbGVCaW5kaW5nEjgKB3N1YmplY3QYASABKAsyHy5rYWdlbnQuYXBpLnYxLlN1YmplY3RSZWZlcmVuY2VCBrpIA8gBARIzCgRyb2xlGAIgASgOMhkua2FnZW50LmFwaS52MS5BY2Nlc3NSb2xlQgq6SAeCAQQQASAAEjsKBXNjb3BlGAMgASgLMiQua2FnZW50LmFwaS52MS5BdXRob3JpemF0aW9uUmVzb3VyY2VCBrpIA8gBASKWAQoNUmVzb3VyY2VHcmFudBI+CghyZXNvdXJjZRgBIAEoCzIkLmthZ2VudC5hcGkudjEuQXV0aG9yaXphdGlvblJlc291cmNlQga6SAPIAQESRQoLcGVybWlzc2lvbnMYAiADKA4yGS5rYWdlbnQuYXBpLnYxLlBlcm1pc3Npb25CFbpIEpIBDwgBECIYASIHggEEEAEgACIYChZMaXN0QWNjZXNzUm9sZXNSZXF1ZXN0Ik0KF0xpc3RBY2Nlc3NSb2xlc1Jlc3BvbnNlEjIKBXJvbGVzGAEgAygLMiMua2FnZW50LmFwaS52MS5BY2Nlc3NSb2xlRGVmaW5pdGlvbiKeAgoVTGlzdFdvcmtzcGFjZXNSZXF1ZXN0EigKBHBhZ2UYASABKAsyGi5rYWdlbnQuYXBpLnYxLlBhZ2VSZXF1ZXN0EkEKCXdvcmtzcGFjZRgCIAEoCzIuLmthZ2VudC5hcGkudjEuV29ya3NwYWNlQXV0aG9yaXphdGlvblJlZmVyZW5jZTqXAbpIkwEakAEKHWxpc3Rfd29ya3NwYWNlcy5maWx0ZXJfY3Vyc29yEih3b3Jrc3BhY2UgZmlsdGVyIGNhbm5vdCB1c2UgYSBwYWdlIHRva2VuGkUhaGFzKHRoaXMud29ya3NwYWNlKSB8fCAhaGFzKHRoaXMucGFnZSkgfHwgdGhpcy5wYWdlLnBhZ2VfdG9rZW4gPT0gJycihwEKFkxpc3RXb3Jrc3BhY2VzUmVzcG9uc2USQgoKd29ya3NwYWNlcxgBIAMoCzIuLmthZ2VudC5hcGkudjEuV29ya3NwYWNlQXV0aG9yaXphdGlvblJlZmVyZW5jZRIpCgRwYWdlGAIgASgLMhsua2FnZW50LmFwaS52MS5QYWdlUmVzcG9uc2UingEKF0NoZWNrUGVybWlzc2lvbnNSZXF1ZXN0EjgKBmNoZWNrcxgBIAMoCzIcLmthZ2VudC5hcGkudjEuUmVzb3VyY2VHcmFudEIKukgHkgEECAEQMhJJCgl3b3Jrc3BhY2UYAiABKAsyLi5rYWdlbnQuYXBpLnYxLldvcmtzcGFjZUF1dGhvcml6YXRpb25SZWZlcmVuY2VCBrpIA8gBASJ8Cg5SZXNvdXJjZUFjY2VzcxI2CghyZXNvdXJjZRgBIAEoCzIkLmthZ2VudC5hcGkudjEuQXV0aG9yaXphdGlvblJlc291cmNlEjIKD2FsbG93ZWRfYWN0aW9ucxgCIAMoDjIZLmthZ2VudC5hcGkudjEuUGVybWlzc2lvbiJMChhDaGVja1Blcm1pc3Npb25zUmVzcG9uc2USMAoJcmVzb3VyY2VzGAEgAygLMh0ua2FnZW50LmFwaS52MS5SZXNvdXJjZUFjY2VzcyLLAQoXTGlzdFJvbGVCaW5kaW5nc1JlcXVlc3QSOwoFc2NvcGUYASABKAsyJC5rYWdlbnQuYXBpLnYxLkF1dGhvcml6YXRpb25SZXNvdXJjZUIGukgDyAEBEigKBHBhZ2UYAiABKAsyGi5rYWdlbnQuYXBpLnYxLlBhZ2VSZXF1ZXN0EkkKCXdvcmtzcGFjZRgDIAEoCzIuLmthZ2VudC5hcGkudjEuV29ya3NwYWNlQXV0aG9yaXphdGlvblJlZmVyZW5jZUIGukgDyAEBInMKGExpc3RSb2xlQmluZGluZ3NSZXNwb25zZRIsCghiaW5kaW5ncxgBIAMoCzIaLmthZ2VudC5hcGkudjEuUm9sZUJpbmRpbmcSKQoEcGFnZRgCIAEoCzIbLmthZ2VudC5hcGkudjEuUGFnZVJlc3BvbnNlIrABChBHcmFudFJvbGVSZXF1ZXN0EhwKCnJlcXVlc3RfaWQYASABKAlCCLpIBXIDsAEBEjMKB2JpbmRpbmcYAiABKAsyGi5rYWdlbnQuYXBpLnYxLlJvbGVCaW5kaW5nQga6SAPIAQESSQoJd29ya3NwYWNlGAMgASgLMi4ua2FnZW50LmFwaS52MS5Xb3Jrc3BhY2VBdXRob3JpemF0aW9uUmVmZXJlbmNlQga6SAPIAQEiQAoRR3JhbnRSb2xlUmVzcG9uc2USKwoHYmluZGluZxgBIAEoCzIaLmthZ2VudC5hcGkudjEuUm9sZUJpbmRpbmcisQEKEVJldm9rZVJvbGVSZXF1ZXN0EhwKCnJlcXVlc3RfaWQYASABKAlCCLpIBXIDsAEBEjMKB2JpbmRpbmcYAiABKAsyGi5rYWdlbnQuYXBpLnYxLlJvbGVCaW5kaW5nQga6SAPIAQESSQoJd29ya3NwYWNlGAMgASgLMi4ua2FnZW50LmFwaS52MS5Xb3Jrc3BhY2VBdXRob3JpemF0aW9uUmVmZXJlbmNlQga6SAPIAQEiFAoSUmV2b2tlUm9sZVJlc3BvbnNlKr0ICgpQZXJtaXNzaW9uEhoKFlBFUk1JU1NJT05fVU5TUEVDSUZJRUQQABIZChVQRVJNSVNTSU9OX0FHRU5UX1JFQUQQARIbChdQRVJNSVNTSU9OX0FHRU5UX0NSRUFURRACEhsKF1BFUk1JU1NJT05fQUdFTlRfVVBEQVRFEAMSGwoXUEVSTUlTU0lPTl9BR0VOVF9ERUxFVEUQBBIbChdQRVJNSVNTSU9OX0FHRU5UX0lOVk9LRRAFEhwKGFBFUk1JU1NJT05fVEVNUExBVEVfUkVBRBAGEh4KGlBFUk1JU1NJT05fVEVNUExBVEVfQ1JFQVRFEAcSHgoaUEVSTUlTU0lPTl9URU1QTEFURV9VUERBVEUQCBIeChpQRVJNSVNTSU9OX1RFTVBMQVRFX0RFTEVURRAJEhsKF1BFUk1JU1NJT05fVEVNUExBVEVfVVNFEAoSHAoYUEVSTUlTU0lPTl9XT1JLRkxPV19SRUFEEAsSHAoYUEVSTUlTU0lPTl9XT1JLRkxPV19FRElUEAwSHwobUEVSTUlTU0lPTl9XT1JLRkxPV19QVUJMSVNIEA0SHwobUEVSTUlTU0lPTl9XT1JLRkxPV19FWEVDVVRFEA4SGwoXUEVSTUlTU0lPTl9TRVNTSU9OX1JFQUQQDxIdChlQRVJNSVNTSU9OX1NFU1NJT05fQ1JFQVRFEBASGwoXUEVSTUlTU0lPTl9TRVNTSU9OX1NFTkQQERIcChhQRVJNSVNTSU9OX1NFU1NJT05fU0hBUkUQEhIdChlQRVJNSVNTSU9OX1NFU1NJT05fREVMRVRFEBMSGAoUUEVSTUlTU0lPTl9UQVNLX1JFQUQQFBIaChZQRVJNSVNTSU9OX1RBU0tfQ0FOQ0VMEBUSGwoXUEVSTUlTU0lPTl9UQVNLX1JFU1BPTkQQFhIaChZQRVJNSVNTSU9OX0FDQ0VTU19SRUFEEBcSHAoYUEVSTUlTU0lPTl9BQ0NFU1NfTUFOQUdFEBgSGwoXUEVSTUlTU0lPTl9IQVJORVNTX1JFQUQQGRIaChZQRVJNSVNTSU9OX0hBUk5FU1NfVVNFEBoSHQoZUEVSTUlTU0lPTl9IQVJORVNTX01BTkFHRRAbEiQKIFBFUk1JU1NJT05fTU9ERUxfQ09OTkVDVElPTl9SRUFEEBwSIwofUEVSTUlTU0lPTl9NT0RFTF9DT05ORUNUSU9OX1VTRRAdEiYKIlBFUk1JU1NJT05fTU9ERUxfQ09OTkVDVElPTl9NQU5BR0UQHhIeChpQRVJNSVNTSU9OX01DUF9TRVJWRVJfUkVBRBAfEh0KGVBFUk1JU1NJT05fTUNQX1NFUlZFUl9VU0UQIBIgChxQRVJNSVNTSU9OX01DUF9TRVJWRVJfTUFOQUdFECESHAoYUEVSTUlTU0lPTl9NQ1BfVE9PTF9DQUxMECIqvgMKCkFjY2Vzc1JvbGUSGwoXQUNDRVNTX1JPTEVfVU5TUEVDSUZJRUQQABIgChxBQ0NFU1NfUk9MRV9XT1JLU1BBQ0VfTUVNQkVSEAESIQodQUNDRVNTX1JPTEVfREVGSU5JVElPTl9SRUFERVIQAhIhCh1BQ0NFU1NfUk9MRV9ERUZJTklUSU9OX0VESVRPUhADEh8KG0FDQ0VTU19ST0xFX1dPUktGTE9XX0VESVRPUhAEEiIKHkFDQ0VTU19ST0xFX1dPUktGTE9XX1BVQkxJU0hFUhAFEhgKFEFDQ0VTU19ST0xFX0VYRUNVVE9SEAYSIAocQUNDRVNTX1JPTEVfRVhFQ1VUSU9OX1JFQURFUhAHEiQKIEFDQ0VTU19ST0xFX0VYRUNVVElPTl9DT05UUk9MTEVSEAgSHAoYQUNDRVNTX1JPTEVfQUNDRVNTX0FETUlOEAkSIQodQUNDRVNTX1JPTEVfREVQRU5ERU5DWV9SRUFERVIQChIfChtBQ0NFU1NfUk9MRV9ERVBFTkRFTkNZX1VTRVIQCxIiCh5BQ0NFU1NfUk9MRV9ERVBFTkRFTkNZX01BTkFHRVIQDCqpAwoWQXV0aG9yaXphdGlvblNjb3BlS2luZBIoCiRBVVRIT1JJWkFUSU9OX1NDT1BFX0tJTkRfVU5TUEVDSUZJRUQQABImCiJBVVRIT1JJWkFUSU9OX1NDT1BFX0tJTkRfV09SS1NQQUNFEAESIgoeQVVUSE9SSVpBVElPTl9TQ09QRV9LSU5EX0FHRU5UEAISKwonQVVUSE9SSVpBVElPTl9TQ09QRV9LSU5EX0FHRU5UX1RFTVBMQVRFEAMSJAogQVVUSE9SSVpBVElPTl9TQ09QRV9LSU5EX1NFU1NJT04QBBIhCh1BVVRIT1JJWkFUSU9OX1NDT1BFX0tJTkRfVEFTSxAFEiQKIEFVVEhPUklaQVRJT05fU0NPUEVfS0lORF9IQVJORVNTEAYSLQopQVVUSE9SSVpBVElPTl9TQ09QRV9LSU5EX01PREVMX0NPTk5FQ1RJT04QBxInCiNBVVRIT1JJWkFUSU9OX1NDT1BFX0tJTkRfTUNQX1NFUlZFUhAIEiUKIUFVVEhPUklaQVRJT05fU0NPUEVfS0lORF9NQ1BfVE9PTBAJMsQEChRBdXRob3JpemF0aW9uU2VydmljZRJgCg9MaXN0QWNjZXNzUm9sZXMSJS5rYWdlbnQuYXBpLnYxLkxpc3RBY2Nlc3NSb2xlc1JlcXVlc3QaJi5rYWdlbnQuYXBpLnYxLkxpc3RBY2Nlc3NSb2xlc1Jlc3BvbnNlEl0KDkxpc3RXb3Jrc3BhY2VzEiQua2FnZW50LmFwaS52MS5MaXN0V29ya3NwYWNlc1JlcXVlc3QaJS5rYWdlbnQuYXBpLnYxLkxpc3RXb3Jrc3BhY2VzUmVzcG9uc2USYwoQQ2hlY2tQZXJtaXNzaW9ucxImLmthZ2VudC5hcGkudjEuQ2hlY2tQZXJtaXNzaW9uc1JlcXVlc3QaJy5rYWdlbnQuYXBpLnYxLkNoZWNrUGVybWlzc2lvbnNSZXNwb25zZRJjChBMaXN0Um9sZUJpbmRpbmdzEiYua2FnZW50LmFwaS52MS5MaXN0Um9sZUJpbmRpbmdzUmVxdWVzdBonLmthZ2VudC5hcGkudjEuTGlzdFJvbGVCaW5kaW5nc1Jlc3BvbnNlEk4KCUdyYW50Um9sZRIfLmthZ2VudC5hcGkudjEuR3JhbnRSb2xlUmVxdWVzdBogLmthZ2VudC5hcGkudjEuR3JhbnRSb2xlUmVzcG9uc2USUQoKUmV2b2tlUm9sZRIgLmthZ2VudC5hcGkudjEuUmV2b2tlUm9sZVJlcXVlc3QaIS5rYWdlbnQuYXBpLnYxLlJldm9rZVJvbGVSZXNwb25zZUI9WjtnaXRodWIuY29tL2thZ2VudC1kZXYva2FnZW50L2dvL2FwaS9nZW4va2FnZW50L2FwaS92MTthcGl2MWIGcHJvdG8z", [file_buf_validate_validate, file_kagent_api_v1_common, file_kagent_api_v1_execution]);
 
 /**
  * @generated from message kagent.api.v1.IdentityGroup
@@ -124,6 +124,28 @@ export const KubernetesAuthorizationReferenceSchema: GenMessage<KubernetesAuthor
   messageDesc(file_kagent_api_v1_authorization, 3);
 
 /**
+ * @generated from message kagent.api.v1.MCPToolAuthorizationReference
+ */
+export type MCPToolAuthorizationReference = Message<"kagent.api.v1.MCPToolAuthorizationReference"> & {
+  /**
+   * @generated from field: kagent.api.v1.KubernetesAuthorizationReference server = 1;
+   */
+  server?: KubernetesAuthorizationReference | undefined;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+};
+
+/**
+ * Describes the message kagent.api.v1.MCPToolAuthorizationReference.
+ * Use `create(MCPToolAuthorizationReferenceSchema)` to create a new message.
+ */
+export const MCPToolAuthorizationReferenceSchema: GenMessage<MCPToolAuthorizationReference> = /*@__PURE__*/
+  messageDesc(file_kagent_api_v1_authorization, 4);
+
+/**
  * @generated from message kagent.api.v1.AuthorizationResource
  */
 export type AuthorizationResource = Message<"kagent.api.v1.AuthorizationResource"> & {
@@ -154,6 +176,12 @@ export type AuthorizationResource = Message<"kagent.api.v1.AuthorizationResource
      */
     value: TaskReference;
     case: "task";
+  } | {
+    /**
+     * @generated from field: kagent.api.v1.MCPToolAuthorizationReference mcp_tool = 5;
+     */
+    value: MCPToolAuthorizationReference;
+    case: "mcpTool";
   } | { case: undefined; value?: undefined };
 };
 
@@ -162,7 +190,7 @@ export type AuthorizationResource = Message<"kagent.api.v1.AuthorizationResource
  * Use `create(AuthorizationResourceSchema)` to create a new message.
  */
 export const AuthorizationResourceSchema: GenMessage<AuthorizationResource> = /*@__PURE__*/
-  messageDesc(file_kagent_api_v1_authorization, 4);
+  messageDesc(file_kagent_api_v1_authorization, 5);
 
 /**
  * @generated from message kagent.api.v1.AccessRoleDefinition
@@ -184,7 +212,7 @@ export type AccessRoleDefinition = Message<"kagent.api.v1.AccessRoleDefinition">
  * Use `create(AccessRoleDefinitionSchema)` to create a new message.
  */
 export const AccessRoleDefinitionSchema: GenMessage<AccessRoleDefinition> = /*@__PURE__*/
-  messageDesc(file_kagent_api_v1_authorization, 5);
+  messageDesc(file_kagent_api_v1_authorization, 6);
 
 /**
  * @generated from message kagent.api.v1.RoleBinding
@@ -211,7 +239,7 @@ export type RoleBinding = Message<"kagent.api.v1.RoleBinding"> & {
  * Use `create(RoleBindingSchema)` to create a new message.
  */
 export const RoleBindingSchema: GenMessage<RoleBinding> = /*@__PURE__*/
-  messageDesc(file_kagent_api_v1_authorization, 6);
+  messageDesc(file_kagent_api_v1_authorization, 7);
 
 /**
  * @generated from message kagent.api.v1.ResourceGrant
@@ -233,7 +261,7 @@ export type ResourceGrant = Message<"kagent.api.v1.ResourceGrant"> & {
  * Use `create(ResourceGrantSchema)` to create a new message.
  */
 export const ResourceGrantSchema: GenMessage<ResourceGrant> = /*@__PURE__*/
-  messageDesc(file_kagent_api_v1_authorization, 7);
+  messageDesc(file_kagent_api_v1_authorization, 8);
 
 /**
  * @generated from message kagent.api.v1.ListAccessRolesRequest
@@ -246,7 +274,7 @@ export type ListAccessRolesRequest = Message<"kagent.api.v1.ListAccessRolesReque
  * Use `create(ListAccessRolesRequestSchema)` to create a new message.
  */
 export const ListAccessRolesRequestSchema: GenMessage<ListAccessRolesRequest> = /*@__PURE__*/
-  messageDesc(file_kagent_api_v1_authorization, 8);
+  messageDesc(file_kagent_api_v1_authorization, 9);
 
 /**
  * @generated from message kagent.api.v1.ListAccessRolesResponse
@@ -263,7 +291,7 @@ export type ListAccessRolesResponse = Message<"kagent.api.v1.ListAccessRolesResp
  * Use `create(ListAccessRolesResponseSchema)` to create a new message.
  */
 export const ListAccessRolesResponseSchema: GenMessage<ListAccessRolesResponse> = /*@__PURE__*/
-  messageDesc(file_kagent_api_v1_authorization, 9);
+  messageDesc(file_kagent_api_v1_authorization, 10);
 
 /**
  * @generated from message kagent.api.v1.ListWorkspacesRequest
@@ -287,7 +315,7 @@ export type ListWorkspacesRequest = Message<"kagent.api.v1.ListWorkspacesRequest
  * Use `create(ListWorkspacesRequestSchema)` to create a new message.
  */
 export const ListWorkspacesRequestSchema: GenMessage<ListWorkspacesRequest> = /*@__PURE__*/
-  messageDesc(file_kagent_api_v1_authorization, 10);
+  messageDesc(file_kagent_api_v1_authorization, 11);
 
 /**
  * @generated from message kagent.api.v1.ListWorkspacesResponse
@@ -311,7 +339,7 @@ export type ListWorkspacesResponse = Message<"kagent.api.v1.ListWorkspacesRespon
  * Use `create(ListWorkspacesResponseSchema)` to create a new message.
  */
 export const ListWorkspacesResponseSchema: GenMessage<ListWorkspacesResponse> = /*@__PURE__*/
-  messageDesc(file_kagent_api_v1_authorization, 11);
+  messageDesc(file_kagent_api_v1_authorization, 12);
 
 /**
  * @generated from message kagent.api.v1.CheckPermissionsRequest
@@ -333,7 +361,7 @@ export type CheckPermissionsRequest = Message<"kagent.api.v1.CheckPermissionsReq
  * Use `create(CheckPermissionsRequestSchema)` to create a new message.
  */
 export const CheckPermissionsRequestSchema: GenMessage<CheckPermissionsRequest> = /*@__PURE__*/
-  messageDesc(file_kagent_api_v1_authorization, 12);
+  messageDesc(file_kagent_api_v1_authorization, 13);
 
 /**
  * @generated from message kagent.api.v1.ResourceAccess
@@ -355,7 +383,7 @@ export type ResourceAccess = Message<"kagent.api.v1.ResourceAccess"> & {
  * Use `create(ResourceAccessSchema)` to create a new message.
  */
 export const ResourceAccessSchema: GenMessage<ResourceAccess> = /*@__PURE__*/
-  messageDesc(file_kagent_api_v1_authorization, 13);
+  messageDesc(file_kagent_api_v1_authorization, 14);
 
 /**
  * @generated from message kagent.api.v1.CheckPermissionsResponse
@@ -374,7 +402,7 @@ export type CheckPermissionsResponse = Message<"kagent.api.v1.CheckPermissionsRe
  * Use `create(CheckPermissionsResponseSchema)` to create a new message.
  */
 export const CheckPermissionsResponseSchema: GenMessage<CheckPermissionsResponse> = /*@__PURE__*/
-  messageDesc(file_kagent_api_v1_authorization, 14);
+  messageDesc(file_kagent_api_v1_authorization, 15);
 
 /**
  * @generated from message kagent.api.v1.ListRoleBindingsRequest
@@ -401,7 +429,7 @@ export type ListRoleBindingsRequest = Message<"kagent.api.v1.ListRoleBindingsReq
  * Use `create(ListRoleBindingsRequestSchema)` to create a new message.
  */
 export const ListRoleBindingsRequestSchema: GenMessage<ListRoleBindingsRequest> = /*@__PURE__*/
-  messageDesc(file_kagent_api_v1_authorization, 15);
+  messageDesc(file_kagent_api_v1_authorization, 16);
 
 /**
  * @generated from message kagent.api.v1.ListRoleBindingsResponse
@@ -423,7 +451,7 @@ export type ListRoleBindingsResponse = Message<"kagent.api.v1.ListRoleBindingsRe
  * Use `create(ListRoleBindingsResponseSchema)` to create a new message.
  */
 export const ListRoleBindingsResponseSchema: GenMessage<ListRoleBindingsResponse> = /*@__PURE__*/
-  messageDesc(file_kagent_api_v1_authorization, 16);
+  messageDesc(file_kagent_api_v1_authorization, 17);
 
 /**
  * @generated from message kagent.api.v1.GrantRoleRequest
@@ -450,7 +478,7 @@ export type GrantRoleRequest = Message<"kagent.api.v1.GrantRoleRequest"> & {
  * Use `create(GrantRoleRequestSchema)` to create a new message.
  */
 export const GrantRoleRequestSchema: GenMessage<GrantRoleRequest> = /*@__PURE__*/
-  messageDesc(file_kagent_api_v1_authorization, 17);
+  messageDesc(file_kagent_api_v1_authorization, 18);
 
 /**
  * @generated from message kagent.api.v1.GrantRoleResponse
@@ -467,7 +495,7 @@ export type GrantRoleResponse = Message<"kagent.api.v1.GrantRoleResponse"> & {
  * Use `create(GrantRoleResponseSchema)` to create a new message.
  */
 export const GrantRoleResponseSchema: GenMessage<GrantRoleResponse> = /*@__PURE__*/
-  messageDesc(file_kagent_api_v1_authorization, 18);
+  messageDesc(file_kagent_api_v1_authorization, 19);
 
 /**
  * @generated from message kagent.api.v1.RevokeRoleRequest
@@ -494,7 +522,7 @@ export type RevokeRoleRequest = Message<"kagent.api.v1.RevokeRoleRequest"> & {
  * Use `create(RevokeRoleRequestSchema)` to create a new message.
  */
 export const RevokeRoleRequestSchema: GenMessage<RevokeRoleRequest> = /*@__PURE__*/
-  messageDesc(file_kagent_api_v1_authorization, 19);
+  messageDesc(file_kagent_api_v1_authorization, 20);
 
 /**
  * @generated from message kagent.api.v1.RevokeRoleResponse
@@ -507,7 +535,7 @@ export type RevokeRoleResponse = Message<"kagent.api.v1.RevokeRoleResponse"> & {
  * Use `create(RevokeRoleResponseSchema)` to create a new message.
  */
 export const RevokeRoleResponseSchema: GenMessage<RevokeRoleResponse> = /*@__PURE__*/
-  messageDesc(file_kagent_api_v1_authorization, 20);
+  messageDesc(file_kagent_api_v1_authorization, 21);
 
 /**
  * @generated from enum kagent.api.v1.Permission
@@ -637,6 +665,56 @@ export enum Permission {
    * @generated from enum value: PERMISSION_ACCESS_MANAGE = 24;
    */
   ACCESS_MANAGE = 24,
+
+  /**
+   * @generated from enum value: PERMISSION_HARNESS_READ = 25;
+   */
+  HARNESS_READ = 25,
+
+  /**
+   * @generated from enum value: PERMISSION_HARNESS_USE = 26;
+   */
+  HARNESS_USE = 26,
+
+  /**
+   * @generated from enum value: PERMISSION_HARNESS_MANAGE = 27;
+   */
+  HARNESS_MANAGE = 27,
+
+  /**
+   * @generated from enum value: PERMISSION_MODEL_CONNECTION_READ = 28;
+   */
+  MODEL_CONNECTION_READ = 28,
+
+  /**
+   * @generated from enum value: PERMISSION_MODEL_CONNECTION_USE = 29;
+   */
+  MODEL_CONNECTION_USE = 29,
+
+  /**
+   * @generated from enum value: PERMISSION_MODEL_CONNECTION_MANAGE = 30;
+   */
+  MODEL_CONNECTION_MANAGE = 30,
+
+  /**
+   * @generated from enum value: PERMISSION_MCP_SERVER_READ = 31;
+   */
+  MCP_SERVER_READ = 31,
+
+  /**
+   * @generated from enum value: PERMISSION_MCP_SERVER_USE = 32;
+   */
+  MCP_SERVER_USE = 32,
+
+  /**
+   * @generated from enum value: PERMISSION_MCP_SERVER_MANAGE = 33;
+   */
+  MCP_SERVER_MANAGE = 33,
+
+  /**
+   * @generated from enum value: PERMISSION_MCP_TOOL_CALL = 34;
+   */
+  MCP_TOOL_CALL = 34,
 }
 
 /**
@@ -698,6 +776,21 @@ export enum AccessRole {
    * @generated from enum value: ACCESS_ROLE_ACCESS_ADMIN = 9;
    */
   ACCESS_ADMIN = 9,
+
+  /**
+   * @generated from enum value: ACCESS_ROLE_DEPENDENCY_READER = 10;
+   */
+  DEPENDENCY_READER = 10,
+
+  /**
+   * @generated from enum value: ACCESS_ROLE_DEPENDENCY_USER = 11;
+   */
+  DEPENDENCY_USER = 11,
+
+  /**
+   * @generated from enum value: ACCESS_ROLE_DEPENDENCY_MANAGER = 12;
+   */
+  DEPENDENCY_MANAGER = 12,
 }
 
 /**
@@ -739,6 +832,26 @@ export enum AuthorizationScopeKind {
    * @generated from enum value: AUTHORIZATION_SCOPE_KIND_TASK = 5;
    */
   TASK = 5,
+
+  /**
+   * @generated from enum value: AUTHORIZATION_SCOPE_KIND_HARNESS = 6;
+   */
+  HARNESS = 6,
+
+  /**
+   * @generated from enum value: AUTHORIZATION_SCOPE_KIND_MODEL_CONNECTION = 7;
+   */
+  MODEL_CONNECTION = 7,
+
+  /**
+   * @generated from enum value: AUTHORIZATION_SCOPE_KIND_MCP_SERVER = 8;
+   */
+  MCP_SERVER = 8,
+
+  /**
+   * @generated from enum value: AUTHORIZATION_SCOPE_KIND_MCP_TOOL = 9;
+   */
+  MCP_TOOL = 9,
 }
 
 /**

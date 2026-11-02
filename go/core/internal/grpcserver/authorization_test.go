@@ -81,6 +81,9 @@ func TestNativeOpenFGAAuthorizationAPI(t *testing.T) {
 		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "team", UID: "workspace-1"}},
 		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "other-team", UID: "workspace-2"}},
 		&v1alpha3.Agent{ObjectMeta: metav1.ObjectMeta{Name: "assistant", Namespace: "team", UID: "agent-1"}},
+		&v1alpha3.Harness{ObjectMeta: metav1.ObjectMeta{Name: "runtime", Namespace: "team", UID: "harness-1"}},
+		&v1alpha3.ModelConfig{ObjectMeta: metav1.ObjectMeta{Name: "primary", Namespace: "team", UID: "model-1"}},
+		&v1alpha3.RemoteMCPServer{ObjectMeta: metav1.ObjectMeta{Name: "tools", Namespace: "team", UID: "mcp-1"}},
 	).Build()
 	connStr := dbtest.StartT(ctx, t)
 	dbtest.MigrateT(t, connStr, false)
@@ -120,7 +123,7 @@ func TestNativeOpenFGAAuthorizationAPI(t *testing.T) {
 	assertGRPCCode(t, err, codes.Unauthenticated)
 	roles, err := client.ListAccessRoles(admin, &apiv1.ListAccessRolesRequest{})
 	require.NoError(t, err)
-	require.Len(t, roles.Roles, 9)
+	require.Len(t, roles.Roles, 12)
 	workspaces, err := client.ListWorkspaces(admin, &apiv1.ListWorkspacesRequest{})
 	require.NoError(t, err)
 	require.Equal(t, []*apiv1.WorkspaceAuthorizationReference{{Namespace: "team", Uid: "workspace-1"}}, workspaces.Workspaces)
@@ -165,6 +168,74 @@ func TestNativeOpenFGAAuthorizationAPI(t *testing.T) {
 	access, err := client.CheckPermissions(alice, check)
 	require.NoError(t, err)
 	require.Equal(t, []apiv1.Permission{apiv1.Permission_PERMISSION_AGENT_INVOKE}, access.Resources[0].AllowedActions)
+	for _, dependency := range []struct {
+		kind       apiv1.AuthorizationScopeKind
+		name       string
+		role       apiv1.AccessRole
+		permission apiv1.Permission
+		uid        string
+	}{
+		{apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_HARNESS, "runtime", apiv1.AccessRole_ACCESS_ROLE_DEPENDENCY_USER, apiv1.Permission_PERMISSION_HARNESS_USE, "harness-1"},
+		{apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_MODEL_CONNECTION, "primary", apiv1.AccessRole_ACCESS_ROLE_DEPENDENCY_READER, apiv1.Permission_PERMISSION_MODEL_CONNECTION_READ, "model-1"},
+		{apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_MCP_SERVER, "tools", apiv1.AccessRole_ACCESS_ROLE_DEPENDENCY_USER, apiv1.Permission_PERMISSION_MCP_SERVER_USE, "mcp-1"},
+	} {
+		resource := &apiv1.AuthorizationResource{Resource: &apiv1.AuthorizationResource_Kubernetes{
+			Kubernetes: &apiv1.KubernetesAuthorizationReference{
+				Kind: dependency.kind, Ref: &apiv1.ResourceReference{Namespace: "team", Name: dependency.name},
+			},
+		}}
+		grant, err := client.GrantRole(admin, &apiv1.GrantRoleRequest{Workspace: workspace.GetWorkspace(), RequestId: uuid.NewString(), Binding: &apiv1.RoleBinding{
+			Subject: subject("alice"), Role: dependency.role, Scope: resource,
+		}})
+		require.NoError(t, err)
+		require.Equal(t, dependency.uid, grant.Binding.Scope.GetKubernetes().Uid)
+		query := &apiv1.CheckPermissionsRequest{Workspace: workspace.GetWorkspace(), Checks: []*apiv1.ResourceGrant{{
+			Resource: resource, Permissions: []apiv1.Permission{dependency.permission},
+		}}}
+		result, err := client.CheckPermissions(alice, query)
+		require.NoError(t, err)
+		require.Equal(t, []apiv1.Permission{dependency.permission}, result.Resources[0].AllowedActions)
+		stale := proto.CloneOf(query)
+		stale.Checks[0].Resource.GetKubernetes().Uid = "stale-uid"
+		result, err = client.CheckPermissions(alice, stale)
+		require.NoError(t, err)
+		require.Empty(t, result.Resources[0].AllowedActions)
+		_, err = client.RevokeRole(admin, &apiv1.RevokeRoleRequest{Workspace: workspace.GetWorkspace(), RequestId: uuid.NewString(), Binding: grant.Binding})
+		require.NoError(t, err)
+		result, err = client.CheckPermissions(alice, query)
+		require.NoError(t, err)
+		require.Empty(t, result.Resources[0].AllowedActions)
+	}
+	tool := &apiv1.AuthorizationResource{Resource: &apiv1.AuthorizationResource_McpTool{
+		McpTool: &apiv1.MCPToolAuthorizationReference{
+			Server: &apiv1.KubernetesAuthorizationReference{
+				Kind: apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_MCP_SERVER,
+				Ref:  &apiv1.ResourceReference{Namespace: "team", Name: "tools"},
+			},
+			Name: "search",
+		},
+	}}
+	toolGrant, err := client.GrantRole(admin, &apiv1.GrantRoleRequest{Workspace: workspace.GetWorkspace(), RequestId: uuid.NewString(), Binding: &apiv1.RoleBinding{
+		Subject: subject("alice"), Role: apiv1.AccessRole_ACCESS_ROLE_DEPENDENCY_USER, Scope: tool,
+	}})
+	require.NoError(t, err)
+	require.Equal(t, "mcp-1", toolGrant.Binding.Scope.GetMcpTool().Server.Uid)
+	toolCheck := &apiv1.CheckPermissionsRequest{Workspace: workspace.GetWorkspace(), Checks: []*apiv1.ResourceGrant{{
+		Resource: tool, Permissions: []apiv1.Permission{apiv1.Permission_PERMISSION_MCP_TOOL_CALL},
+	}}}
+	toolAccess, err := client.CheckPermissions(alice, toolCheck)
+	require.NoError(t, err)
+	require.Equal(t, []apiv1.Permission{apiv1.Permission_PERMISSION_MCP_TOOL_CALL}, toolAccess.Resources[0].AllowedActions)
+	siblingTool := proto.CloneOf(toolCheck)
+	siblingTool.Checks[0].Resource.GetMcpTool().Name = "delete"
+	toolAccess, err = client.CheckPermissions(alice, siblingTool)
+	require.NoError(t, err)
+	require.Empty(t, toolAccess.Resources[0].AllowedActions)
+	_, err = client.RevokeRole(admin, &apiv1.RevokeRoleRequest{Workspace: workspace.GetWorkspace(), RequestId: uuid.NewString(), Binding: toolGrant.Binding})
+	require.NoError(t, err)
+	toolAccess, err = client.CheckPermissions(alice, toolCheck)
+	require.NoError(t, err)
+	require.Empty(t, toolAccess.Resources[0].AllowedActions)
 	_, err = client.GrantRole(alice, &apiv1.GrantRoleRequest{Workspace: workspace.GetWorkspace(), RequestId: uuid.NewString(), Binding: &apiv1.RoleBinding{
 		Subject: subject("alice"), Role: apiv1.AccessRole_ACCESS_ROLE_DEFINITION_EDITOR, Scope: agent,
 	}})

@@ -57,6 +57,23 @@ func (r *resolver) resolve(ctx context.Context, scope *apiv1.AuthorizationResour
 		return &resolvedResource{scope: scope, kind: workspaceScope, object: key, workspace: key, namespace: workspace.Name}, nil
 	case *apiv1.AuthorizationResource_Kubernetes:
 		return r.kubernetes(ctx, ref.Kubernetes)
+	case *apiv1.AuthorizationResource_McpTool:
+		if ref.McpTool.Server.Kind != mcpServerScope {
+			return nil, serviceerrors.NewInvalidArgument("MCP tool requires an MCP server", nil)
+		}
+		server, err := r.kubernetes(ctx, ref.McpTool.Server)
+		if err != nil {
+			return nil, err
+		}
+		hash := sha256.Sum256([]byte(server.object + "\x00" + ref.McpTool.Name))
+		key := "mcp_tool:" + hex.EncodeToString(hash[:])
+		return &resolvedResource{
+			scope: &apiv1.AuthorizationResource{Resource: &apiv1.AuthorizationResource_McpTool{
+				McpTool: &apiv1.MCPToolAuthorizationReference{Server: proto.CloneOf(server.scope.GetKubernetes()), Name: ref.McpTool.Name},
+			}},
+			kind: mcpToolScope, object: key, workspace: server.workspace, namespace: server.namespace,
+			facts: append(server.facts, fga.TupleKey{User: server.object, Relation: "server", Object: key}),
+		}, nil
 	case *apiv1.AuthorizationResource_SessionId:
 		return r.session(ctx, ref.SessionId)
 	case *apiv1.AuthorizationResource_Task:
@@ -109,6 +126,12 @@ func (r *resolver) kubernetes(ctx context.Context, ref *apiv1.KubernetesAuthoriz
 		object, objectType = new(v1alpha3.Agent), "agent"
 	case templateScope:
 		object, objectType = new(v1alpha3.AgentTemplate), "agent_template"
+	case harnessScope:
+		object, objectType = new(v1alpha3.Harness), "harness"
+	case modelConnectionScope:
+		object, objectType = new(v1alpha3.ModelConfig), "model_connection"
+	case mcpServerScope:
+		object, objectType = new(v1alpha3.RemoteMCPServer), "mcp_server"
 	default:
 		return nil, serviceerrors.NewInvalidArgument("Unsupported Kubernetes authorization kind", nil)
 	}
