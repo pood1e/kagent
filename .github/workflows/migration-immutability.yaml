@@ -2,7 +2,7 @@ name: Migration Immutability
 
 on:
   pull_request:
-    branches: [main, "release/**"]
+    branches: [main, dev, "release/**"]
   merge_group:
 
 jobs:
