@@ -51,6 +51,11 @@
         "^(sessionId)$": {
           "default": "",
           "type": "string"
+        },
+        "^(workspaceUid)$": {
+          "default": "",
+          "description": "Immutable Kubernetes namespace UID captured by the native Session service.",
+          "type": "string"
         }
       },
       "properties": {
@@ -74,6 +79,11 @@
         },
         "session_id": {
           "default": "",
+          "type": "string"
+        },
+        "workspace_uid": {
+          "default": "",
+          "description": "Immutable Kubernetes namespace UID captured by the native Session service.",
           "type": "string"
         }
       },

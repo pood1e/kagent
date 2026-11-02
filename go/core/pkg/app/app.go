@@ -47,6 +47,7 @@ import (
 	configv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/config/v1"
 	kagentv1alpha3 "github.com/kagent-dev/kagent/go/api/v1alpha3"
 	"github.com/kagent-dev/kagent/go/core/internal/a2agateway"
+	"github.com/kagent-dev/kagent/go/core/internal/authorization"
 	"github.com/kagent-dev/kagent/go/core/internal/controller"
 	remotemcpcontroller "github.com/kagent-dev/kagent/go/core/internal/controller/remotemcpserver"
 	scheduledruncontroller "github.com/kagent-dev/kagent/go/core/internal/controller/scheduledrun"
@@ -340,6 +341,20 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 		}
 	}
 	authenticator, authorizer := opts.resolve()
+	var resourceAuthorization *authorization.Service
+	if cfg.Authorization != nil {
+		resourceAuthorization, err = authorization.NewService(authorization.Config{
+			OpenFGA: cfg.Authorization, Kubernetes: manager.GetAPIReader(), Store: store,
+			Issuer: cfg.GetServer().GetAuth().GetOidc().GetIssuer(),
+		})
+		if err != nil {
+			return fmt.Errorf("configure resource authorization: %w", err)
+		}
+		defer resourceAuthorization.Close()
+		if err := resourceAuthorization.Ready(ctx); err != nil {
+			return fmt.Errorf("verify resource authorization model: %w", err)
+		}
+	}
 	if machine := cfg.GetServer().GetAuth().GetServiceAccount(); machine != nil {
 		reviewer, err := typedauth.NewForConfig(kubeConfig)
 		if err != nil {
@@ -380,7 +395,7 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 		return fmt.Errorf("register session expiration worker: %w", err)
 	}
 	shareMaxTTL := cfg.GetSessions().GetShareMaxTtl().AsDuration()
-	sessions := sessionsvc.NewService(store, authorizer, sessionWorkflow, sessionsvc.WithShareMaxTTL(shareMaxTTL), sessionsvc.WithExecutionAuthority(executionAuthority))
+	sessions := sessionsvc.NewService(store, authorizer, sessionWorkflow, sessionsvc.WithShareMaxTTL(shareMaxTTL), sessionsvc.WithExecutionAuthority(executionAuthority), sessionsvc.WithWorkspaceIdentity(manager.GetAPIReader()))
 	checkpoints := checkpoint.NewService(store, authorizer, actors, sessionWorkflow, executionAuthority)
 	gatewayDialer, err := a2agateway.NewRuntimeDialer(
 		cfg.GetSubstrate().GetRouterUrl(),
@@ -473,6 +488,7 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 	mux.Handle("/mcp", otelhttp.NewHandler(auth.AuthnMiddleware(authenticator)(mcpHandler), "/mcp"))
 	mux.Handle(a2agateway.HTTPPathPrefix, otelhttp.NewHandler(a2agateway.NewHTTPHandler(gateway, authenticator, store), a2agateway.HTTPPathPrefix))
 	server, err := grpcserver.New(grpcserver.Config{
+		AuthorizationService:  resourceAuthorization,
 		MethodPolicies:        policies,
 		RegisterServices:      opts.GRPCServices,
 		BindAddress:           cfg.GetServer().GetBindAddress(),

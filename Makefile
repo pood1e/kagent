@@ -190,6 +190,20 @@ proto-check: proto-lint proto-generate ## Regenerate protobuf artifacts and fail
 		exit 1; \
 	fi
 
+##@ Resource authorization
+
+FGA ?= fga
+AUTHORIZATION_MODEL := go/core/internal/authorization/model
+
+.PHONY: authorization-model-check
+authorization-model-check: ## Validate the native model, generated JSON, and role matrix with the OpenFGA CLI
+	$(FGA) model validate --file $(AUTHORIZATION_MODEL).fga
+	@set -eu; generated=$$(mktemp); expected=$$(mktemp); trap 'rm -f "$$generated" "$$expected"' EXIT; \
+		$(FGA) model transform --file $(AUTHORIZATION_MODEL).fga --output-format json | jq -S . > "$$generated"; \
+		jq -S . $(AUTHORIZATION_MODEL).json > "$$expected"; \
+		diff -u "$$expected" "$$generated"
+	$(FGA) model test --tests $(AUTHORIZATION_MODEL).fga.yaml
+
 ##@ Environment documentation
 
 ENV_DOCS_COMMAND = cd go && go run ./core/cli/cmd/kagent env --format markdown

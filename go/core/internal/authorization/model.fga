@@ -1,0 +1,115 @@
+model
+  schema 1.1
+
+type principal
+type session_share
+
+type group
+  relations
+    define member: [principal]
+
+type operation
+  relations
+    define applied: [principal]
+
+type workspace
+  relations
+    define member: [principal, group#member]
+    define definition_reader: [principal, group#member]
+    define definition_editor: [principal, group#member]
+    define workflow_editor: [principal, group#member]
+    define workflow_publisher: [principal, group#member]
+    define executor: [principal, group#member]
+    define auditor: [principal, group#member]
+    define operator: [principal, group#member]
+    define access_admin: [principal, group#member]
+    define can_agent_read: (definition_reader or definition_editor or workflow_editor or workflow_publisher) and member
+    define can_agent_create: (definition_editor) and member
+    define can_agent_update: (definition_editor) and member
+    define can_agent_delete: (definition_editor) and member
+    define can_agent_invoke: (executor) and member
+    define can_template_read: (definition_reader or definition_editor or workflow_editor or workflow_publisher) and member
+    define can_template_create: (definition_editor) and member
+    define can_template_update: (definition_editor) and member
+    define can_template_delete: (definition_editor) and member
+    define can_template_use: (executor) and member
+    define can_workflow_read: (definition_reader or definition_editor or workflow_editor or workflow_publisher) and member
+    define can_workflow_edit: (workflow_editor) and member
+    define can_workflow_publish: (workflow_publisher) and member
+    define can_workflow_execute: (executor) and member
+    define can_session_read: (auditor or operator) and member
+    define can_session_create: member
+    define can_task_read: (auditor or operator) and member
+    define can_task_cancel: (operator) and member
+    define can_access_read: (access_admin) and member
+    define can_access_manage: (access_admin) and member
+
+type agent
+  relations
+    define workspace: [workspace]
+    define reader: [principal, group#member]
+    define editor: [principal, group#member]
+    define workflow_editor: [principal, group#member]
+    define publisher: [principal, group#member]
+    define executor: [principal, group#member]
+    define member: member from workspace
+    define can_agent_read: (reader or editor or workflow_editor or publisher or can_agent_read from workspace) and member
+    define can_agent_update: (editor or can_agent_update from workspace) and member
+    define can_agent_delete: (editor or can_agent_delete from workspace) and member
+    define can_agent_invoke: (executor or can_agent_invoke from workspace) and member
+    define can_workflow_read: (reader or editor or workflow_editor or publisher or can_workflow_read from workspace) and member
+    define can_workflow_edit: (workflow_editor or can_workflow_edit from workspace) and member
+    define can_workflow_publish: (publisher or can_workflow_publish from workspace) and member
+    define can_workflow_execute: (executor or can_workflow_execute from workspace) and member
+    define can_access_read: (can_access_read from workspace) and member
+    define can_access_manage: (can_access_manage from workspace) and member
+
+type agent_template
+  relations
+    define workspace: [workspace]
+    define reader: [principal, group#member]
+    define editor: [principal, group#member]
+    define workflow_editor: [principal, group#member]
+    define publisher: [principal, group#member]
+    define executor: [principal, group#member]
+    define member: member from workspace
+    define can_template_read: (reader or editor or workflow_editor or publisher or can_template_read from workspace) and member
+    define can_template_update: (editor or can_template_update from workspace) and member
+    define can_template_delete: (editor or can_template_delete from workspace) and member
+    define can_template_use: (executor or can_template_use from workspace) and member
+    define can_workflow_read: (reader or editor or workflow_editor or publisher or can_workflow_read from workspace) and member
+    define can_workflow_edit: (workflow_editor or can_workflow_edit from workspace) and member
+    define can_workflow_publish: (publisher or can_workflow_publish from workspace) and member
+    define can_workflow_execute: (executor or can_workflow_execute from workspace) and member
+    define can_access_read: (can_access_read from workspace) and member
+    define can_access_manage: (can_access_manage from workspace) and member
+
+type session
+  relations
+    define workspace: [workspace]
+    define owner: [principal]
+    define token_reader: [session_share]
+    define viewer: [principal, group#member]
+    define controller: [principal, group#member]
+    define member: member from workspace
+    define can_session_read: ((owner or viewer or controller or can_session_read from workspace) and member) or token_reader
+    define can_session_send: owner and member
+    define can_session_share: owner and member
+    define can_session_delete: owner and member
+    define can_task_cancel: (owner or controller or can_task_cancel from workspace) and member
+    define can_task_respond: owner and member
+    define can_access_read: (owner or can_access_read from workspace) and member
+    define can_access_manage: can_access_manage from workspace
+
+type task
+  relations
+    define session: [session]
+    define viewer: [principal, group#member]
+    define controller: [principal, group#member]
+    define member: member from session
+    define can_task_read: ((viewer or controller) and member) or can_session_read from session
+    define can_task_cancel: (controller or can_task_cancel from session) and member
+    define can_task_respond: can_task_respond from session
+    define can_session_share: can_session_share from session
+    define can_access_read: can_access_read from session
+    define can_access_manage: can_access_manage from session
