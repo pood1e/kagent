@@ -873,8 +873,10 @@ func (x *ListAccessRolesResponse) GetRoles() []*AccessRoleDefinition {
 }
 
 type ListWorkspacesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Page          *PageRequest           `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Page  *PageRequest           `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
+	// An exact lookup verifies membership without scanning the workspace directory.
+	Workspace     *WorkspaceAuthorizationReference `protobuf:"bytes,2,opt,name=workspace,proto3" json:"workspace,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -912,6 +914,13 @@ func (*ListWorkspacesRequest) Descriptor() ([]byte, []int) {
 func (x *ListWorkspacesRequest) GetPage() *PageRequest {
 	if x != nil {
 		return x.Page
+	}
+	return nil
+}
+
+func (x *ListWorkspacesRequest) GetWorkspace() *WorkspaceAuthorizationReference {
+	if x != nil {
+		return x.Workspace
 	}
 	return nil
 }
@@ -1475,9 +1484,11 @@ const file_kagent_api_v1_authorization_proto_rawDesc = "" +
 	"\vpermissions\x18\x02 \x03(\x0e2\x19.kagent.api.v1.PermissionB\x15\xbaH\x12\x92\x01\x0f\b\x01\x10\x18\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\vpermissions\"\x18\n" +
 	"\x16ListAccessRolesRequest\"T\n" +
 	"\x17ListAccessRolesResponse\x129\n" +
-	"\x05roles\x18\x01 \x03(\v2#.kagent.api.v1.AccessRoleDefinitionR\x05roles\"G\n" +
+	"\x05roles\x18\x01 \x03(\v2#.kagent.api.v1.AccessRoleDefinitionR\x05roles\"\xaf\x02\n" +
 	"\x15ListWorkspacesRequest\x12.\n" +
-	"\x04page\x18\x01 \x01(\v2\x1a.kagent.api.v1.PageRequestR\x04page\"\x99\x01\n" +
+	"\x04page\x18\x01 \x01(\v2\x1a.kagent.api.v1.PageRequestR\x04page\x12L\n" +
+	"\tworkspace\x18\x02 \x01(\v2..kagent.api.v1.WorkspaceAuthorizationReferenceR\tworkspace:\x97\x01\xbaH\x93\x01\x1a\x90\x01\n" +
+	"\x1dlist_workspaces.filter_cursor\x12(workspace filter cannot use a page token\x1aE!has(this.workspace) || !has(this.page) || this.page.page_token == ''\"\x99\x01\n" +
 	"\x16ListWorkspacesResponse\x12N\n" +
 	"\n" +
 	"workspaces\x18\x01 \x03(\v2..kagent.api.v1.WorkspaceAuthorizationReferenceR\n" +
@@ -1628,40 +1639,41 @@ var file_kagent_api_v1_authorization_proto_depIdxs = []int32{
 	0,  // 12: kagent.api.v1.ResourceGrant.permissions:type_name -> kagent.api.v1.Permission
 	8,  // 13: kagent.api.v1.ListAccessRolesResponse.roles:type_name -> kagent.api.v1.AccessRoleDefinition
 	26, // 14: kagent.api.v1.ListWorkspacesRequest.page:type_name -> kagent.api.v1.PageRequest
-	5,  // 15: kagent.api.v1.ListWorkspacesResponse.workspaces:type_name -> kagent.api.v1.WorkspaceAuthorizationReference
-	27, // 16: kagent.api.v1.ListWorkspacesResponse.page:type_name -> kagent.api.v1.PageResponse
-	10, // 17: kagent.api.v1.CheckPermissionsRequest.checks:type_name -> kagent.api.v1.ResourceGrant
-	5,  // 18: kagent.api.v1.CheckPermissionsRequest.workspace:type_name -> kagent.api.v1.WorkspaceAuthorizationReference
-	7,  // 19: kagent.api.v1.ResourceAccess.resource:type_name -> kagent.api.v1.AuthorizationResource
-	0,  // 20: kagent.api.v1.ResourceAccess.allowed_actions:type_name -> kagent.api.v1.Permission
-	16, // 21: kagent.api.v1.CheckPermissionsResponse.resources:type_name -> kagent.api.v1.ResourceAccess
-	7,  // 22: kagent.api.v1.ListRoleBindingsRequest.scope:type_name -> kagent.api.v1.AuthorizationResource
-	26, // 23: kagent.api.v1.ListRoleBindingsRequest.page:type_name -> kagent.api.v1.PageRequest
-	5,  // 24: kagent.api.v1.ListRoleBindingsRequest.workspace:type_name -> kagent.api.v1.WorkspaceAuthorizationReference
-	9,  // 25: kagent.api.v1.ListRoleBindingsResponse.bindings:type_name -> kagent.api.v1.RoleBinding
-	27, // 26: kagent.api.v1.ListRoleBindingsResponse.page:type_name -> kagent.api.v1.PageResponse
-	9,  // 27: kagent.api.v1.GrantRoleRequest.binding:type_name -> kagent.api.v1.RoleBinding
-	5,  // 28: kagent.api.v1.GrantRoleRequest.workspace:type_name -> kagent.api.v1.WorkspaceAuthorizationReference
-	9,  // 29: kagent.api.v1.GrantRoleResponse.binding:type_name -> kagent.api.v1.RoleBinding
-	9,  // 30: kagent.api.v1.RevokeRoleRequest.binding:type_name -> kagent.api.v1.RoleBinding
-	5,  // 31: kagent.api.v1.RevokeRoleRequest.workspace:type_name -> kagent.api.v1.WorkspaceAuthorizationReference
-	11, // 32: kagent.api.v1.AuthorizationService.ListAccessRoles:input_type -> kagent.api.v1.ListAccessRolesRequest
-	13, // 33: kagent.api.v1.AuthorizationService.ListWorkspaces:input_type -> kagent.api.v1.ListWorkspacesRequest
-	15, // 34: kagent.api.v1.AuthorizationService.CheckPermissions:input_type -> kagent.api.v1.CheckPermissionsRequest
-	18, // 35: kagent.api.v1.AuthorizationService.ListRoleBindings:input_type -> kagent.api.v1.ListRoleBindingsRequest
-	20, // 36: kagent.api.v1.AuthorizationService.GrantRole:input_type -> kagent.api.v1.GrantRoleRequest
-	22, // 37: kagent.api.v1.AuthorizationService.RevokeRole:input_type -> kagent.api.v1.RevokeRoleRequest
-	12, // 38: kagent.api.v1.AuthorizationService.ListAccessRoles:output_type -> kagent.api.v1.ListAccessRolesResponse
-	14, // 39: kagent.api.v1.AuthorizationService.ListWorkspaces:output_type -> kagent.api.v1.ListWorkspacesResponse
-	17, // 40: kagent.api.v1.AuthorizationService.CheckPermissions:output_type -> kagent.api.v1.CheckPermissionsResponse
-	19, // 41: kagent.api.v1.AuthorizationService.ListRoleBindings:output_type -> kagent.api.v1.ListRoleBindingsResponse
-	21, // 42: kagent.api.v1.AuthorizationService.GrantRole:output_type -> kagent.api.v1.GrantRoleResponse
-	23, // 43: kagent.api.v1.AuthorizationService.RevokeRole:output_type -> kagent.api.v1.RevokeRoleResponse
-	38, // [38:44] is the sub-list for method output_type
-	32, // [32:38] is the sub-list for method input_type
-	32, // [32:32] is the sub-list for extension type_name
-	32, // [32:32] is the sub-list for extension extendee
-	0,  // [0:32] is the sub-list for field type_name
+	5,  // 15: kagent.api.v1.ListWorkspacesRequest.workspace:type_name -> kagent.api.v1.WorkspaceAuthorizationReference
+	5,  // 16: kagent.api.v1.ListWorkspacesResponse.workspaces:type_name -> kagent.api.v1.WorkspaceAuthorizationReference
+	27, // 17: kagent.api.v1.ListWorkspacesResponse.page:type_name -> kagent.api.v1.PageResponse
+	10, // 18: kagent.api.v1.CheckPermissionsRequest.checks:type_name -> kagent.api.v1.ResourceGrant
+	5,  // 19: kagent.api.v1.CheckPermissionsRequest.workspace:type_name -> kagent.api.v1.WorkspaceAuthorizationReference
+	7,  // 20: kagent.api.v1.ResourceAccess.resource:type_name -> kagent.api.v1.AuthorizationResource
+	0,  // 21: kagent.api.v1.ResourceAccess.allowed_actions:type_name -> kagent.api.v1.Permission
+	16, // 22: kagent.api.v1.CheckPermissionsResponse.resources:type_name -> kagent.api.v1.ResourceAccess
+	7,  // 23: kagent.api.v1.ListRoleBindingsRequest.scope:type_name -> kagent.api.v1.AuthorizationResource
+	26, // 24: kagent.api.v1.ListRoleBindingsRequest.page:type_name -> kagent.api.v1.PageRequest
+	5,  // 25: kagent.api.v1.ListRoleBindingsRequest.workspace:type_name -> kagent.api.v1.WorkspaceAuthorizationReference
+	9,  // 26: kagent.api.v1.ListRoleBindingsResponse.bindings:type_name -> kagent.api.v1.RoleBinding
+	27, // 27: kagent.api.v1.ListRoleBindingsResponse.page:type_name -> kagent.api.v1.PageResponse
+	9,  // 28: kagent.api.v1.GrantRoleRequest.binding:type_name -> kagent.api.v1.RoleBinding
+	5,  // 29: kagent.api.v1.GrantRoleRequest.workspace:type_name -> kagent.api.v1.WorkspaceAuthorizationReference
+	9,  // 30: kagent.api.v1.GrantRoleResponse.binding:type_name -> kagent.api.v1.RoleBinding
+	9,  // 31: kagent.api.v1.RevokeRoleRequest.binding:type_name -> kagent.api.v1.RoleBinding
+	5,  // 32: kagent.api.v1.RevokeRoleRequest.workspace:type_name -> kagent.api.v1.WorkspaceAuthorizationReference
+	11, // 33: kagent.api.v1.AuthorizationService.ListAccessRoles:input_type -> kagent.api.v1.ListAccessRolesRequest
+	13, // 34: kagent.api.v1.AuthorizationService.ListWorkspaces:input_type -> kagent.api.v1.ListWorkspacesRequest
+	15, // 35: kagent.api.v1.AuthorizationService.CheckPermissions:input_type -> kagent.api.v1.CheckPermissionsRequest
+	18, // 36: kagent.api.v1.AuthorizationService.ListRoleBindings:input_type -> kagent.api.v1.ListRoleBindingsRequest
+	20, // 37: kagent.api.v1.AuthorizationService.GrantRole:input_type -> kagent.api.v1.GrantRoleRequest
+	22, // 38: kagent.api.v1.AuthorizationService.RevokeRole:input_type -> kagent.api.v1.RevokeRoleRequest
+	12, // 39: kagent.api.v1.AuthorizationService.ListAccessRoles:output_type -> kagent.api.v1.ListAccessRolesResponse
+	14, // 40: kagent.api.v1.AuthorizationService.ListWorkspaces:output_type -> kagent.api.v1.ListWorkspacesResponse
+	17, // 41: kagent.api.v1.AuthorizationService.CheckPermissions:output_type -> kagent.api.v1.CheckPermissionsResponse
+	19, // 42: kagent.api.v1.AuthorizationService.ListRoleBindings:output_type -> kagent.api.v1.ListRoleBindingsResponse
+	21, // 43: kagent.api.v1.AuthorizationService.GrantRole:output_type -> kagent.api.v1.GrantRoleResponse
+	23, // 44: kagent.api.v1.AuthorizationService.RevokeRole:output_type -> kagent.api.v1.RevokeRoleResponse
+	39, // [39:45] is the sub-list for method output_type
+	33, // [33:39] is the sub-list for method input_type
+	33, // [33:33] is the sub-list for extension type_name
+	33, // [33:33] is the sub-list for extension extendee
+	0,  // [0:33] is the sub-list for field type_name
 }
 
 func init() { file_kagent_api_v1_authorization_proto_init() }

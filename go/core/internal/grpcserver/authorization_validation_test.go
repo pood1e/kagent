@@ -20,6 +20,13 @@ func TestAuthorizationRequestValidation(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, validator.Validate(&apiv1.ListWorkspacesRequest{}))
 	require.NoError(t, validator.Validate(&apiv1.ListWorkspacesRequest{Page: &apiv1.PageRequest{Limit: 100}}))
+	require.NoError(t, validator.Validate(&apiv1.ListWorkspacesRequest{
+		Workspace: &apiv1.WorkspaceAuthorizationReference{Namespace: "team", Uid: "workspace-1"},
+	}))
+	require.Error(t, validator.Validate(&apiv1.ListWorkspacesRequest{
+		Workspace: &apiv1.WorkspaceAuthorizationReference{Namespace: "team"},
+		Page:      &apiv1.PageRequest{PageToken: "cursor"},
+	}))
 	_, err = protovalidatemiddleware.UnaryServerInterceptor(validator)(
 		t.Context(), &apiv1.ListWorkspacesRequest{Page: &apiv1.PageRequest{Limit: 101}}, &grpc.UnaryServerInfo{},
 		func(context.Context, any) (any, error) {

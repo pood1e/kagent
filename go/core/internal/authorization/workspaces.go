@@ -15,6 +15,7 @@ import (
 
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	"github.com/kagent-dev/kagent/go/core/internal/service/serviceerrors"
+	"github.com/kagent-dev/kagent/go/core/pkg/auth"
 )
 
 const workspaceScanLimit = 1000
@@ -32,6 +33,9 @@ func (s *Service) ListWorkspaces(ctx context.Context, request *apiv1.ListWorkspa
 	principal, err := caller(ctx)
 	if err != nil {
 		return nil, err
+	}
+	if request.Workspace != nil {
+		return s.workspaceMembership(ctx, principal, request.Workspace)
 	}
 	cursor := workspaceCursor{Principal: principal.ID, Model: s.config.AuthorizationModelId}
 	last, err := decodeWorkspaceCursor(request.GetPage().GetPageToken(), cursor)
@@ -96,6 +100,36 @@ func (s *Service) ListWorkspaces(ctx context.Context, request *apiv1.ListWorkspa
 			return nil, serviceerrors.NewInternal("Failed to encode workspace cursor", err)
 		}
 	}
+	return result, nil
+}
+
+func (s *Service) workspaceMembership(ctx context.Context, principal auth.Principal, reference *apiv1.WorkspaceAuthorizationReference) (*apiv1.ListWorkspacesResponse, error) {
+	result := &apiv1.ListWorkspacesResponse{Page: new(apiv1.PageResponse)}
+	if len(s.watchNamespaces) != 0 && !slices.Contains(s.watchNamespaces, reference.Namespace) {
+		return result, nil
+	}
+	workspace, err := s.resolver.workspace(ctx, reference.Namespace, reference.Uid)
+	if serviceerrors.IsCode(err, serviceerrors.CodeNotFound) {
+		return result, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	allowed, err := s.batchRelations(ctx, principal, []relationCheck{{object: "workspace:" + string(workspace.UID), relation: "member"}})
+	if err != nil {
+		return nil, err
+	}
+	if !allowed[0] {
+		return result, nil
+	}
+	current, err := s.resolver.workspace(ctx, workspace.Name, string(workspace.UID))
+	if serviceerrors.IsCode(err, serviceerrors.CodeNotFound) {
+		return result, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	result.Workspaces = []*apiv1.WorkspaceAuthorizationReference{{Namespace: current.Name, Uid: string(current.UID)}}
 	return result, nil
 }
 

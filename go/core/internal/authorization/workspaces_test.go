@@ -52,6 +52,32 @@ func TestListWorkspacesFiltersAndPagesByCurrentUID(t *testing.T) {
 	require.Equal(t, "team", second.Workspaces[0].Namespace)
 	require.Equal(t, "workspace-1", second.Workspaces[0].Uid)
 	require.Empty(t, second.Page.NextPageToken)
+	for _, test := range []struct {
+		name string
+		ref  *apiv1.WorkspaceAuthorizationReference
+		want string
+	}{
+		{"member", &apiv1.WorkspaceAuthorizationReference{Namespace: "ops", Uid: "workspace-3"}, "workspace-3"},
+		{"nonmember", &apiv1.WorkspaceAuthorizationReference{Namespace: "dev", Uid: "workspace-2"}, ""},
+		{"stale UID", &apiv1.WorkspaceAuthorizationReference{Namespace: "ops", Uid: "old-uid"}, ""},
+		{"missing", &apiv1.WorkspaceAuthorizationReference{Namespace: "missing"}, ""},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			response, err := service.ListWorkspaces(ctx, &apiv1.ListWorkspacesRequest{Workspace: test.ref})
+			require.NoError(t, err)
+			require.Empty(t, response.Page.NextPageToken)
+			if test.want == "" {
+				require.Empty(t, response.Workspaces)
+			} else {
+				require.Equal(t, test.want, response.Workspaces[0].Uid)
+			}
+		})
+	}
+	_, err = service.ListWorkspaces(ctx, &apiv1.ListWorkspacesRequest{
+		Workspace: &apiv1.WorkspaceAuthorizationReference{Namespace: "ops"},
+		Page:      &apiv1.PageRequest{PageToken: first.Page.NextPageToken},
+	})
+	require.True(t, serviceerrors.IsCode(err, serviceerrors.CodeInvalidArgument), "%v", err)
 	_, err = service.ListWorkspaces(userContext(t, "bob"), &apiv1.ListWorkspacesRequest{Page: &apiv1.PageRequest{PageToken: first.Page.NextPageToken}})
 	require.True(t, serviceerrors.IsCode(err, serviceerrors.CodeInvalidArgument), "%v", err)
 	_, err = service.ListWorkspaces(ctx, &apiv1.ListWorkspacesRequest{Page: &apiv1.PageRequest{PageToken: "broken"}})
@@ -80,6 +106,16 @@ func TestListWorkspacesUsesVerifiedGroupsAndObservedNamespaces(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []*apiv1.WorkspaceAuthorizationReference{{Namespace: "team", Uid: "workspace-1"}}, response.Workspaces)
 	require.Empty(t, response.Page.NextPageToken)
+	response, err = service.ListWorkspaces(ctx, &apiv1.ListWorkspacesRequest{
+		Workspace: &apiv1.WorkspaceAuthorizationReference{Namespace: "team"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []*apiv1.WorkspaceAuthorizationReference{{Namespace: "team", Uid: "workspace-1"}}, response.Workspaces)
+	response, err = service.ListWorkspaces(ctx, &apiv1.ListWorkspacesRequest{
+		Workspace: &apiv1.WorkspaceAuthorizationReference{Namespace: "dev"},
+	})
+	require.NoError(t, err)
+	require.Empty(t, response.Workspaces)
 }
 
 func TestListWorkspacesRejectsStaleMembershipAndBackendFailures(t *testing.T) {

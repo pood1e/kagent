@@ -127,6 +127,12 @@ func TestNativeOpenFGAAuthorizationAPI(t *testing.T) {
 	workspaces, err = client.ListWorkspaces(alice, &apiv1.ListWorkspacesRequest{})
 	require.NoError(t, err)
 	require.Empty(t, workspaces.Workspaces)
+	workspaces, err = client.ListWorkspaces(admin, &apiv1.ListWorkspacesRequest{Workspace: workspace.GetWorkspace()})
+	require.NoError(t, err)
+	require.Equal(t, "workspace-1", workspaces.Workspaces[0].Uid)
+	workspaces, err = client.ListWorkspaces(alice, &apiv1.ListWorkspacesRequest{Workspace: workspace.GetWorkspace()})
+	require.NoError(t, err)
+	require.Empty(t, workspaces.Workspaces)
 	_, err = client.ListWorkspaces(admin, &apiv1.ListWorkspacesRequest{Page: &apiv1.PageRequest{Limit: 101}})
 	assertGRPCCode(t, err, codes.InvalidArgument)
 	_, err = client.CheckPermissions(alice, &apiv1.CheckPermissionsRequest{})
@@ -139,6 +145,14 @@ func TestNativeOpenFGAAuthorizationAPI(t *testing.T) {
 	workspaces, err = client.ListWorkspaces(alice, &apiv1.ListWorkspacesRequest{})
 	require.NoError(t, err)
 	require.Equal(t, []*apiv1.WorkspaceAuthorizationReference{{Namespace: "team", Uid: "workspace-1"}}, workspaces.Workspaces)
+	workspaces, err = client.ListWorkspaces(alice, &apiv1.ListWorkspacesRequest{Workspace: workspace.GetWorkspace()})
+	require.NoError(t, err)
+	require.Equal(t, []*apiv1.WorkspaceAuthorizationReference{{Namespace: "team", Uid: "workspace-1"}}, workspaces.Workspaces)
+	workspaces, err = client.ListWorkspaces(alice, &apiv1.ListWorkspacesRequest{
+		Workspace: &apiv1.WorkspaceAuthorizationReference{Namespace: "team", Uid: "old-uid"},
+	})
+	require.NoError(t, err)
+	require.Empty(t, workspaces.Workspaces)
 	invoke := &apiv1.GrantRoleRequest{Workspace: workspace.GetWorkspace(), RequestId: uuid.NewString(), Binding: &apiv1.RoleBinding{
 		Subject: subject("alice"), Role: apiv1.AccessRole_ACCESS_ROLE_EXECUTOR, Scope: agent,
 	}}
