@@ -25,7 +25,7 @@ func (c *Client) ListCatalogSessionActivity(ctx context.Context, q CatalogTaskQu
 	result := CatalogSessionPage{Sessions: []*apiv1.SessionActivity{}}
 	agent := q.Agent.GetNamespace() + "/" + q.Agent.GetName()
 	args := append(q.Scope.args(), agent, catalogPattern(q.Query))
-	err := catalogRead(ctx, c, func(tx pgx.Tx) error {
+	err := catalogRead(ctx, c, q.Scope, func(tx pgx.Tx) error {
 		total, err := queryOne(ctx, tx, `
  SELECT count(*) FROM catalog_session_activity($1,$2,$3,$4,$5,$6,$7)
  `, pgx.RowTo[int], args...)

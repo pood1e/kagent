@@ -15,6 +15,7 @@ import (
 // an empty non-nil slice permits no sessions. Callers derive it from current policy.
 type CatalogScope struct {
 	Namespace        string
+	WorkspaceUID     string
 	OwnerID          string
 	OtherInitiatorID string
 	RootSessionID    string
@@ -71,8 +72,14 @@ func catalogFilters(filters []CatalogFilter) (string, error) {
 	return string(data), err
 }
 
-func catalogRead(ctx context.Context, client *Client, fn func(pgx.Tx) error) error {
+func catalogRead(ctx context.Context, client *Client, scope CatalogScope, fn func(pgx.Tx) error) error {
+	if scope.WorkspaceUID == "" {
+		return fmt.Errorf("catalog workspace identity is required")
+	}
 	return pgx.BeginTxFunc(ctx, client.db, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly}, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `SELECT set_config('kagent.catalog_workspace_uid', $1, TRUE)`, scope.WorkspaceUID); err != nil {
+			return fmt.Errorf("bind catalog workspace identity: %w", err)
+		}
 		// Authorized forests range from empty to many thousands of anchors. Bind
 		// cardinalities when planning nested SQL functions as well as the page.
 		if _, err := tx.Exec(ctx, `SET LOCAL plan_cache_mode = force_custom_plan`); err != nil {
@@ -85,10 +92,16 @@ func catalogRead(ctx context.Context, client *Client, fn func(pgx.Tx) error) err
 // CatalogHasRenewableSession observes whether this scope contains caller-initiated
 // renewable sessions. The service renews credentials once outside the transaction.
 func (c *Client) CatalogHasRenewableSession(ctx context.Context, scope CatalogScope, caller string) (bool, error) {
-	return queryOne(ctx, c.db, `
+	var renewable bool
+	err := catalogRead(ctx, c, scope, func(tx pgx.Tx) error {
+		var err error
+		renewable, err = queryOne(ctx, tx, `
  SELECT EXISTS(SELECT 1 FROM catalog_sessions($1,$2,$3,$4,$5)
  WHERE initiator_id=$6 AND expires_at IS NOT NULL)
  `, pgx.RowTo[bool], append(scope.args(), caller)...)
+		return err
+	})
+	return renewable, err
 }
 
 func invalidCatalogState(state string) error {

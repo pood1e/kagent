@@ -7,13 +7,15 @@ The contract reuses upstream A2A tasks, native Sessions, and immutable
 
 ## Read path
 
-Session authorization produces a namespace, ownership or live-tree boundary,
-and permitted Session IDs. PostgreSQL applies this boundary before activity
-aggregation, literal-substring search, deterministic ordering, and keyset paging.
+Session authorization resolves the current namespace UID, ownership or live-tree
+boundary, and permitted Session IDs. A read-only transaction binds that UID to
+the catalog SQL functions; PostgreSQL intersects it with the Session's captured
+`workspace_uid` before activity aggregation, literal-substring search,
+deterministic ordering, and keyset paging.
 Counts and page contents share a read-only repeatable-read transaction.
-Page tokens bind the current authorized scope and selection.
+Page tokens bind the current authorized scope, workspace UID, and selection.
 The transaction selects PostgreSQL custom plans for parameter-sensitive scopes
-and nested tree functions; its planning setting expires with the transaction.
+and nested tree functions; both planning and workspace settings expire with the transaction.
 
 Group anchors use the requested boundary Agents. Descendant traversal retains
 the complete authorized execution tree, including nested groups and background
@@ -48,4 +50,5 @@ Unbound human collection reads renew eligible delegation once per request.
 - `go/core/internal/service/session/catalog.go`: Session scope authorization.
 - `go/core/internal/database/task_catalog*.go`: queries, publication, and decoding.
 - `go/core/pkg/migrations/core/000008_task_catalog.sql` through
-  `000011_task_catalog_sessions.sql`: indexed columns and native tree aggregation.
+  `000013_task_catalog_workspace_uid.sql`: indexed columns, native tree aggregation,
+  and workspace-incarnation filtering.

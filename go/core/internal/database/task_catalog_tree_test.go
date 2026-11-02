@@ -19,7 +19,7 @@ func TestCatalogGroupsKeepOverlappingCompleteTrees(t *testing.T) {
 	root := catalogQueryTask(t, client, parent, "a-root", "root prompt", at, a2a.TaskStateWorking, nil)
 	bridge := catalogQueryTask(t, client, middle, "b-middle", "delegated prompt", at.Add(time.Second), a2a.TaskStateWorking, &DispatchOrigin{SessionID: parent.Id})
 	leaf := catalogQueryTask(t, client, child, "c-leaf", "child prompt", at.Add(2*time.Second), a2a.TaskStateWorking, &DispatchOrigin{SessionID: middle.Id})
-	query := CatalogTaskQuery{Scope: CatalogScope{Namespace: "team-a", OwnerID: "alice"}, BoundaryAgents: []string{"team-a/boundary"}, Limit: 100}
+	query := CatalogTaskQuery{Scope: CatalogScope{Namespace: "team-a", WorkspaceUID: "team-a-uid", OwnerID: "alice"}, BoundaryAgents: []string{"team-a/boundary"}, Limit: 100}
 	all, err := client.ListCatalogTaskGroups(t.Context(), query)
 	require.NoError(t, err)
 	require.Equal(t, []string{string(root.ID), string(leaf.ID)}, catalogGroupIDs(all))
@@ -68,7 +68,7 @@ func TestCatalogParentStateUsesForegroundAndRootFirstOrder(t *testing.T) {
 				nested := catalogQuerySession(t, client, "team-a", "worker", "alice", "", child)
 				catalogQueryTask(t, client, nested, "nested", "nested", at.Add(time.Second), a2a.TaskStateWorking, &DispatchOrigin{SessionID: child.Id})
 			}
-			query := CatalogTaskQuery{Scope: CatalogScope{Namespace: "team-a", OwnerID: "alice"}, Limit: 100}
+			query := CatalogTaskQuery{Scope: CatalogScope{Namespace: "team-a", WorkspaceUID: "team-a-uid", OwnerID: "alice"}, Limit: 100}
 			catalogQueryState(t, client, root, a2a.TaskStateSubmitted, at.Add(2*time.Second))
 			submitted, err := client.ListCatalogTaskGroups(t.Context(), query)
 			require.NoError(t, err)
@@ -123,7 +123,7 @@ func TestCatalogGroupsRetainNativeContinuations(t *testing.T) {
 	require.Len(t, claims, 1)
 	resumed := continuationTask(t, client, parent, "kagent-continuation-"+claims[0].ID.String(), &DispatchOrigin{ContinuationID: claims[0].ID})
 	groups, err := client.ListCatalogTaskGroups(t.Context(), CatalogTaskQuery{
-		Scope: CatalogScope{Namespace: "team-a", OwnerID: "alice"}, Limit: 10,
+		Scope: CatalogScope{Namespace: "team-a", WorkspaceUID: "team-a-uid", OwnerID: "alice"}, Limit: 10,
 	})
 	require.NoError(t, err)
 	require.Equal(t, []string{string(root.ID)}, catalogGroupIDs(groups))
@@ -146,7 +146,7 @@ func TestCatalogLiveChildSurvivesDeletedNativeRoot(t *testing.T) {
 	leaf := catalogQueryTask(t, client, child, "live-child", "child", at.Add(time.Second), a2a.TaskStateWorking, &DispatchOrigin{SessionID: parent.Id, Background: true})
 	catalogQueryState(t, client, root, a2a.TaskStateCompleted, at.Add(2*time.Second))
 	require.NoError(t, deleteSession(t.Context(), client, parent.Id))
-	query := CatalogTaskQuery{Scope: CatalogScope{Namespace: "team-a", RootSessionID: parent.Id, AnchorSessionID: child.Id}, Limit: 100}
+	query := CatalogTaskQuery{Scope: CatalogScope{Namespace: "team-a", WorkspaceUID: "team-a-uid", RootSessionID: parent.Id, AnchorSessionID: child.Id}, Limit: 100}
 	records, err := client.ListCatalogTaskRecords(t.Context(), query)
 	require.NoError(t, err)
 	require.Equal(t, []string{string(leaf.ID)}, catalogRecordIDs(records))
@@ -161,7 +161,7 @@ func TestCatalogEmptyAuthorizedTreeRetainsItsAnchor(t *testing.T) {
 	client := catalogQueryClient(t)
 	session := catalogQuerySession(t, client, "team-a", "worker", "alice", "empty", nil)
 	page, err := client.ListCatalogTaskRecords(t.Context(), CatalogTaskQuery{
-		Scope: CatalogScope{Namespace: "team-a", RootSessionID: session.Id, AnchorSessionID: session.Id}, Limit: 10,
+		Scope: CatalogScope{Namespace: "team-a", WorkspaceUID: "team-a-uid", RootSessionID: session.Id, AnchorSessionID: session.Id}, Limit: 10,
 	})
 	require.NoError(t, err)
 	require.Empty(t, page.Tasks)
