@@ -110,7 +110,7 @@ func (c *Compiler) resolveWorkflow(_ context.Context, template *TemplateConfigur
 // MCP servers by the RemoteMCPServer of a template binding, or uses the
 // template's own model and tools under their reserved names. HITL input nodes
 // use the runtime's native question bridge.
-func (c *Compiler) resolveKagentWorkflow(workflow *ResolvedWorkflow, root *AgentInput, outputSchema *ResolvedOutputSchema) error {
+func (c *Compiler) resolveKagentWorkflow(ctx context.Context, workflow *ResolvedWorkflow, root *AgentInput, outputSchema *ResolvedOutputSchema) error {
 	template := root.Template
 	switch {
 	case outputSchema != nil:
@@ -161,6 +161,15 @@ func (c *Compiler) resolveKagentWorkflow(workflow *ResolvedWorkflow, root *Agent
 	}
 	if err := vocabulary.Validate(workflow.Spec); err != nil {
 		return NewValidationError("invalid workflow for the kagent runtime: %v", err)
+	}
+	// Construction checks the ADK graph without invoking models or tools. The
+	// vocabulary uses stub models and bound toolsets, keeping admission offline.
+	system, err := declarative.Build(ctx, workflow.Spec, vocabulary)
+	if err != nil {
+		return NewValidationError("invalid workflow graph: %v", err)
+	}
+	if err := system.Close(); err != nil {
+		return NewValidationError("failed to close workflow validation: %v", err)
 	}
 	workflow.Models = models
 	return nil

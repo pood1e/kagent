@@ -71,6 +71,7 @@ import (
 	"github.com/kagent-dev/kagent/go/core/internal/service/taskcatalog"
 	"github.com/kagent-dev/kagent/go/core/internal/service/taskstore"
 	toolservice "github.com/kagent-dev/kagent/go/core/internal/service/tool"
+	workflowservice "github.com/kagent-dev/kagent/go/core/internal/service/workflow"
 	"github.com/kagent-dev/kagent/go/core/internal/substrate"
 	"github.com/kagent-dev/kagent/go/core/internal/version"
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
@@ -491,6 +492,7 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 		ScheduledRunService:   schedules,
 		// Author Agents and their reusable configuration through the API.
 		AgentService:           agents,
+		WorkflowService:        workflowservice.NewService(agents, admission, sessions, store),
 		AgentTemplateService:   kubecrud.NewService(manager.GetClient(), authorizer, &kagentv1alpha3.AgentTemplate{}, &kagentv1alpha3.AgentTemplateList{}, "AgentTemplate", admission.AgentTemplate),
 		HarnessService:         kubecrud.NewService(manager.GetClient(), authorizer, &kagentv1alpha3.Harness{}, &kagentv1alpha3.HarnessList{}, "Harness", admission.Harness),
 		SandboxTemplateService: sandboxTemplates,

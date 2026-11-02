@@ -77,7 +77,7 @@ type ResolvedOutputSchema struct {
 // changes to it recompile the Agent.
 func (c *Compiler) resolveConfigMapKey(namespace, purpose string, ref *v1alpha3.ConfigMapKeyReference) ([]byte, *ResolvedConfigMapKeyReference, error) {
 	key := types.NamespacedName{Namespace: namespace, Name: ref.Name}
-	configMap := krt.FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(key))
+	configMap := FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(key))
 	if configMap == nil {
 		return nil, nil, fmt.Errorf("resolve %s ConfigMap %q: not found", purpose, ref.Name)
 	}

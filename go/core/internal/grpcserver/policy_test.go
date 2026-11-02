@@ -80,6 +80,10 @@ func TestReadOnlyShareCannotRenameAConversation(t *testing.T) {
 			name:   "read-only share cannot validate candidate configuration",
 			method: apiv1.AgentService_ValidateAgent_FullMethodName, wantCode: codes.PermissionDenied,
 		},
+		{
+			name:   "read-only share cannot compile candidate workflow",
+			method: apiv1.WorkflowService_ValidateWorkflow_FullMethodName, wantCode: codes.PermissionDenied,
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			shareStore := &testShareStore{
@@ -91,6 +95,20 @@ func TestReadOnlyShareCannotRenameAConversation(t *testing.T) {
 				t.Fatalf("authenticate(%s) code = %v (%v), want %v", test.method, got, err, test.wantCode)
 			}
 		})
+	}
+}
+
+func TestWorkflowPoliciesMatchTheirEffect(t *testing.T) {
+	policies := DefaultMethodPolicies()
+	for method, want := range map[string]pkgauth.AccessMode{
+		apiv1.WorkflowService_GetWorkflowSchema_FullMethodName:   pkgauth.AccessRead,
+		apiv1.WorkflowService_GetWorkflowRevision_FullMethodName: pkgauth.AccessRead,
+		apiv1.WorkflowService_ValidateWorkflow_FullMethodName:    pkgauth.AccessCreate,
+		apiv1.WorkflowService_GetSessionWorkflow_FullMethodName:  pkgauth.AccessRead,
+	} {
+		if got := policies[method]; got != want {
+			t.Errorf("%s policy = %s, want %s", method, got, want)
+		}
 	}
 }
 

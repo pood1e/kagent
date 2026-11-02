@@ -10,6 +10,7 @@ import (
 	"istio.io/istio/pkg/kube/krt"
 	"k8s.io/apimachinery/pkg/types"
 
+	runtimeconfig "github.com/kagent-dev/kagent/go/adk/pkg/config"
 	configv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/config/v1"
 	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 )
@@ -141,12 +142,23 @@ func (c *Compiler) CompileAgent(ctx context.Context, agent *v1alpha3.Agent) (*Co
 		return nil, err
 	}
 	result.AgentUID = string(agent.UID)
+	var workflow *configv1.ADKWorkflowConfig
+	if template.Spec.WorkflowFrom != nil {
+		var config configv1.ADKConfig
+		if err := runtimeconfig.Unmarshal(result.ConfigJSON, &config); err != nil {
+			return nil, fmt.Errorf("decode workflow provenance: %w", err)
+		}
+		if source := config.GetAgent().GetWorkflow(); source != nil {
+			workflow = &configv1.ADKWorkflowConfig{Document: source.Document, Sha256: source.Sha256}
+		}
+	}
 	result.Provenance, err = json.Marshal(struct {
-		AgentName string             `json:"agentName"`
-		AgentUID  string             `json:"agentUID"`
-		Spec      v1alpha3.AgentSpec `json:"spec"`
-		Inputs    json.RawMessage    `json:"inputs"`
-	}{agent.Name, string(agent.UID), agent.Spec, result.Provenance})
+		AgentName string                      `json:"agentName"`
+		AgentUID  string                      `json:"agentUID"`
+		Spec      v1alpha3.AgentSpec          `json:"spec"`
+		Inputs    json.RawMessage             `json:"inputs"`
+		Workflow  *configv1.ADKWorkflowConfig `json:"workflow,omitempty"`
+	}{agent.Name, string(agent.UID), agent.Spec, result.Provenance, workflow})
 	if err != nil {
 		return nil, fmt.Errorf("encode Agent provenance: %w", err)
 	}
@@ -355,7 +367,7 @@ func (c *Compiler) buildInputs(ctx context.Context, tree *resolvedTemplateTree) 
 		return nil, err
 	}
 	if workflow != nil && harnessType(tree.Harness) == HarnessTypeKagent {
-		if err := c.resolveKagentWorkflow(workflow, root, outputSchema); err != nil {
+		if err := c.resolveKagentWorkflow(ctx, workflow, root, outputSchema); err != nil {
 			return nil, err
 		}
 	}
