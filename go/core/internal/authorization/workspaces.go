@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
-	"sort"
 
 	"buf.build/go/protovalidate"
 	corev1 "k8s.io/api/core/v1"
@@ -48,7 +47,12 @@ func (s *Service) ListWorkspaces(ctx context.Context, request *apiv1.ListWorkspa
 		limit = 50
 	}
 	result := &apiv1.ListWorkspacesResponse{Page: new(apiv1.PageResponse)}
-	start := sort.Search(len(candidates), func(i int) bool { return candidates[i].Name > last })
+	start, found := slices.BinarySearchFunc(candidates, last, func(namespace corev1.Namespace, name string) int {
+		return cmp.Compare(namespace.Name, name)
+	})
+	if found {
+		start++
+	}
 	end := min(start+workspaceScanLimit, len(candidates))
 	for offset := start; offset < end; offset += 50 {
 		stop := min(offset+50, end)
