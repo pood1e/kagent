@@ -44,7 +44,7 @@ func TestCatalogGroupsKeepOverlappingCompleteTrees(t *testing.T) {
 	require.Equal(t, []string{string(leaf.ID)}, catalogGroupIDs(second))
 	require.ElementsMatch(t, []string{string(bridge.ID), string(leaf.ID)}, catalogRecordIDs(second.CatalogRecords))
 	query.AfterID, query.AfterTime, query.Limit = "", nil, 100
-	query.Agent = middle.Agent
+	query.Agent = middle.GetAgent().GetRef()
 	byAgent, err := client.ListCatalogTaskGroups(t.Context(), query)
 	require.NoError(t, err)
 	require.Equal(t, []string{string(root.ID)}, catalogGroupIDs(byAgent), "an initiator is not a descendant of its delegated group")
@@ -92,7 +92,7 @@ func TestCatalogParentStateUsesForegroundAndRootFirstOrder(t *testing.T) {
 					require.False(t, entry.Execution.Background, "inherited display activity keeps immutable edge facts")
 				}
 			}
-			query.Agent = parent.Agent
+			query.Agent = parent.GetAgent().GetRef()
 			conversations, err := client.ListCatalogSessionActivity(t.Context(), query)
 			require.NoError(t, err)
 			for _, session := range conversations.Sessions {

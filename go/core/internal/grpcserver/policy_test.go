@@ -189,3 +189,17 @@ func TestActorAndUserPoliciesOnSharedEndpoint(t *testing.T) {
 		})
 	}
 }
+
+func TestWorkflowPoliciesMatchTheirEffect(t *testing.T) {
+	policies := DefaultMethodPolicies()
+	for method, want := range map[string]pkgauth.AccessMode{
+		apiv1.WorkflowService_GetWorkflowSchema_FullMethodName:   pkgauth.AccessRead,
+		apiv1.WorkflowService_GetWorkflowRevision_FullMethodName: pkgauth.AccessRead,
+		apiv1.WorkflowService_ValidateWorkflow_FullMethodName:    pkgauth.AccessCreate,
+		apiv1.WorkflowService_GetSessionWorkflow_FullMethodName:  pkgauth.AccessRead,
+	} {
+		if got := policies[method]; got != want {
+			t.Errorf("%s policy = %s, want %s", method, got, want)
+		}
+	}
+}

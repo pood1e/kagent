@@ -28,18 +28,18 @@ func catalogQueryAgent(t testing.TB, client *Client, namespace, agent string) {
 	require.NoError(t, client.UpsertAgentDefinition(t.Context(), AgentDefinition{
 		Namespace: namespace, AgentName: agent, AgentUID: agent + "-uid", DesiredRevision: revision,
 	}))
-	require.NoError(t, client.RecordRuntimeRevision(t.Context(), RuntimeRevision{
+	require.NoError(t, recordErr(client.RecordRuntimeRevision(t.Context(), RuntimeRevision{
 		Revision: revision, Namespace: namespace, AgentName: agent, AgentUID: agent + "-uid",
 		SourceSnapshot: []byte("{}"), AgentCard: &a2apb.AgentCard{}, EgressDestinations: []string{},
 		ActorTemplateAtespace: namespace, ActorTemplateName: revision + "-template", ActorTemplateUID: revision + "-uid",
-	}, RecordRevisionOptions{Ready: true}))
+	}, RecordRevisionOptions{Ready: true})))
 }
 
 func catalogQuerySession(t testing.TB, client *Client, namespace, agent, owner, name string, parent *apiv1.Session) *apiv1.Session {
 	t.Helper()
 	request := &apiv1.Session{
 		Id: uuid.NewString(), Creator: owner, Name: name,
-		Agent: &apiv1.ResourceReference{Namespace: namespace, Name: agent},
+		Agent: &apiv1.AgentProvenance{Ref: &apiv1.ResourceReference{Namespace: namespace, Name: agent}},
 	}
 	if parent != nil {
 		grant, _, err := client.GetSessionAuthority(t.Context(), parent.Id)

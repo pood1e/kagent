@@ -93,7 +93,7 @@ func TestTaskCatalogGeneratedClientReadsPublishedForestAfterRootDeletion(t *test
 	require.NoError(t, err)
 	require.Len(t, activity.Agents, 1)
 	require.EqualValues(t, 2, activity.Agents[0].ActiveTasks)
-	conversations, err := client.ListSessionActivity(ctx, &apiv1.ListSessionActivityRequest{Scope: owned, Agent: root.Agent, Query: "100%_literal"})
+	conversations, err := client.ListSessionActivity(ctx, &apiv1.ListSessionActivityRequest{Scope: owned, Agent: root.GetAgent().GetRef(), Query: "100%_literal"})
 	require.NoError(t, err)
 	require.EqualValues(t, 1, conversations.TotalSize)
 	require.Equal(t, child.Id, conversations.Sessions[0].Session.Id)
@@ -149,7 +149,7 @@ func TestTaskCatalogGeneratedClientReadsPublishedForestAfterRootDeletion(t *test
 
 func catalogRPCSession(t *testing.T, store *database.Client, parent *apiv1.Session, creator string) *apiv1.Session {
 	t.Helper()
-	request := &apiv1.Session{Id: uuid.NewString(), Creator: creator, Agent: &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}}
+	request := &apiv1.Session{Id: uuid.NewString(), Creator: creator, Agent: &apiv1.AgentProvenance{Ref: &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}}}
 	if parent != nil {
 		request.Authority = &apiv1.SessionAuthority{SessionId: request.Id, InitiatorId: creator, ParentSessionId: parent.Id, RootSessionId: parent.Id, ScopeCeiling: &apiv1.ScopeCeiling{}}
 	}

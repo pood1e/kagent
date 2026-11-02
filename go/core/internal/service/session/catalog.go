@@ -72,7 +72,7 @@ func (s *Service) CatalogReadScope(ctx context.Context, request *apiv1.TaskCatal
 			result.SessionIDs = []string{}
 		}
 	case *apiv1.TaskCatalogScope_OtherInitiators:
-		if _, err := s.authorizeType(ctx, auth.VerbGet, "SessionAllCreators", ""); err != nil {
+		if _, err := s.authorizeResource(ctx, auth.VerbGet, auth.Resource{Type: "SessionAllCreators"}); err != nil {
 			return result, err
 		}
 		result.OtherInitiatorID = principal.ID

@@ -156,6 +156,7 @@ print-tools-versions: ## Print tools versions
 
 .PHONY: proto-generate
 proto-generate: ## Generate Go, TypeScript, and Python protobuf clients and servers
+	cd go && go run ./adk/cmd/workflow-schema > adk/pkg/declarative/schema.json
 	cd proto && $(BUF) generate
 	cd go && "$$(go env GOROOT)/bin/gofmt" -w api/gen
 	cd proto && $(BUF) generate --template buf.gen.typescript.yaml
@@ -170,7 +171,7 @@ proto-breaking: ## Check protobuf compatibility against the target Git ref (defa
 	$(BUF) breaking proto --against ".git#ref=$(PROTO_BREAKING_BRANCH),subdir=proto"
 
 PROTO_BREAKING_BRANCH ?= origin/main
-PROTO_GENERATED_PATHS := go/api/gen ui/src/generated python/packages/kagent-proto/src/kagent python/packages/kagent-proto/src/buf
+PROTO_GENERATED_PATHS := go/adk/pkg/declarative/schema.json go/api/gen ui/src/generated python/packages/kagent-proto/src/kagent python/packages/kagent-proto/src/buf
 
 .PHONY: proto-check
 proto-check: proto-lint proto-generate ## Regenerate protobuf artifacts and fail when committed output drifts

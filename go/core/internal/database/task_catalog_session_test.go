@@ -24,7 +24,7 @@ func TestCatalogSessionActivitySearchPagingAndObservedState(t *testing.T) {
 	turn := catalogQueryTask(t, client, searched, "searched", "SeArCh %_", at.Add(time.Second), a2a.TaskStateWorking, nil)
 	turn.History = append(turn.History, a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart("later-only text")))
 	catalogQueryState(t, client, turn, a2a.TaskStateWorking, at.Add(time.Second))
-	query := CatalogTaskQuery{Scope: CatalogScope{Namespace: "team-a", OwnerID: "alice"}, Agent: empty.Agent, Limit: 100}
+	query := CatalogTaskQuery{Scope: CatalogScope{Namespace: "team-a", OwnerID: "alice"}, Agent: empty.GetAgent().GetRef(), Limit: 100}
 	all, err := client.ListCatalogSessionActivity(t.Context(), query)
 	require.NoError(t, err)
 	require.Equal(t, 4, all.Total)
@@ -85,7 +85,7 @@ func TestCatalogSessionActivityPreservesMissingTimestamp(t *testing.T) {
 		require.NoError(t, client.withTx(t.Context(), func(tx pgx.Tx) error {
 			_, err := insertSessionRecords(t.Context(), tx, &apiv1.Session{
 				Id: id, ContextId: id, Creator: "alice", Name: "retained session",
-				Agent: &apiv1.ResourceReference{Namespace: "team-a", Name: "worker"}, PreparedRevision: "team-a-worker",
+				Agent: &apiv1.AgentProvenance{Ref: &apiv1.ResourceReference{Namespace: "team-a", Name: "worker"}}, PreparedRevision: "team-a-worker",
 				State: apiv1.RuntimeState_RUNTIME_STATE_CREATING, Operation: apiv1.RuntimeOperation_RUNTIME_OPERATION_CREATE,
 			}, uuid.NewString(), uuid.New(), nil)
 			return err
@@ -114,7 +114,7 @@ func TestCatalogSessionActivityLatestTurnUsesCreationTime(t *testing.T) {
 	catalogQueryTask(t, client, session, "older-turn", "older", latestStatus, a2a.TaskStateCompleted, nil)
 	catalogQueryTask(t, client, session, "newer-turn", "newer", latestStatus.Add(-time.Hour), a2a.TaskStateFailed, nil)
 	page, err := client.ListCatalogSessionActivity(t.Context(), CatalogTaskQuery{
-		Scope: CatalogScope{Namespace: "team-a", OwnerID: "alice"}, Agent: session.Agent, Limit: 10,
+		Scope: CatalogScope{Namespace: "team-a", OwnerID: "alice"}, Agent: session.GetAgent().GetRef(), Limit: 10,
 	})
 	require.NoError(t, err)
 	require.Len(t, page.Sessions, 1)

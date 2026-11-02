@@ -1,6 +1,7 @@
 package translator_test
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"testing"
@@ -74,6 +75,13 @@ func TestCompileAgentDeliversWorkflowToBYO(t *testing.T) {
 		string(workflow.Document))
 	require.Len(t, workflow.Sha256, 64)
 	require.Contains(t, string(revision.Provenance), `"kind":"ConfigMap"`, "the source ConfigMap is recorded")
+	var source struct {
+		Workflow *configv1.ADKWorkflowConfig `json:"workflow"`
+	}
+	require.NoError(t, json.Unmarshal(revision.Provenance, &source))
+	require.NotNil(t, source.Workflow)
+	require.Equal(t, workflow.Document, source.Workflow.Document)
+	require.Equal(t, workflow.Sha256, source.Workflow.Sha256)
 
 	original, err := revision.Digest()
 	require.NoError(t, err)
