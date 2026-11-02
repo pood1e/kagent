@@ -506,6 +506,7 @@ helm-dev: ## Prepare development charts with the images published by local build
 	bash scripts/harness-image-catalog.sh "$(VERSION)" "$(RUNTIME_BUILD_METADATA_DIR)" "$(GOLANG_ADK_IMG)" "$(CLAUDE_HARNESS_IMG)" "$(CODEX_HARNESS_IMG)" > "$(RUNTIME_BUILD_METADATA_DIR)/builtin-harness-images.json"
 	mkdir -p "$(HELM_SOURCE_DIR)/kagent/files"
 	cp "$(RUNTIME_BUILD_METADATA_DIR)/builtin-harness-images.json" "$(HELM_SOURCE_DIR)/kagent/files/builtin-harness-images.json"
+	cp "$(CURDIR)/go/core/internal/authorization/model.json" "$(HELM_SOURCE_DIR)/kagent/files/authorization-model.json"
 	$(MAKE) helm-version
 
 .PHONY: helm-install-provider
