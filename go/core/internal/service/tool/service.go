@@ -15,6 +15,7 @@ import (
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
+	"github.com/kagent-dev/kagent/go/core/internal/service/resourceaccess"
 	"github.com/kagent-dev/kagent/go/core/internal/service/secretmaterial"
 	"github.com/kagent-dev/kagent/go/core/internal/service/serviceerrors"
 	"github.com/kagent-dev/kagent/go/core/internal/utils"
@@ -41,7 +42,7 @@ type MCPClient interface {
 type Service struct {
 	kubeClient       client.Client
 	discoveryStore   DiscoveryStore
-	authorizer       PermissionChecker
+	authorizer       resourceaccess.Checker
 	defaultNamespace string
 	mcpClient        MCPClient
 }
@@ -75,7 +76,7 @@ type MCPAppTool struct {
 func NewService(
 	kubeClient client.Client,
 	discoveryStore DiscoveryStore,
-	authorizer PermissionChecker,
+	authorizer resourceaccess.Checker,
 	defaultNamespace string,
 	mcpClient MCPClient,
 ) *Service {

@@ -19,7 +19,7 @@ import (
 )
 
 type agentAccess interface {
-	Authorize(context.Context, auth.Verb, types.NamespacedName) error
+	Authorize(context.Context, auth.Verb, types.NamespacedName) (types.UID, error)
 }
 type admission interface {
 	Workflow(context.Context, *v1alpha3.Agent, *v1alpha3.AgentTemplate, []byte) (string, error)
@@ -60,14 +60,14 @@ func Schema() (*structpb.Struct, error) {
 }
 
 func (s *Service) Validate(ctx context.Context, agent *v1alpha3.Agent, template *v1alpha3.AgentTemplate, document []byte) (string, error) {
-	if err := s.agents.Authorize(ctx, auth.VerbCreate, types.NamespacedName{Namespace: agent.Namespace, Name: agent.Name}); err != nil {
+	if _, err := s.agents.Authorize(ctx, auth.VerbCreate, types.NamespacedName{Namespace: agent.Namespace, Name: agent.Name}); err != nil {
 		return "", err
 	}
 	return s.admission.Workflow(ctx, agent, template, document)
 }
 
 func (s *Service) Revision(ctx context.Context, ref types.NamespacedName) (string, error) {
-	if err := s.agents.Authorize(ctx, auth.VerbGet, ref); err != nil {
+	if _, err := s.agents.Authorize(ctx, auth.VerbGet, ref); err != nil {
 		return "", err
 	}
 	return s.admission.WorkflowRevision(ctx, ref)

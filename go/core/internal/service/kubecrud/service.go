@@ -29,11 +29,12 @@ type Service[T Object, L client.ObjectList] struct {
 	object     T
 	list       L
 	authorizer auth.CollectionAuthorizer
+	native     *NativeAccess
 	resource   string
 	validators []func(context.Context, T) error
 }
 
-func NewService[T Object, L client.ObjectList](
+func NewScopedService[T Object, L client.ObjectList](
 	client client.Client,
 	authorizer auth.CollectionAuthorizer,
 	object T,
@@ -46,10 +47,27 @@ func NewService[T Object, L client.ObjectList](
 	}
 }
 
+func NewNativeService[T Object, L client.ObjectList](
+	client client.Client,
+	authorizer auth.CollectionAuthorizer,
+	access NativeAccess,
+	object T,
+	list L,
+	resource string,
+	validators ...func(context.Context, T) error,
+) *Service[T, L] {
+	service := NewScopedService(client, authorizer, object, list, resource, validators...)
+	service.native = &access
+	return service
+}
+
 func (s *Service[T, L]) List(ctx context.Context, namespace string) ([]T, error) {
 	matcher, err := kubeauth.CollectionMatcher(ctx, s.authorizer, s.resource)
 	if err != nil {
 		return nil, err
+	}
+	if s.native != nil && s.native.Checker == nil {
+		return nil, serviceerrors.NewUnavailable("Resource authorization is not configured", nil)
 	}
 	if matcher.Empty() {
 		return []T{}, nil
@@ -68,6 +86,12 @@ func (s *Service[T, L]) List(ctx context.Context, namespace string) ([]T, error)
 	}); err != nil {
 		return nil, serviceerrors.NewInternal("Failed to read "+s.resource+" list", err)
 	}
+	if s.native != nil {
+		items, err = s.filterNative(ctx, items)
+		if err != nil {
+			return nil, err
+		}
+	}
 	// Namespace and name are a total order, so a cluster-wide list cannot return equal items in an arbitrary order.
 	slices.SortFunc(items, func(left, right T) int {
 		return cmp.Or(
@@ -80,10 +104,18 @@ func (s *Service[T, L]) List(ctx context.Context, namespace string) ([]T, error)
 
 func (s *Service[T, L]) Get(ctx context.Context, ref types.NamespacedName) (T, error) {
 	var zero T
-	if err := s.Authorize(ctx, auth.VerbGet, ref); err != nil {
+	uid, err := s.authorizeRef(ctx, auth.VerbGet, ref)
+	if err != nil {
 		return zero, err
 	}
-	return s.get(ctx, ref)
+	object, err := s.get(ctx, ref)
+	if err != nil {
+		return zero, err
+	}
+	if s.native != nil && object.GetUID() != uid {
+		return zero, serviceerrors.NewNotFound(s.resource+" identity changed", nil)
+	}
+	return object, nil
 }
 
 // Create persists an object already prepared by the resource-specific service.
@@ -96,7 +128,7 @@ func (s *Service[T, L]) Create(ctx context.Context, object T) (T, error) {
 	if err := s.validateNewRef(ref); err != nil {
 		return zero, err
 	}
-	if err := s.authorize(ctx, auth.VerbCreate, ref); err != nil {
+	if _, err := s.authorize(ctx, auth.VerbCreate, ref); err != nil {
 		return zero, err
 	}
 	if err := s.validate(ctx, object); err != nil {
@@ -122,8 +154,12 @@ func (s *Service[T, L]) Update(ctx context.Context, object T) (T, error) {
 		return zero, serviceerrors.NewInvalidArgument(s.resource+" resource is required", nil)
 	}
 	ref := types.NamespacedName{Namespace: object.GetNamespace(), Name: object.GetName()}
-	if err := s.Authorize(ctx, auth.VerbUpdate, ref); err != nil {
+	uid, err := s.authorizeRef(ctx, auth.VerbUpdate, ref)
+	if err != nil {
 		return zero, err
+	}
+	if s.native != nil && object.GetUID() != uid {
+		return zero, serviceerrors.NewNotFound(s.resource+" identity changed", nil)
 	}
 	if err := s.validate(ctx, object); err != nil {
 		return zero, err
@@ -145,7 +181,7 @@ func (s *Service[T, L]) Update(ctx context.Context, object T) (T, error) {
 // Validate authorizes a candidate definition and runs its admission checks
 // without persisting the resource or applying a runtime revision.
 func (s *Service[T, L]) Validate(ctx context.Context, object T) error {
-	if err := s.Authorize(ctx, auth.VerbCreate, client.ObjectKeyFromObject(object)); err != nil {
+	if _, err := s.Authorize(ctx, auth.VerbCreate, client.ObjectKeyFromObject(object)); err != nil {
 		return err
 	}
 	return s.validate(ctx, object)
@@ -161,17 +197,23 @@ func (s *Service[T, L]) validate(ctx context.Context, object T) error {
 }
 
 func (s *Service[T, L]) Delete(ctx context.Context, ref types.NamespacedName, version string) error {
-	if err := s.Authorize(ctx, auth.VerbDelete, ref); err != nil {
+	uid, err := s.authorizeRef(ctx, auth.VerbDelete, ref)
+	if err != nil {
 		return err
 	}
 	object, err := s.get(ctx, ref)
 	if err != nil {
 		return err
 	}
+	if s.native != nil && object.GetUID() != uid {
+		return serviceerrors.NewNotFound(s.resource+" identity changed", nil)
+	}
+	if s.native == nil {
+		uid = object.GetUID()
+	}
 	if version == "" {
 		version = object.GetResourceVersion()
 	}
-	uid := object.GetUID()
 	if err := s.client.Delete(ctx, object, client.Preconditions(metav1.Preconditions{UID: &uid, ResourceVersion: &version})); err != nil {
 		if apierrors.IsConflict(err) {
 			return serviceerrors.NewAborted(s.resource+" resource version changed", err)
@@ -196,24 +238,34 @@ func (s *Service[T, L]) get(ctx context.Context, ref types.NamespacedName) (T, e
 	return object, nil
 }
 
-// Authorize validates a reference and checks one operation without accessing Kubernetes.
-func (s *Service[T, L]) Authorize(ctx context.Context, verb auth.Verb, ref types.NamespacedName) error {
+// Authorize validates a reference and returns its UID-bound native identity.
+func (s *Service[T, L]) Authorize(ctx context.Context, verb auth.Verb, ref types.NamespacedName) (types.UID, error) {
+	return s.authorizeRef(ctx, verb, ref)
+}
+
+func (s *Service[T, L]) authorizeRef(ctx context.Context, verb auth.Verb, ref types.NamespacedName) (types.UID, error) {
 	if err := s.validateRef(ref); err != nil {
-		return err
+		return "", err
 	}
 	return s.authorize(ctx, verb, ref)
 }
 
-func (s *Service[T, L]) authorize(ctx context.Context, verb auth.Verb, ref types.NamespacedName) error {
+func (s *Service[T, L]) authorize(ctx context.Context, verb auth.Verb, ref types.NamespacedName) (types.UID, error) {
 	session, ok := auth.AuthSessionFrom(ctx)
-	if !ok || session == nil {
-		return serviceerrors.NewUnauthenticated("Failed to get authenticated principal", fmt.Errorf("no session found"))
+	if !ok || session == nil || session.Principal().ID == "" {
+		return "", serviceerrors.NewUnauthenticated("Failed to get authenticated principal", fmt.Errorf("no session found"))
 	}
 	resource := auth.Resource{Type: s.resource, Namespace: ref.Namespace, Name: ref.Name}
-	if err := s.authorizer.Check(ctx, session.Principal(), verb, resource); err != nil {
-		return serviceerrors.NewPermissionDenied("Not authorized", err)
+	if s.authorizer == nil {
+		return "", serviceerrors.NewUnavailable("Resource authorization is not configured", nil)
 	}
-	return nil
+	if err := s.authorizer.Check(ctx, session.Principal(), verb, resource); err != nil {
+		return "", serviceerrors.NewPermissionDenied("Not authorized", err)
+	}
+	if s.native != nil {
+		return s.native.authorize(ctx, verb, ref)
+	}
+	return "", nil
 }
 
 func (s *Service[T, L]) validateRef(ref types.NamespacedName) error {

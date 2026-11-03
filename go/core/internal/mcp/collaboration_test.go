@@ -62,7 +62,7 @@ func TestNativeCollaborationThroughSDKClient(t *testing.T) {
 	policy := &templateListAuthorizer{scope: authorization.AuthorizationScope{Kind: authorization.ScopeAnyOf, AnyOf: []authorization.ScopeClause{{All: []authorization.ScopePredicate{
 		{Attribute: authorization.AttributeNamespace, Operator: authorization.ScopeIn, Values: []string{"team-a"}},
 	}}}}}
-	catalog := kubecrud.NewService(kube, policy, &v1alpha3.Agent{}, &v1alpha3.AgentList{}, "Agent")
+	catalog := kubecrud.NewScopedService(kube, policy, &v1alpha3.Agent{}, &v1alpha3.AgentList{}, "Agent")
 	gateway := &fakeGateway{completeOnDrain: true}
 	handler, err := New(sessionsvc.NewService(store, auth.NoopAuthorizer{}, &fakeSessionWorkflow{}, sessionsvc.WithExecutionAuthority(collaborationAuthority{}), sessionsvc.WithResourceAuthorization(collaborationPermissions{})), testCheckpointService(), gateway, nil, nil,
 		&Collaboration{Agents: catalog, Memory: memoryservice.NewService(store, auth.NoopAuthorizer{}, memoryservice.WithEmbedder(store))})

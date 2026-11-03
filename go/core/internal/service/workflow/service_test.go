@@ -23,9 +23,9 @@ type accessStub struct {
 	err  error
 }
 
-func (s *accessStub) Authorize(_ context.Context, verb auth.Verb, ref types.NamespacedName) error {
+func (s *accessStub) Authorize(_ context.Context, verb auth.Verb, ref types.NamespacedName) (types.UID, error) {
 	s.verb, s.ref = verb, ref
-	return s.err
+	return "", s.err
 }
 
 type admissionStub struct{ calls int }

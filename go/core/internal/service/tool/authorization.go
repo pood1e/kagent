@@ -2,65 +2,22 @@ package tool
 
 import (
 	"context"
-	"slices"
 	"strings"
 
-	"google.golang.org/protobuf/proto"
 	"k8s.io/apimachinery/pkg/types"
 
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
+	"github.com/kagent-dev/kagent/go/core/internal/service/resourceaccess"
 	"github.com/kagent-dev/kagent/go/core/internal/service/serviceerrors"
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
 )
 
-// PermissionChecker evaluates the native resource/action contract for this caller.
-type PermissionChecker interface {
-	CheckPermissions(context.Context, *apiv1.CheckPermissionsRequest) (*apiv1.CheckPermissionsResponse, error)
-}
-
 func (s *Service) checkPermissions(ctx context.Context, namespace string, checks []*apiv1.ResourceGrant) ([]*apiv1.ResourceAccess, error) {
-	if err := requireSession(ctx); err != nil {
-		return nil, err
-	}
-	if s.authorizer == nil {
-		return nil, serviceerrors.NewUnavailable("Resource authorization is not configured", nil)
-	}
-	result := make([]*apiv1.ResourceAccess, 0, len(checks))
-	for start := 0; start < len(checks); start += 100 {
-		batch := checks[start:min(start+100, len(checks))]
-		response, err := s.authorizer.CheckPermissions(ctx, &apiv1.CheckPermissionsRequest{
-			Workspace: &apiv1.WorkspaceAuthorizationReference{Namespace: namespace}, Checks: batch,
-		})
-		if err != nil {
-			return nil, err
-		}
-		if response == nil || len(response.Resources) != len(batch) {
-			return nil, serviceerrors.NewUnavailable("Incomplete resource authorization response", nil)
-		}
-		for i, access := range response.Resources {
-			if access == nil || access.Resource == nil {
-				return nil, serviceerrors.NewUnavailable("Invalid resource authorization response", nil)
-			}
-			for _, permission := range access.AllowedActions {
-				if !slices.Contains(batch[i].Permissions, permission) {
-					return nil, serviceerrors.NewUnavailable("Unexpected resource authorization action", nil)
-				}
-			}
-		}
-		result = append(result, response.Resources...)
-	}
-	return result, nil
+	return resourceaccess.Check(ctx, s.authorizer, namespace, checks)
 }
 
 func (s *Service) requirePermission(ctx context.Context, namespace string, resource *apiv1.AuthorizationResource, permission apiv1.Permission) (*apiv1.AuthorizationResource, error) {
-	access, err := s.checkPermissions(ctx, namespace, []*apiv1.ResourceGrant{{Resource: resource, Permissions: []apiv1.Permission{permission}}})
-	if err != nil {
-		return nil, err
-	}
-	if !slices.Contains(access[0].AllowedActions, permission) {
-		return nil, serviceerrors.NewPermissionDenied("MCP resource access denied", nil)
-	}
-	return proto.CloneOf(access[0].Resource), nil
+	return resourceaccess.Require(ctx, s.authorizer, namespace, resource, permission)
 }
 
 func (s *Service) authorizeMCP(ctx context.Context, ref MCPServerRef, toolName string, permission apiv1.Permission) (MCPServerRef, error) {
@@ -112,7 +69,7 @@ func workspaceResource(namespace string) *apiv1.AuthorizationResource {
 
 func requireSession(ctx context.Context) error {
 	session, ok := auth.AuthSessionFrom(ctx)
-	if !ok || session.Principal().ID == "" {
+	if !ok || session == nil || session.Principal().ID == "" {
 		return serviceerrors.NewUnauthenticated("Authenticated principal required", nil)
 	}
 	return nil

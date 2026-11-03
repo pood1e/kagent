@@ -25,6 +25,13 @@ scopes use their current Kubernetes UIDs. An MCP tool scope hashes its server's
 UID-bound object key and exact, case-sensitive tool name. A server use binding
 covers its tools; a tool use binding covers that name within one server
 incarnation. Model credentials retain their Secret boundary.
+`go/core/internal/service/kubecrud` applies native read and mutation actions to
+Harness, AgentTemplate, and ModelConfig API operations. Collections intersect
+scoped policy with UID-bound native reads before sorting or paging.
+Single-resource reads and mutations carry the authorized UID through the
+Kubernetes operation; creation uses the current workspace action.
+ModelConfig updates fence the UID on each retry, and inline API key rotation
+verifies ownership of the target Secret.
 `ToolService` checks server read/manage actions for catalog and connection
 operations, and the exact tool-call action for MCP Apps. Permission checks precede
 outbound calls. The authorized server UID accompanies resolution and deletion;

@@ -64,7 +64,7 @@ func TestKubernetesResourceScopesThroughGeneratedClients(t *testing.T) {
 	refresher := &deniedProviderRefresher{}
 	connection := newConfigurationConnection(t, kube, func(config *Config) {
 		config.PromptTemplateService = promptservice.NewService(kube, authorizer)
-		config.ModelService = modelservice.NewService(kube, authorizer, "team", modelservice.WithProviderModelRefresher(refresher))
+		config.ModelService = modelservice.NewService(kube, authorizer, nil, "team", modelservice.WithProviderModelRefresher(refresher))
 		config.SystemService = systemservice.NewService(kube, []string{"team"}, authorizer, emptySystemATEClient{})
 	})
 	ctx := metadata.NewOutgoingContext(t.Context(), metadata.Pairs("x-user-id", "reader"))
@@ -114,7 +114,7 @@ func TestProviderModelRefreshDeniedThroughShareRPC(t *testing.T) {
 		config.ShareStore = &testShareStore{
 			sessionShare: &apiv1.SessionShare{SessionId: testSessionID.String()}, ownerUserID: "owner",
 		}
-		config.ModelService = modelservice.NewService(kube, &auth.NoopAuthorizer{}, "team", modelservice.WithProviderModelRefresher(refresher))
+		config.ModelService = modelservice.NewService(kube, &auth.NoopAuthorizer{}, nil, "team", modelservice.WithProviderModelRefresher(refresher))
 	})
 	ctx := metadata.NewOutgoingContext(t.Context(), metadata.Pairs("x-user-id", "visitor", "x-share-token", "share"))
 	models := apiv1.NewModelServiceClient(connection)
