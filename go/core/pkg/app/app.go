@@ -250,6 +250,10 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 	if err != nil {
 		return fmt.Errorf("load Kubernetes config: %w", err)
 	}
+	// Resource authorization performs uncached UID reads for concurrent console requests.
+	// The client-go defaults (5 QPS, burst 10) serialize those reads into multi-second queues.
+	kubeConfig.QPS = 50
+	kubeConfig.Burst = 100
 	// The manager's client is what serves the Harness and AgentTemplate RPCs, so
 	// it needs v1alpha3 in its scheme; the controller-runtime default carries
 	// only the built-in kinds and would fail every one of those calls at runtime
