@@ -28,14 +28,14 @@ func TestNativeAdmissionThroughGeneratedClients(t *testing.T) {
 	require.NoError(t, atev1alpha1.AddToScheme(scheme))
 	require.NoError(t, v1alpha3.AddToScheme(scheme))
 	harness := testHarness("team", "codex", "pool")
-	model := &v1alpha3.ModelConfig{ObjectMeta: metav1.ObjectMeta{Namespace: "team", Name: "model"}, Spec: v1alpha3.ModelConfigSpec{Provider: v1alpha3.ModelProviderOpenAI, Model: "gpt-test", OpenAI: &v1alpha3.OpenAIConfig{APIFormat: new(v1alpha3.OpenAIAPIFormatResponses)}}}
+	model := &v1alpha3.ModelConfig{ObjectMeta: metav1.ObjectMeta{Namespace: "team", Name: "model", UID: "model-uid"}, Spec: v1alpha3.ModelConfigSpec{Provider: v1alpha3.ModelProviderOpenAI, Model: "gpt-test", OpenAI: &v1alpha3.OpenAIConfig{APIFormat: new(v1alpha3.OpenAIAPIFormatResponses)}}}
 	model.Spec.APIKeySecret, model.Spec.APIKeySecretKey = "model-auth", "key"
 	secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Namespace: "team", Name: "model-auth"}, Data: map[string][]byte{"key": []byte("test-key")}}
 	kube := fake.NewClientBuilder().WithScheme(scheme).WithObjects(harness, model, secret, &atev1alpha1.WorkerPool{ObjectMeta: metav1.ObjectMeta{Namespace: "team", Name: "pool"}}).Build()
 	admission := admission.NewService(kube, &configv1.RuntimeDefaultsConfig{ControlPlaneUrl: new("http://control:8083")}, nil)
 	connection := newConfigurationConnection(t, kube, func(config *Config) {
-		config.AgentService = kubecrud.NewService(kube, &auth.NoopAuthorizer{}, &v1alpha3.Agent{}, &v1alpha3.AgentList{}, "Agent", admission.Agent)
-		config.ModelService = modelsvc.NewService(kube, &auth.NoopAuthorizer{}, "team", modelsvc.WithAdmission(admission))
+		config.AgentService = kubecrud.NewScopedService(kube, &auth.NoopAuthorizer{}, &v1alpha3.Agent{}, &v1alpha3.AgentList{}, "Agent", admission.Agent)
+		config.ModelService = modelsvc.NewService(kube, &auth.NoopAuthorizer{}, &toolGRPCAuthorizer{}, "team", modelsvc.WithAdmission(admission))
 	})
 	agents := apiv1.NewAgentServiceClient(connection)
 	ref := &apiv1.ResourceReference{Namespace: "team", Name: "assistant"}

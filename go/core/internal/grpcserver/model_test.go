@@ -13,6 +13,8 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
@@ -28,6 +30,15 @@ type recordingModelRefresher struct {
 	name      string
 }
 
+type modelUIDClient struct{ client.Client }
+
+func (c modelUIDClient) Create(ctx context.Context, object client.Object, options ...client.CreateOption) error {
+	if _, ok := object.(*v1alpha3.ModelConfig); ok && object.GetUID() == "" {
+		object.SetUID(types.UID(object.GetName() + "-uid"))
+	}
+	return c.Client.Create(ctx, object, options...)
+}
+
 func (r *recordingModelRefresher) RefreshModelProviderConfigModels(_ context.Context, namespace, name string) ([]string, error) {
 	r.namespace = namespace
 	r.name = name
@@ -39,7 +50,7 @@ func TestModelServiceCRUD(t *testing.T) {
 	if err := v1alpha3.AddToScheme(scheme); err != nil {
 		t.Fatalf("v1alpha3.AddToScheme() error = %v", err)
 	}
-	kubeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&v1alpha3.ModelProviderConfig{
+	kubeClient := modelUIDClient{Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(&v1alpha3.ModelProviderConfig{
 		ObjectMeta: metav1.ObjectMeta{Name: "provider-config", Namespace: "default"},
 		Spec:       v1alpha3.ModelProviderConfigSpec{Type: v1alpha3.ModelProviderOpenAI},
 		Status: v1alpha3.ModelProviderConfigStatus{
@@ -49,11 +60,12 @@ func TestModelServiceCRUD(t *testing.T) {
 			}},
 			DiscoveredModels: []string{"cached-model"},
 		},
-	}).Build()
+	}).Build()}
 	refresher := &recordingModelRefresher{}
 	service := modelservice.NewService(
 		kubeClient,
 		&pkgauth.NoopAuthorizer{},
+		&toolGRPCAuthorizer{},
 		"default",
 		modelservice.WithProviderModelRefresher(refresher),
 	)

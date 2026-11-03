@@ -9,9 +9,8 @@ import (
 	atev1alpha1 "go.ate.dev/substrate/pkg/api/v1alpha1"
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
-	corev1 "k8s.io/api/core/v1"
 
-	"github.com/kagent-dev/kagent/go/api/v1alpha3"
+	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 )
 
 func TestRevisionDigestIncludesSandboxClass(t *testing.T) {
@@ -158,20 +157,29 @@ func TestRevisionDigestIncludesResources(t *testing.T) {
 	}
 }
 
-func TestRevisionDigestIncludesNativeGatewayTargets(t *testing.T) {
-	revision := Revision{Namespace: "team", AgentName: "assistant"}
+func TestRevisionDigestIncludesDependencyIdentitiesAndActions(t *testing.T) {
+	revision := Revision{Namespace: "team", AgentName: "assistant", Dependencies: &apiv1.ExecutionDependencyManifest{Direct: &apiv1.ResourceGrantSet{Grants: []*apiv1.ResourceGrant{{
+		Resource: &apiv1.AuthorizationResource{Resource: &apiv1.AuthorizationResource_Kubernetes{Kubernetes: &apiv1.KubernetesAuthorizationReference{
+			Kind: apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_MODEL_CONNECTION, Ref: &apiv1.ResourceReference{Namespace: "team", Name: "language"}, Uid: "model-1",
+		}}}, Permissions: []apiv1.Permission{apiv1.Permission_PERMISSION_MODEL_CONNECTION_USE},
+	}}}}}
 	original, err := revision.Digest()
 	require.NoError(t, err)
-	revision.Models = []corev1.LocalObjectReference{{Name: "language"}}
-	withModel, err := revision.Digest()
+	revision.Dependencies.Direct.Grants[0].Resource.GetKubernetes().Uid = "model-recreated"
+	rebuilt, err := revision.Digest()
 	require.NoError(t, err)
-	require.NotEqual(t, original, withModel)
-	revision.MCPTools = []v1alpha3.MCPToolBinding{{Server: corev1.TypedLocalObjectReference{Kind: "RemoteMCPServer", Name: "selected"}, Tools: []string{"read"}}}
-	selected, err := revision.Digest()
+	require.NotEqual(t, original, rebuilt)
+	revision.Dependencies.Direct.Grants[0].Permissions = []apiv1.Permission{apiv1.Permission_PERMISSION_MODEL_CONNECTION_READ}
+	changed, err := revision.Digest()
 	require.NoError(t, err)
-	require.NotEqual(t, withModel, selected)
-	revision.MCPTools[0].Tools = nil
-	all, err := revision.Digest()
-	require.NoError(t, err)
-	require.NotEqual(t, selected, all)
+	require.NotEqual(t, rebuilt, changed)
+}
+
+func TestRevisionEqualityIgnoresDependencyProtoCaches(t *testing.T) {
+	left := Revision{Dependencies: &apiv1.ExecutionDependencyManifest{Direct: &apiv1.ResourceGrantSet{}}}
+	right := Revision{Dependencies: proto.CloneOf(left.Dependencies)}
+	_ = left.Dependencies.ProtoReflect().Descriptor()
+	require.True(t, left.Equals(right))
+	right.Dependencies.Direct = &apiv1.ResourceGrantSet{Grants: []*apiv1.ResourceGrant{{Resource: &apiv1.AuthorizationResource{Resource: &apiv1.AuthorizationResource_Workspace{Workspace: &apiv1.WorkspaceAuthorizationReference{Namespace: "team", Uid: "workspace-1"}}}, Permissions: []apiv1.Permission{apiv1.Permission_PERMISSION_SESSION_CREATE}}}}
+	require.False(t, left.Equals(right))
 }

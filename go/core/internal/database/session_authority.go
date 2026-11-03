@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
+	"github.com/kagent-dev/kagent/go/core/pkg/auth"
 )
 
 type authorityRow struct {
@@ -19,19 +20,24 @@ type authorityRow struct {
 	ParentSessionID *uuid.UUID
 	RootSessionID   uuid.UUID
 	Scopes          []string
+	ResourceGrants  []byte
 	ExpiresAt       *time.Time
 	Revoked         bool
 }
 
-func (a authorityRow) authority() *apiv1.SessionAuthority {
-	result := &apiv1.SessionAuthority{SessionId: a.SessionID.String(), InitiatorId: a.InitiatorID, WorkspaceUid: a.WorkspaceUID, RootSessionId: a.RootSessionID.String(), ScopeCeiling: &apiv1.ScopeCeiling{Scopes: a.Scopes}}
+func (a authorityRow) authority() (*apiv1.SessionAuthority, error) {
+	resources, err := decodeResourceGrants(a.ResourceGrants)
+	if err != nil {
+		return nil, err
+	}
+	result := &apiv1.SessionAuthority{SessionId: a.SessionID.String(), InitiatorId: a.InitiatorID, WorkspaceUid: a.WorkspaceUID, RootSessionId: a.RootSessionID.String(), ScopeCeiling: &apiv1.ScopeCeiling{Scopes: a.Scopes, Resources: resources}}
 	if a.ParentSessionID != nil {
 		result.ParentSessionId = a.ParentSessionID.String()
 	}
 	if a.ExpiresAt != nil {
 		result.ExpiresAt = timestamppb.New(*a.ExpiresAt)
 	}
-	return result
+	return result, nil
 }
 
 // readAuthorityChain reads the owning grant first, then every immutable ancestor.
@@ -39,12 +45,12 @@ func (a authorityRow) authority() *apiv1.SessionAuthority {
 func readAuthorityChain(ctx context.Context, db dbExecutor, id string) ([]authorityRow, error) {
 	rows, err := queryMany(ctx, db, `
  WITH RECURSIVE ancestors AS (
- SELECT session_id, initiator_id, workspace_uid, parent_session_id, root_session_id, scopes, expires_at, revoked, 1 AS depth
+ SELECT session_id, initiator_id, workspace_uid, parent_session_id, root_session_id, scopes, resource_grants, expires_at, revoked, 1 AS depth
  FROM session_authority WHERE session_id = $1
  UNION ALL
- SELECT p.session_id, p.initiator_id, p.workspace_uid, p.parent_session_id, p.root_session_id, p.scopes, p.expires_at, p.revoked, a.depth + 1
+ SELECT p.session_id, p.initiator_id, p.workspace_uid, p.parent_session_id, p.root_session_id, p.scopes, p.resource_grants, p.expires_at, p.revoked, a.depth + 1
  FROM session_authority p JOIN ancestors a ON p.session_id = a.parent_session_id WHERE a.depth < 32
- ) SELECT session_id, initiator_id, workspace_uid, parent_session_id, root_session_id, scopes, expires_at, revoked FROM ancestors ORDER BY depth
+ ) SELECT session_id, initiator_id, workspace_uid, parent_session_id, root_session_id, scopes, resource_grants, expires_at, revoked FROM ancestors ORDER BY depth
  `, pgx.RowToStructByName[authorityRow], id)
 	if err != nil {
 		return nil, err
@@ -78,12 +84,28 @@ func authorityActive(rows []authorityRow) bool {
 // Scope ceilings are intersected across the complete chain. Missing grants return
 // ErrNotFound; callers must independently authorize the Session.
 func (c *Client) GetSessionAuthority(ctx context.Context, id string) (*apiv1.SessionAuthority, bool, error) {
-	rows, err := readAuthorityChain(ctx, c.db, id)
+	return readSessionAuthority(ctx, c.db, id)
+}
+
+// readSessionAuthority resolves immutable inherited ceilings on the supplied
+// executor. Callers own authorization and any transaction or locking requirements.
+func readSessionAuthority(ctx context.Context, db dbExecutor, id string) (*apiv1.SessionAuthority, bool, error) {
+	rows, err := readAuthorityChain(ctx, db, id)
 	if err != nil {
 		return nil, false, err
 	}
-	result := rows[0].authority()
+	result, err := rows[0].authority()
+	if err != nil {
+		return nil, false, err
+	}
 	for _, row := range rows[1:] {
+		resources, err := decodeResourceGrants(row.ResourceGrants)
+		if err != nil {
+			return nil, false, err
+		}
+		if result.ScopeCeiling.Resources != nil {
+			result.ScopeCeiling.Resources = auth.IntersectResourceGrants(result.ScopeCeiling.Resources, resources)
+		}
 		result.ScopeCeiling.Scopes = slices.DeleteFunc(result.ScopeCeiling.Scopes, func(scope string) bool { return !slices.Contains(row.Scopes, scope) })
 		if row.ExpiresAt != nil && (result.ExpiresAt == nil || row.ExpiresAt.Before(result.ExpiresAt.AsTime())) {
 			result.ExpiresAt = timestamppb.New(*row.ExpiresAt)
@@ -141,6 +163,13 @@ func insertSessionAuthority(ctx context.Context, tx pgx.Tx, session *apiv1.Sessi
 			return ErrConflict
 		}
 		for _, ancestor := range chain {
+			resources, err := decodeResourceGrants(ancestor.ResourceGrants)
+			if err != nil {
+				return err
+			}
+			if grant.ScopeCeiling.Resources != nil && (resources == nil || !auth.ResourceGrantsWithin(grant.ScopeCeiling.Resources, resources)) {
+				return ErrFailedPrecondition
+			}
 			if !allScopesWithin(grant.ScopeCeiling.Scopes, ancestor.Scopes) {
 				return ErrFailedPrecondition
 			}
@@ -166,10 +195,14 @@ func insertSessionAuthority(ctx context.Context, tx pgx.Tx, session *apiv1.Sessi
 	if scopes == nil {
 		scopes = []string{}
 	}
+	resources, err := encodeResourceGrants(grant.ScopeCeiling.Resources)
+	if err != nil {
+		return err
+	}
 	return execSQL(ctx, tx, `
- INSERT INTO session_authority (session_id, initiator_id, parent_session_id, root_session_id, scopes, expires_at, workspace_uid)
- VALUES ($1, $2, NULLIF($3::text, '')::uuid, $4, $5, $6, $7)
- `, session.Id, grant.InitiatorId, grant.ParentSessionId, grant.RootSessionId, scopes, expiry, grant.WorkspaceUid)
+ INSERT INTO session_authority (session_id, initiator_id, parent_session_id, root_session_id, scopes, resource_grants, expires_at, workspace_uid)
+ VALUES ($1, $2, NULLIF($3::text, '')::uuid, $4, $5, $6, $7, $8)
+ `, session.Id, grant.InitiatorId, grant.ParentSessionId, grant.RootSessionId, scopes, resources, expiry, grant.WorkspaceUid)
 }
 
 func allScopesWithin(scopes, ceiling []string) bool {

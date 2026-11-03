@@ -171,7 +171,7 @@ func TestSandboxTemplateToolFiltersAuthorizedTemplates(t *testing.T) {
 				&v1alpha3.SandboxTemplate{ObjectMeta: metav1.ObjectMeta{Namespace: "other", Name: "scratch"}},
 			).Build()
 			authorizer := &templateListAuthorizer{scope: test.scope, scopeErr: test.scopeErr}
-			templates := kubecrud.NewService(kube, authorizer, &v1alpha3.SandboxTemplate{}, &v1alpha3.SandboxTemplateList{}, v1alpha3.SandboxTemplateKind)
+			templates := kubecrud.NewScopedService(kube, authorizer, &v1alpha3.SandboxTemplate{}, &v1alpha3.SandboxTemplateList{}, v1alpha3.SandboxTemplateKind)
 			handler, err := New(testSessionService(), testCheckpointService(), &a2asrv.InterceptedHandler{Handler: &fakeGateway{}}, nil, templates, nil)
 			require.NoError(t, err)
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -50,7 +50,9 @@ func (gatewayTestWorkflow) Create(_ context.Context, session *apiv1.Session) (*a
 }
 
 func newTestSessions(store *gatewayTestStore, authorizer auth.Authorizer) *sessionsvc.Service {
-	return sessionsvc.NewService(store, authorizer, gatewayTestWorkflow{})
+	return sessionsvc.NewService(store, authorizer, gatewayTestWorkflow{},
+		sessionsvc.WithExecutionAuthority(gatewayCreationAuthority{store}),
+		sessionsvc.WithResourceAuthorization(gatewayCreationPermissions{}))
 }
 
 func newTestGateway(store *gatewayTestStore, authorizer auth.Authorizer, dialer *gatewayTestDialer, url string) a2asrv.RequestHandler {
@@ -108,7 +110,7 @@ func TestShareCannotCreateConversation(t *testing.T) {
 
 func TestInitialStreamingRetrySubscribesWithoutRedispatch(t *testing.T) {
 	task := &a2a.Task{ID: "accepted-task", ContextID: gatewayTestID, Status: a2a.TaskStatus{State: a2a.TaskStateWorking}}
-	store := &gatewayTestStore{session: gatewayTestSession(), task: task, replay: task, reserveErr: database.ErrMessageAccepted}
+	store := &gatewayTestStore{session: gatewayTestSession(), task: task, replay: task, reserveErr: database.ErrMessageAccepted, createEnabled: true}
 	runtime := &gatewayTestRuntime{subscribeEvent: task}
 	gateway := newTestGateway(store, &gatewayTestAuthorizer{}, &gatewayTestDialer{client: gatewayTestClient(t, runtime)}, "")
 	req := gatewayTestRequest()

@@ -20,6 +20,24 @@ facts. Workspace membership intersects named-principal access. Session ownership
 uses `SessionAuthority.initiator_id`; `workspace_uid` pins the original namespace
 incarnation. Task keys hash the canonical `TaskReference`. Group memberships use
 verified token claims qualified by their issuer.
+Harness, model-connection (`ModelConfig`), and MCP-server (`RemoteMCPServer`)
+scopes use their current Kubernetes UIDs. An MCP tool scope hashes its server's
+UID-bound object key and exact, case-sensitive tool name. A server use binding
+covers its tools; a tool use binding covers that name within one server
+incarnation. Model credentials retain their Secret boundary.
+`go/core/internal/service/kubecrud` applies native read and mutation actions to
+Harness, AgentTemplate, and ModelConfig API operations. Collections intersect
+scoped policy with UID-bound native reads before sorting or paging.
+Single-resource reads and mutations carry the authorized UID through the
+Kubernetes operation; creation uses the current workspace action.
+ModelConfig updates fence the UID on each retry, and inline API key rotation
+verifies ownership of the target Secret.
+`ToolService` checks server read/manage actions for catalog and connection
+operations, and the exact tool-call action for MCP Apps. Permission checks precede
+outbound calls. The authorized server UID accompanies resolution and deletion;
+catalog projection also verifies the current UID and observed discovery generation.
+The application injects its configured native authorization engine into this
+service. Engine configuration enables its protected resource operations.
 Namespace-scoped installations include a namespace-reader ClusterRole restricted
 to `get` on the configured namespace names, providing their stable identities.
 `ListWorkspaces` enumerates observed namespaces, checks `member` against each
@@ -30,6 +48,31 @@ Scoped checks and binding RPCs carry their workspace context. Checks return
 allowed actions in request order. Binding reads and mutations require their own
 permission; Session owners may share read access to their Session or Task.
 Bound runtime and share credentials use their dedicated native entry points.
+
+## Execution bounds
+
+The compiler includes UID-bound Agent, template, Harness, model, and MCP actions
+in the immutable revision digest. Its manifest separates direct runtime targets
+from dependencies of explicitly delegated Agents. Session admission checks their
+combined requirements,
+fixes an explicit `ScopeCeiling.resources`, and CAS-pins the checked revision.
+An all-tools binding snapshots discovered tool names for that server UID.
+Child ceilings narrow their complete ancestor chain. Creation retries recheck
+the original Session's fixed grants and originating authority.
+
+Native A2A dispatch and durable continuations recheck the pinned direct
+requirements before push registration or dispatch reservation. An Actor's target
+Session retains a resource ceiling bounded by that Actor's originating Session.
+Checkpoint forks check current initiator access against the retained revision and
+exact source ceiling, then establish a fresh credential lease. PostgreSQL fences
+the retained bounds atomically; creation receipts pass the same checks before
+runtime provisioning.
+
+Gateway callbacks intersect the pinned targets, fixed ceiling, and live
+initiator permissions through `CheckExecutionPermissions`. MCP selections always
+carry an explicit tool list. Credential export follows authorization; engine
+failures return HTTP 503. `go/core/pkg/auth/resource_grants.go` owns canonical
+set and intersection semantics, and the native store persists their Proto form.
 
 ## Model and consistency
 

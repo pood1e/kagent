@@ -146,8 +146,8 @@ func lifecycleFixture(t *testing.T) (*lifecycleTestStore, *apiv1.Session) {
 	client := database.NewClient(pool, "public")
 	revision := &database.RuntimeRevision{
 		Revision: "revision-1", Namespace: "team-a", AgentName: "assistant", AgentUID: "template-uid",
-		SourceSnapshot: []byte("{}"),
-		AgentCard:      &a2apb.AgentCard{Name: "assistant"}, EgressDestinations: []string{},
+		SourceSnapshot: []byte("{}"), Dependencies: &apiv1.ExecutionDependencyManifest{Direct: &apiv1.ResourceGrantSet{}},
+		AgentCard: &a2apb.AgentCard{Name: "assistant"}, EgressDestinations: []string{},
 		ActorTemplateAtespace: "team-a", ActorTemplateName: "assistant-kagent-revision", ActorTemplateUID: "actor-template-uid",
 	}
 	upsertErr := client.UpsertAgentDefinition(t.Context(), database.AgentDefinition{Namespace: "team-a", AgentName: "assistant", AgentUID: "template-uid", DesiredRevision: revision.Revision})
@@ -460,7 +460,7 @@ func TestActorEgressCredentialsRequireAllowedDestination(t *testing.T) {
 func TestServiceLifecycleRetriesUseCurrentStateAndRespectDeletion(t *testing.T) {
 	store, fixture := lifecycleFixture(t)
 	actors := &retryTestActors{lifecycleTestActors: &lifecycleTestActors{actors: map[string]*ateapipb.Actor{}}}
-	service := NewService(store, serviceTestAuthorizer{}, NewActorWorkflow(store, actors, make(chan struct{}, 1), time.Second))
+	service := NewService(store, serviceTestAuthorizer{}, NewActorWorkflow(store, actors, make(chan struct{}, 1), time.Second), WithExecutionAuthority(creationAuthority{}), WithResourceAuthorization(creationPermissions{}))
 	ctx := serviceTestContext("alice")
 	session, err := service.Create(ctx, fixture.Agent, "retry-request", "conversation", nil)
 	require.NoError(t, err)

@@ -17,11 +17,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
-	corev1 "k8s.io/api/core/v1"
 
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	runtimev1 "github.com/kagent-dev/kagent/go/api/gen/kagent/runtime/v1"
-	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
 	"github.com/kagent-dev/kagent/go/core/internal/dbtest"
 	"github.com/kagent-dev/kagent/go/core/internal/executionauth"
@@ -48,7 +46,7 @@ func TestNativeAuthorityRFC8693RefreshRecoveryAndRevocation(t *testing.T) {
 	revision, err := store.GetRuntimeRevision(t.Context(), "revision-1")
 	require.NoError(t, err)
 	revision.Revision, revision.ActorTemplateName = "oauth-targets", "oauth-targets"
-	revision.MCPTools = []v1alpha3.MCPToolBinding{{Server: corev1.TypedLocalObjectReference{Kind: "RemoteMCPServer", Name: "environment"}, Tools: []string{"read_nodes", "delete_nodes"}}}
+	revision.Dependencies = authorityTestDependencies("environment", []string{"read_nodes", "delete_nodes"}, "")
 	require.NoError(t, store.UpsertAgentDefinition(t.Context(), database.AgentDefinition{Namespace: revision.Namespace, AgentName: revision.AgentName, AgentUID: revision.AgentUID, DesiredRevision: revision.Revision}))
 	require.NoError(t, store.RecordRuntimeRevision(t.Context(), *revision, database.RecordRevisionOptions{Ready: true}))
 	f, actors := newAuthorityOAuthIssuer(t), jwttest.New(t)
@@ -67,8 +65,8 @@ func TestNativeAuthorityRFC8693RefreshRecoveryAndRevocation(t *testing.T) {
 	normalized := &executionauth.Provider{Users: f.users, Authority: authority}
 	provider := runtimeauth.NewProvider(normalized, controlVerifier, store, actors.URL, authority)
 	policy := runtimeauth.NewAuthorizer(&executionauth.Policy{Base: auth.NoopAuthorizer{}, Config: cfg}, store, authority)
-	sessions := sessionsvc.NewService(store, policy, authorityWorkflow{store: store}, sessionsvc.WithExecutionAuthority(authority), sessionsvc.WithWorkspaceIdentity(testWorkspaceReader(t)))
-	executions := executionsvc.NewService(store, sessions, authority)
+	sessions := sessionsvc.NewService(store, policy, authorityWorkflow{store: store}, sessionsvc.WithExecutionAuthority(authority), sessionsvc.WithWorkspaceIdentity(testWorkspaceReader(t)), sessionsvc.WithResourceAuthorization(authorityTestPermissions{}))
+	executions := executionsvc.NewService(store, sessions, authority, authorityTestPermissions{})
 	connection := newConfigurationConnection(t, nil, func(config *Config) {
 		config.Authenticator, config.SessionService, config.ExecutionService = provider, sessions, executions
 		config.TaskStoreService = taskstore.NewService(store, policy, nil, nil)
@@ -111,8 +109,8 @@ func TestNativeAuthorityRFC8693RefreshRecoveryAndRevocation(t *testing.T) {
 		users := &executionauth.Provider{Users: f.users, Authority: fresh}
 		authn := runtimeauth.NewProvider(users, gatewayVerifier, store, actors.URL, fresh)
 		grants := runtimeauth.NewAuthorizer(&executionauth.Policy{Base: auth.NoopAuthorizer{}, Config: cfg}, store, fresh)
-		api := sessionsvc.NewService(store, grants, authorityWorkflow{store: store}, sessionsvc.WithExecutionAuthority(fresh), sessionsvc.WithWorkspaceIdentity(testWorkspaceReader(t)))
-		httpService := executionsvc.NewService(store, api, fresh)
+		api := sessionsvc.NewService(store, grants, authorityWorkflow{store: store}, sessionsvc.WithExecutionAuthority(fresh), sessionsvc.WithWorkspaceIdentity(testWorkspaceReader(t)), sessionsvc.WithResourceAuthorization(authorityTestPermissions{}))
+		httpService := executionsvc.NewService(store, api, fresh, authorityTestPermissions{})
 		current.Store(auth.AuthnMiddleware(authn)(http.HandlerFunc(httpService.RuntimeAuthorization)))
 	}
 	rebuild()

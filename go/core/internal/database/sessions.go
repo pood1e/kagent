@@ -52,6 +52,20 @@ func sameSessionRequest(session, request *apiv1.Session) bool {
 	return proto.Equal(session.GetAgent(), request.GetAgent())
 }
 
+// GetSessionByRequestID reads an owner's original creation result, including
+// deleted state. A checkpoint request returns ErrIdempotencyConflict; an unused
+// key returns ErrNotFound. Callers authorize the returned Session before reuse.
+func (c *Client) GetSessionByRequestID(ctx context.Context, creator, requestID string) (*apiv1.Session, error) {
+	row, err := readSessionRequest(ctx, c.db, creator, requestID)
+	if err != nil {
+		return nil, notFoundOr(err)
+	}
+	if row.SourceCheckpointID != nil {
+		return nil, ErrIdempotencyConflict
+	}
+	return toSession(row)
+}
+
 // CreateSession atomically reserves a session, its conversation history, and the
 // latest successful revision, or returns ErrNotFound if none is available. A repeated
 // creator/requestID returns the existing session when the Agent matches, or
@@ -118,6 +132,9 @@ func insertSession(ctx context.Context, db pgx.Tx, request *apiv1.Session, reque
 	`, pgx.RowToStructByName[preparedRevision], request.GetAgent().GetNamespace(), request.GetAgent().GetName())
 	if err != nil {
 		return sessionRow{}, fmt.Errorf("get latest prepared runtime revision: %w", notFoundOr(err))
+	}
+	if request.PreparedRevision != "" && request.PreparedRevision != revision.Revision {
+		return sessionRow{}, ErrConflict
 	}
 	if _, err := getAvailableRuntimeRevisionForUpdate(ctx, db, revision.Revision); err != nil {
 		return sessionRow{}, err

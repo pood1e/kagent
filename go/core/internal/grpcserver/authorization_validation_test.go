@@ -46,6 +46,37 @@ func TestAuthorizationRequestValidation(t *testing.T) {
 		},
 	}
 	require.NoError(t, validator.Validate(valid))
+	for _, kind := range []apiv1.AuthorizationScopeKind{
+		apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_HARNESS,
+		apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_MODEL_CONNECTION,
+		apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_MCP_SERVER,
+	} {
+		dependency := proto.CloneOf(valid)
+		dependency.Binding.Role = apiv1.AccessRole_ACCESS_ROLE_DEPENDENCY_USER
+		dependency.Binding.Scope = &apiv1.AuthorizationResource{Resource: &apiv1.AuthorizationResource_Kubernetes{
+			Kubernetes: &apiv1.KubernetesAuthorizationReference{
+				Kind: kind, Ref: &apiv1.ResourceReference{Namespace: "team", Name: "resource"},
+			},
+		}}
+		require.NoError(t, validator.Validate(dependency))
+	}
+	tool := proto.CloneOf(valid)
+	tool.Binding.Role = apiv1.AccessRole_ACCESS_ROLE_DEPENDENCY_USER
+	tool.Binding.Scope = &apiv1.AuthorizationResource{Resource: &apiv1.AuthorizationResource_McpTool{
+		McpTool: &apiv1.MCPToolAuthorizationReference{
+			Server: &apiv1.KubernetesAuthorizationReference{
+				Kind: apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_MCP_SERVER,
+				Ref:  &apiv1.ResourceReference{Namespace: "team", Name: "tools"},
+			},
+			Name: "search",
+		},
+	}}
+	require.NoError(t, validator.Validate(tool))
+	tool.Binding.Scope.GetMcpTool().Server.Kind = apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_HARNESS
+	require.Error(t, validator.Validate(tool))
+	tool.Binding.Scope.GetMcpTool().Server.Kind = apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_MCP_SERVER
+	tool.Binding.Scope.GetMcpTool().Name = ""
+	require.Error(t, validator.Validate(tool))
 	for _, test := range []struct {
 		name   string
 		change func(*apiv1.GrantRoleRequest)

@@ -3,7 +3,6 @@ package grpcserver
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net"
 	"strings"
 	"sync"
@@ -15,6 +14,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/test/bufconn"
+	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,15 +22,14 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
-	apiauthorization "github.com/kagent-dev/kagent/go/api/authorization"
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	"github.com/kagent-dev/kagent/go/api/structuredobject"
 	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
 	authimpl "github.com/kagent-dev/kagent/go/core/internal/httpserver/auth"
 	toolservice "github.com/kagent-dev/kagent/go/core/internal/service/tool"
-	pkgAuth "github.com/kagent-dev/kagent/go/core/pkg/auth"
 )
 
 type toolGRPCDiscoveryStore struct {
@@ -79,35 +78,40 @@ func (c *toolGRPCMCPClient) recordedArguments() any {
 }
 
 type toolGRPCAuthorizer struct {
-	mu   sync.Mutex
-	verb pkgAuth.Verb
-	deny bool
+	mu         sync.Mutex
+	permission apiv1.Permission
+	deny       bool
 }
 
-func (a *toolGRPCAuthorizer) Check(_ context.Context, _ pkgAuth.Principal, verb pkgAuth.Verb, _ pkgAuth.Resource) error {
+func (a *toolGRPCAuthorizer) CheckPermissions(_ context.Context, request *apiv1.CheckPermissionsRequest) (*apiv1.CheckPermissionsResponse, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	a.verb = verb
-	if a.deny {
-		return errors.New("denied")
+	result := new(apiv1.CheckPermissionsResponse)
+	for _, check := range request.Checks {
+		a.permission = check.Permissions[0]
+		resource := proto.CloneOf(check.Resource)
+		if resource.GetKubernetes() != nil {
+			resource.GetKubernetes().Uid = resource.GetKubernetes().Ref.Name + "-uid"
+		}
+		if resource.GetMcpTool() != nil {
+			resource.GetMcpTool().Server.Uid = resource.GetMcpTool().Server.Ref.Name + "-uid"
+		}
+		if resource.GetWorkspace() != nil {
+			resource.GetWorkspace().Uid = "workspace-uid"
+		}
+		access := &apiv1.ResourceAccess{Resource: resource}
+		if !a.deny {
+			access.AllowedActions = check.Permissions
+		}
+		result.Resources = append(result.Resources, access)
 	}
-	return nil
+	return result, nil
 }
 
-func (a *toolGRPCAuthorizer) Scope(_ context.Context, _ pkgAuth.Principal, verb pkgAuth.Verb, _ string) (apiauthorization.AuthorizationScope, error) {
+func (a *toolGRPCAuthorizer) lastPermission() apiv1.Permission {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	a.verb = verb
-	if a.deny {
-		return apiauthorization.AuthorizationScope{Kind: apiauthorization.ScopeNone}, nil
-	}
-	return apiauthorization.AuthorizationScope{Kind: apiauthorization.ScopeAll}, nil
-}
-
-func (a *toolGRPCAuthorizer) lastVerb() pkgAuth.Verb {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	return a.verb
+	return a.permission
 }
 
 func (a *toolGRPCAuthorizer) setDenied(denied bool) {
@@ -119,8 +123,8 @@ func (a *toolGRPCAuthorizer) setDenied(denied bool) {
 func TestToolServiceGeneratedClient(t *testing.T) {
 	kubeClient := toolGRPCKubeClient(t)
 	store := &toolGRPCDiscoveryStore{
-		tools:   []database.Tool{{ID: "move_task", ServerName: "default/shared", GroupKind: "RemoteMCPServer.api.kagent.dev", Description: "Move a task"}},
-		servers: []database.ToolServer{{Name: "default/shared", GroupKind: "RemoteMCPServer.api.kagent.dev"}},
+		tools:   []database.Tool{{ID: "move_task", ServerName: "default/catalog", GroupKind: "RemoteMCPServer.api.kagent.dev", Description: "Move a task"}},
+		servers: []database.ToolServer{{Name: "default/catalog", GroupKind: "RemoteMCPServer.api.kagent.dev"}},
 	}
 	authorizer := &toolGRPCAuthorizer{}
 	mcpClient := &toolGRPCMCPClient{}
@@ -154,8 +158,8 @@ func TestToolServiceGeneratedClient(t *testing.T) {
 	if len(listedServers.GetToolServers()) != 1 || listedServers.GetToolServers()[0].GetDiscoveredTools()[0].GetName() != "move_task" {
 		t.Fatalf("ListToolServers() = %+v", listedServers.GetToolServers())
 	}
-	if authorizer.lastVerb() != pkgAuth.VerbList {
-		t.Fatalf("ListToolServers() authorization verb = %q, want list", authorizer.lastVerb())
+	if authorizer.lastPermission() != apiv1.Permission_PERMISSION_MCP_SERVER_READ {
+		t.Fatalf("ListToolServers() authorization verb = %q, want list", authorizer.lastPermission())
 	}
 
 	serverTypes, err := toolClient.ListToolServerTypes(ctx, &apiv1.ListToolServerTypesRequest{})
@@ -200,8 +204,8 @@ func TestToolServiceGeneratedClient(t *testing.T) {
 	if string(secret.Data["token"]) != "super-secret" {
 		t.Fatalf("companion Secret token = %q", secret.Data["token"])
 	}
-	if authorizer.lastVerb() != pkgAuth.VerbCreate {
-		t.Fatalf("CreateToolServer() authorization verb = %q, want create", authorizer.lastVerb())
+	if authorizer.lastPermission() != apiv1.Permission_PERMISSION_MCP_SERVER_MANAGE {
+		t.Fatalf("CreateToolServer() authorization verb = %q, want create", authorizer.lastPermission())
 	}
 
 	_, err = toolClient.CreateToolServer(ctx, &apiv1.CreateToolServerRequest{
@@ -235,8 +239,8 @@ func TestToolServiceGeneratedClient(t *testing.T) {
 	if err := structuredobject.ToGo(mcpTools.GetTools()[0].GetInputSchema(), mcpInputSchemaKind, &inputSchema, DefaultMaxMessageSize); err != nil {
 		t.Fatalf("decode MCP input schema: %v", err)
 	}
-	if inputSchema["type"] != "object" || authorizer.lastVerb() != pkgAuth.VerbGet {
-		t.Fatalf("MCP input schema = %+v, verb = %q", inputSchema, authorizer.lastVerb())
+	if inputSchema["type"] != "object" || authorizer.lastPermission() != apiv1.Permission_PERMISSION_MCP_SERVER_READ {
+		t.Fatalf("MCP input schema = %+v, verb = %q", inputSchema, authorizer.lastPermission())
 	}
 
 	arguments := toolGRPCResource(t, map[string]any{"id": "task-1"}, mcpAPIVersion, mcpArgumentsKind)
@@ -246,8 +250,8 @@ func TestToolServiceGeneratedClient(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CallMCPAppTool() error = %v", err)
 	}
-	if called.GetResult().GetKind() != mcpCallToolResultKind || authorizer.lastVerb() != pkgAuth.VerbCreate {
-		t.Fatalf("CallMCPAppTool() result kind = %q, verb = %q", called.GetResult().GetKind(), authorizer.lastVerb())
+	if called.GetResult().GetKind() != mcpCallToolResultKind || authorizer.lastPermission() != apiv1.Permission_PERMISSION_MCP_TOOL_CALL {
+		t.Fatalf("CallMCPAppTool() result kind = %q, verb = %q", called.GetResult().GetKind(), authorizer.lastPermission())
 	}
 	recordedArguments, ok := mcpClient.recordedArguments().(map[string]any)
 	if !ok || recordedArguments["id"] != "task-1" {
@@ -258,8 +262,8 @@ func TestToolServiceGeneratedClient(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadMCPAppResource() error = %v", err)
 	}
-	if read.GetResult().GetKind() != mcpReadResourceKind || authorizer.lastVerb() != pkgAuth.VerbGet {
-		t.Fatalf("ReadMCPAppResource() result kind = %q, verb = %q", read.GetResult().GetKind(), authorizer.lastVerb())
+	if read.GetResult().GetKind() != mcpReadResourceKind || authorizer.lastPermission() != apiv1.Permission_PERMISSION_MCP_SERVER_READ {
+		t.Fatalf("ReadMCPAppResource() result kind = %q, verb = %q", read.GetResult().GetKind(), authorizer.lastPermission())
 	}
 	_, err = toolClient.ReadMCPAppResource(ctx, &apiv1.ReadMCPAppResourceRequest{Server: mcpRef, Uri: "https://example.com"})
 	assertGRPCCode(t, err, codes.InvalidArgument)
@@ -332,7 +336,15 @@ func toolGRPCKubeClient(t *testing.T) client.Client {
 	if err := corev1.AddToScheme(scheme); err != nil {
 		t.Fatalf("corev1.AddToScheme() error = %v", err)
 	}
-	return fake.NewClientBuilder().WithScheme(scheme).Build()
+	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(&v1alpha3.RemoteMCPServer{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "catalog", UID: "catalog-uid"},
+		Status:     v1alpha3.RemoteMCPServerStatus{DiscoveredTools: []*v1alpha3.MCPTool{{Name: "move_task", Description: "Move a task"}}},
+	}).WithInterceptorFuncs(interceptor.Funcs{Create: func(ctx context.Context, c client.WithWatch, object client.Object, options ...client.CreateOption) error {
+		if object.GetUID() == "" {
+			object.SetUID(types.UID(object.GetName() + "-uid"))
+		}
+		return c.Create(ctx, object, options...)
+	}}).Build()
 }
 
 func toolGRPCResource(t *testing.T, value any, apiVersion, kind string) *apiv1.StructuredObject {

@@ -1,0 +1,95 @@
+{
+  "$defs": {
+    "kagent.api.v1.KubernetesAuthorizationReference.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "anyOf": [
+            {
+              "enum": [
+                "AUTHORIZATION_SCOPE_KIND_AGENT",
+                "AUTHORIZATION_SCOPE_KIND_AGENT_TEMPLATE",
+                "AUTHORIZATION_SCOPE_KIND_HARNESS",
+                "AUTHORIZATION_SCOPE_KIND_MODEL_CONNECTION",
+                "AUTHORIZATION_SCOPE_KIND_MCP_SERVER"
+              ],
+              "type": "string"
+            },
+            {
+              "maximum": 3,
+              "minimum": 2,
+              "type": "integer"
+            },
+            {
+              "maximum": 8,
+              "minimum": 6,
+              "type": "integer"
+            }
+          ],
+          "default": 0,
+          "title": "Authorization Scope Kind"
+        },
+        "ref": {
+          "$ref": "#/$defs/kagent.api.v1.ResourceReference.schema.json"
+        },
+        "uid": {
+          "default": "",
+          "description": "When supplied, this must match the object's current UID.",
+          "maxLength": 128,
+          "type": "string"
+        }
+      },
+      "required": [
+        "ref"
+      ],
+      "title": "Kubernetes Authorization Reference",
+      "type": "object"
+    },
+    "kagent.api.v1.MCPToolAuthorizationReference.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "default": "",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "server": {
+          "$ref": "#/$defs/kagent.api.v1.KubernetesAuthorizationReference.schema.json"
+        }
+      },
+      "required": [
+        "server"
+      ],
+      "title": "MCP Tool Authorization Reference",
+      "type": "object"
+    },
+    "kagent.api.v1.ResourceReference.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "default": "",
+          "maxLength": 253,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?([.][a-z0-9]([-a-z0-9]*[a-z0-9])?)*$",
+          "type": "string"
+        },
+        "namespace": {
+          "default": "",
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+          "type": "string"
+        }
+      },
+      "title": "Resource Reference",
+      "type": "object"
+    }
+  },
+  "$id": "kagent.api.v1.MCPToolAuthorizationReference.schema.bundle.json",
+  "$ref": "#/$defs/kagent.api.v1.MCPToolAuthorizationReference.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

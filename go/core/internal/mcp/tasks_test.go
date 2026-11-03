@@ -534,6 +534,17 @@ func (*fakeGateway) GetExtendedAgentCard(context.Context, *a2atype.GetExtendedAg
 
 type fakeSessionStore struct{}
 
+func (*fakeSessionStore) GetRuntimeRevision(context.Context, string) (*database.RuntimeRevision, error) {
+	return nil, database.ErrNotFound
+}
+
+func (*fakeSessionStore) GetAgentRuntimeRevision(context.Context, string, string) (*database.RuntimeRevision, error) {
+	return &database.RuntimeRevision{Revision: "prepared", Dependencies: &apiv1.ExecutionDependencyManifest{Direct: &apiv1.ResourceGrantSet{}}}, nil
+}
+func (*fakeSessionStore) GetSessionByRequestID(context.Context, string, string) (*apiv1.Session, error) {
+	return nil, database.ErrNotFound
+}
+
 func (*fakeSessionStore) CreateSession(context.Context, *apiv1.Session, string) (*apiv1.Session, bool, error) {
 	return nil, false, database.ErrNotFound
 }

@@ -102,7 +102,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 	}
 
 	tools, err := r.discoverer.ListTools(ctx, toolservice.MCPServerRef{
-		Ref: request.NamespacedName, GroupKind: remoteGroupKind,
+		Ref: request.NamespacedName, GroupKind: remoteGroupKind, UID: server.UID,
 	})
 	if err != nil {
 		statusErr := r.updateStatus(ctx, server, nil, metav1.ConditionFalse, "DiscoveryFailed", err.Error())

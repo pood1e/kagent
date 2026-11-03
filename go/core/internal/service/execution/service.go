@@ -12,6 +12,7 @@ import (
 	"github.com/kagent-dev/kagent/go/core/internal/database"
 	"github.com/kagent-dev/kagent/go/core/internal/executionauth"
 	"github.com/kagent-dev/kagent/go/core/internal/service/serviceerrors"
+	"github.com/kagent-dev/kagent/go/core/pkg/auth"
 )
 
 type Store interface {
@@ -26,14 +27,20 @@ type Sessions interface {
 	RevokeExecutionAuthority(context.Context, string) error
 }
 
-type Service struct {
-	store     Store
-	sessions  Sessions
-	authority *executionauth.Service
+// RuntimePermissions accepts only an initiator resolved by execution authority.
+type RuntimePermissions interface {
+	CheckExecutionPermissions(context.Context, auth.Principal, *apiv1.CheckPermissionsRequest) (*apiv1.CheckPermissionsResponse, error)
 }
 
-func NewService(store Store, sessions Sessions, authority *executionauth.Service) *Service {
-	return &Service{store: store, sessions: sessions, authority: authority}
+type Service struct {
+	store       Store
+	sessions    Sessions
+	authority   *executionauth.Service
+	permissions RuntimePermissions
+}
+
+func NewService(store Store, sessions Sessions, authority *executionauth.Service, permissions RuntimePermissions) *Service {
+	return &Service{store: store, sessions: sessions, authority: authority, permissions: permissions}
 }
 
 func (s *Service) Get(ctx context.Context, taskID string) (*apiv1.TaskExecution, error) {

@@ -41,7 +41,14 @@ func (c *Client) FindScheduledRunRequest(ctx context.Context, creator, requestID
 // time. Reusing a creator/requestID returns the existing schedule if the request hash
 // matches, or ErrIdempotencyConflict otherwise. Paused schedules have no due time;
 // execution is left to the scheduler.
-func (c *Client) CreateScheduledRun(ctx context.Context, request *apiv1.ScheduledRun, requestID string, hash []byte) (*apiv1.ScheduledRun, error) {
+func (c *Client) CreateScheduledRun(ctx context.Context, request *apiv1.ScheduledRun, requestID string, hash []byte, grant *apiv1.SessionAuthority) (*apiv1.ScheduledRun, error) {
+	if grant.GetInitiatorId() != request.Creator {
+		return nil, ErrFailedPrecondition
+	}
+	authority, err := encodeScheduledAuthority(grant)
+	if err != nil {
+		return nil, err
+	}
 	schedule := proto.CloneOf(request)
 	id := uuid.New()
 	schedule.Id, schedule.Etag = id.String(), uuid.NewString()
@@ -54,10 +61,10 @@ func (c *Client) CreateScheduledRun(ctx context.Context, request *apiv1.Schedule
 	var row scheduledRunRow
 	err = c.withTx(ctx, func(tx pgx.Tx) error {
 		row, err = queryOne(ctx, tx, `
-			INSERT INTO scheduled_run (id, creator, request_id, request_hash, data)
-			VALUES ($1, $2, $3, $4, $5)
+			INSERT INTO scheduled_run (id, creator, request_id, request_hash, data, authority)
+			VALUES ($1, $2, $3, $4, $5, $6)
 			ON CONFLICT (creator, request_id) DO NOTHING RETURNING id, creator, request_hash, data, created_at, updated_at, next_execution_time, deleted_at
-		`, pgx.RowToStructByName[scheduledRunRow], id, schedule.Creator, requestID, hash, data)
+		`, pgx.RowToStructByName[scheduledRunRow], id, schedule.Creator, requestID, hash, data, authority)
 		if err != nil {
 			return err
 		}
@@ -114,7 +121,18 @@ func (c *Client) ListScheduledRuns(ctx context.Context, query ScheduledRunQuery)
 // etag matches; stale edits return ErrConflict and deleted schedules return
 // ErrFailedPrecondition. The next occurrence changes only when the schedule, time zone,
 // or pause setting changes, so unrelated edits cannot skip an already-due occurrence.
-func (c *Client) UpdateScheduledRun(ctx context.Context, id uuid.UUID, creator, etag string, config *apiv1.ScheduledRunConfig) (*apiv1.ScheduledRun, error) {
+func (c *Client) UpdateScheduledRun(ctx context.Context, id uuid.UUID, creator, etag string, config *apiv1.ScheduledRunConfig, grant *apiv1.SessionAuthority) (*apiv1.ScheduledRun, error) {
+	var authority []byte
+	if grant != nil {
+		if grant.InitiatorId != creator {
+			return nil, ErrFailedPrecondition
+		}
+		var err error
+		authority, err = encodeScheduledAuthority(grant)
+		if err != nil {
+			return nil, err
+		}
+	}
 	var result scheduledRunRow
 	err := c.withTx(ctx, func(tx pgx.Tx) error {
 		row, err := getScheduledRunForUpdate(ctx, tx, id, creator)
@@ -140,6 +158,11 @@ func (c *Client) UpdateScheduledRun(ctx context.Context, id uuid.UUID, creator, 
 		result, err = saveScheduledRun(ctx, tx, row.ID, data, row.NextExecutionTime, false)
 		if err != nil {
 			return err
+		}
+		if grant != nil {
+			if err := execSQL(ctx, tx, `UPDATE scheduled_run SET authority = $2 WHERE id = $1`, id, authority); err != nil {
+				return err
+			}
 		}
 		// Prompt/name edits must not skip an occurrence already due for reservation.
 		if config.Schedule != previous.Schedule || config.TimeZone != previous.TimeZone || config.Paused != previous.Paused {
@@ -331,9 +354,9 @@ func reserveScheduledRunExecution(ctx context.Context, db dbExecutor, schedule *
 	// PostgreSQL timestamps have microsecond precision; don't shorten a timeout.
 	timeout := (schedule.Config.ExecutionTimeout.AsDuration() + time.Microsecond - 1) / time.Microsecond
 	return queryOne(ctx, db, `
-		INSERT INTO scheduled_run_execution (id, scheduled_run_id, scheduled_time, manual_request_id, data, deadline)
+		INSERT INTO scheduled_run_execution (id, scheduled_run_id, scheduled_time, manual_request_id, data, deadline, authority)
 		VALUES ($1, $2, $3, $4, $5,
-		    statement_timestamp() + $6::interval) RETURNING id, scheduled_run_id, scheduled_time, manual_request_id, data, created_at, deadline, session_id, task_id, completed_at, state
+		    statement_timestamp() + $6::interval, (SELECT authority FROM scheduled_run WHERE id = $2)) RETURNING id, scheduled_run_id, scheduled_time, manual_request_id, data, created_at, deadline, session_id, task_id, completed_at, state
 	`,
 		pgx.RowToStructByName[scheduledRunExecutionRow], id, schedule.Id, due, manualRequestID, data,
 		pgtype.Interval{Microseconds: int64(timeout), Valid: true},
@@ -438,8 +461,12 @@ func (c *Client) ReserveScheduledRunExecutionSession(ctx context.Context, id uui
 		if err != nil {
 			return err
 		}
+		grant, err := scheduledExecutionAuthority(ctx, tx, id, sessionID, creator)
+		if err != nil {
+			return err
+		}
 		session, err := insertSession(ctx, tx, &apiv1.Session{
-			Id: sessionID.String(), Creator: creator,
+			Id: sessionID.String(), Creator: creator, Authority: grant,
 			Agent: proto.CloneOf(schedule.Agent),
 		}, "scheduled-run/"+id.String())
 		if errors.Is(err, ErrNotFound) {

@@ -26,6 +26,7 @@ import (
 	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
 	"github.com/kagent-dev/kagent/go/core/internal/dbtest"
+	"github.com/kagent-dev/kagent/go/core/internal/executionauth"
 	authimpl "github.com/kagent-dev/kagent/go/core/internal/httpserver/auth"
 	"github.com/kagent-dev/kagent/go/core/internal/service/scheduledrun"
 	sessionsvc "github.com/kagent-dev/kagent/go/core/internal/service/session"
@@ -184,21 +185,25 @@ func scheduledRunTestServer(t *testing.T) (*database.Client, apiv1.ScheduledRunS
 	require.NoError(t, upsertErr)
 	require.NoError(t, store.RecordRuntimeRevision(t.Context(), database.RuntimeRevision{
 		Revision: pair.DesiredRevision, Namespace: pair.Namespace, AgentName: pair.AgentName, AgentUID: pair.AgentUID,
-		SourceSnapshot: []byte("{}"), AgentCard: &a2apb.AgentCard{}, EgressDestinations: []string{},
+		SourceSnapshot: []byte("{}"), Dependencies: &apiv1.ExecutionDependencyManifest{Direct: &apiv1.ResourceGrantSet{}}, AgentCard: &a2apb.AgentCard{}, EgressDestinations: []string{},
 		ActorTemplateAtespace: "team", ActorTemplateName: "runtime", ActorTemplateUID: "runtime-uid",
 	}, database.RecordRevisionOptions{Ready: true}))
 	scheme := runtime.NewScheme()
 	require.NoError(t, v1alpha3.AddToScheme(scheme))
+	require.NoError(t, corev1.AddToScheme(scheme))
 	agent := &v1alpha3.Agent{ObjectMeta: metav1.ObjectMeta{Namespace: "team", Name: "report"}, Spec: v1alpha3.AgentSpec{
 		Template:   v1alpha3.AgentTemplateSource{Ref: &corev1.LocalObjectReference{Name: "report"}},
 		HarnessRef: corev1.LocalObjectReference{Name: "runtime"},
 	}}
-	kube := fake.NewClientBuilder().WithScheme(scheme).WithObjects(agent).Build()
+	kube := fake.NewClientBuilder().WithScheme(scheme).WithObjects(agent, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "team", UID: "workspace-1"}}).Build()
+	authority, err := executionauth.NewService(store, nil, nil, true)
+	require.NoError(t, err)
+	sessionService := sessionsvc.NewService(store, &pkgauth.NoopAuthorizer{}, nil, sessionsvc.WithExecutionAuthority(authority), sessionsvc.WithResourceAuthorization(authorityTestPermissions{}), sessionsvc.WithWorkspaceIdentity(kube))
 	listener := bufconn.Listen(DefaultMaxMessageSize)
 	server, err := New(Config{
 		Listener: listener, Authenticator: &authimpl.InsecureAuthenticator{},
 		SystemService:       testSystemService(),
-		ScheduledRunService: scheduledrun.NewService(store, kube, &pkgauth.NoopAuthorizer{}),
+		ScheduledRunService: scheduledrun.NewService(store, kube, &pkgauth.NoopAuthorizer{}, sessionService),
 		SessionService:      sessionsvc.NewService(store, &pkgauth.NoopAuthorizer{}, nil),
 	})
 	require.NoError(t, err)
@@ -231,7 +236,7 @@ func TestScheduledRunServiceDeletesMalformedConfig(t *testing.T) {
 	// The internal write commits, then its response decoder rejects the payload.
 	invalid := proto.CloneOf(schedule.Config)
 	invalid.Prompt = " "
-	_, err = store.UpdateScheduledRun(t.Context(), uuid.MustParse(schedule.Id), schedule.Creator, schedule.Etag, invalid)
+	_, err = store.UpdateScheduledRun(t.Context(), uuid.MustParse(schedule.Id), schedule.Creator, schedule.Etag, invalid, nil)
 	require.Error(t, err)
 	_, err = client.GetScheduledRun(owner, &apiv1.GetScheduledRunRequest{ScheduledRunId: schedule.Id})
 	require.Equal(t, codes.Internal, status.Code(err))

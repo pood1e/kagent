@@ -21,10 +21,12 @@ import (
 // permission tests fails immediately through the nil dependencies.
 type interactionTestStore struct {
 	*database.Client
-	task        *a2atype.Task
-	taskLookups int
-	taskReads   int
-	dispatchErr error
+	task           *a2atype.Task
+	taskLookups    int
+	taskReads      int
+	dispatchErr    error
+	pushWrites     int
+	dispatchWrites int
 }
 
 func (*interactionTestStore) RequestTaskCancellation(context.Context, string, string) error {
@@ -32,7 +34,13 @@ func (*interactionTestStore) RequestTaskCancellation(context.Context, string, st
 }
 
 func (s *interactionTestStore) ReserveSessionDispatch(context.Context, string, uuid.UUID, string, *database.DispatchOrigin) error {
+	s.dispatchWrites++
 	return s.dispatchErr
+}
+
+func (s *interactionTestStore) RegisterSessionPushNotification(context.Context, string, string, string, *a2atype.PushConfig) error {
+	s.pushWrites++
+	return nil
 }
 
 func TestPrepareSendStampsInboundTimeline(t *testing.T) {
@@ -59,7 +67,7 @@ func TestPrepareSendStampsInboundTimeline(t *testing.T) {
 			if test.accepted {
 				tasks.dispatchErr = database.ErrMessageAccepted
 			}
-			service := NewInteractionService(tasks, nil, NewService(&serviceTestStore{getResult: stored}, serviceTestAuthorizer{}, nil), false)
+			service := NewInteractionService(tasks, nil, dispatchTestService(t, stored), false)
 			message := a2atype.NewMessage(a2atype.MessageRoleUser, a2atype.NewTextPart("Approved"))
 			message.ID, message.ContextID, message.TaskID = original.ID, id, test.taskID
 			apia2a.SetTimelinePosition(message, time.Unix(1, 0))
@@ -272,7 +280,7 @@ func TestPrepareSendRequiresNativeContinuationOrigin(t *testing.T) {
 			stored := &apiv1.Session{Id: id, ContextId: id, State: apiv1.RuntimeState_RUNTIME_STATE_READY,
 				Operation: apiv1.RuntimeOperation_RUNTIME_OPERATION_NONE,
 				Agent:     &apiv1.ResourceReference{Namespace: agent.Namespace, Name: agent.Name}}
-			service := NewInteractionService(&interactionTestStore{}, nil, NewService(&serviceTestStore{getResult: stored}, serviceTestAuthorizer{}, nil), false)
+			service := NewInteractionService(&interactionTestStore{}, nil, dispatchTestService(t, stored), false)
 			ctx := serviceTestContext("alice")
 			if native {
 				ctx = context.WithValue(ctx, continuationContextKey{}, continuation)

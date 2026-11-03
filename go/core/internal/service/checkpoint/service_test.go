@@ -391,13 +391,9 @@ func TestDeleteRejectsUnverifiedTag(t *testing.T) {
 }
 
 func TestForkCreatesSessionFromCheckpoint(t *testing.T) {
-	checkpoint := &apiv1.Checkpoint{Id: "018f47a2-4efb-7c21-a848-123456789abc", State: apiv1.CheckpointState_CHECKPOINT_STATE_READY}
-	store := &testStore{prepared: checkpoint, snapshot: &database.SessionTaskSnapshot{Atespace: "team-a", URI: "s3://snapshots/snapshot-1", Fidelity: "SNAPSHOT_FIDELITY_VOLUMES"}}
-	workflow := &testWorkflow{}
-	store.tagUID = "tag-uid"
-	tags := &testTags{created: &ateapipb.Tag{Metadata: &ateapipb.ResourceMetadata{Atespace: "team-a", Name: tagName(checkpoint.Id), Uid: store.tagUID}, Status: &ateapipb.TagStatus{Snapshot: &ateapipb.Snapshot{Generation: 1, Fidelity: ateapipb.SnapshotFidelity_SNAPSHOT_FIDELITY_VOLUMES, ActorTemplateUid: "template-uid", DurableSnapshot: &ateapipb.SnapshotStorage{Status: ateapipb.SnapshotStorageStatus_SNAPSHOT_STORAGE_STATUS_COMPLETED, Object: &ateapipb.ObjectSnapshot{SnapshotUri: store.snapshot.URI}}}}}, actorErr: errors.New("source Actor was deleted")}
-	service := NewService(store, testAuthorizer{}, tags, workflow, nil)
-	ctx := auth.AuthSessionTo(context.Background(), testSession{userID: "alice"})
+	service, store, workflow := forkTestFixture(t, &testForkAuthorizer{})
+	checkpoint := store.prepared
+	ctx := auth.AuthSessionTo(t.Context(), testSession{userID: "alice"})
 
 	session, err := service.Fork(ctx, checkpoint.GetId(), "fork-request")
 	if err != nil {
@@ -474,7 +470,7 @@ func TestForkRejectsReplacedTag(t *testing.T) {
 				Metadata: &ateapipb.ResourceMetadata{Atespace: snapshot.Atespace, Name: tagName(checkpoint.Id), Uid: tc.uid},
 				Status:   &ateapipb.TagStatus{Snapshot: &ateapipb.Snapshot{Generation: 1, Fidelity: ateapipb.SnapshotFidelity_SNAPSHOT_FIDELITY_VOLUMES, ActorTemplateUid: "template-uid", DurableSnapshot: &ateapipb.SnapshotStorage{Status: ateapipb.SnapshotStorageStatus_SNAPSHOT_STORAGE_STATUS_COMPLETED, Object: &ateapipb.ObjectSnapshot{SnapshotUri: tc.uri}}}},
 			}}
-			service := NewService(store, testAuthorizer{}, tags, &testWorkflow{}, nil)
+			service := NewService(store, testAuthorizer{}, tags, &testWorkflow{}, &testForkAuthorizer{})
 			ctx := auth.AuthSessionTo(t.Context(), testSession{userID: "alice"})
 			_, err := service.Fork(ctx, checkpoint.Id, "fork-request")
 			require.Error(t, err)

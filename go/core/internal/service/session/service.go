@@ -17,7 +17,6 @@ import (
 
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
-	"github.com/kagent-dev/kagent/go/core/internal/executionauth"
 	"github.com/kagent-dev/kagent/go/core/internal/service/serviceerrors"
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
 )
@@ -28,6 +27,9 @@ const (
 )
 
 type store interface {
+	GetAgentRuntimeRevision(context.Context, string, string) (*database.RuntimeRevision, error)
+	GetRuntimeRevision(context.Context, string) (*database.RuntimeRevision, error)
+	GetSessionByRequestID(context.Context, string, string) (*apiv1.Session, error)
 	CreateSession(context.Context, *apiv1.Session, string) (*apiv1.Session, bool, error)
 	GetSession(context.Context, string, string) (*apiv1.Session, error)
 	GetSessionByID(context.Context, string) (*apiv1.Session, error)
@@ -65,18 +67,27 @@ type ShareListResult struct {
 	NextPageToken string
 }
 
+// ExecutionAuthority owns durable initiator and delegation bounds.
+type ExecutionAuthority interface {
+	Bind(context.Context, string, string, *apiv1.ScopeCeiling) (*apiv1.SessionAuthority, error)
+	Resolve(context.Context, string) (auth.Session, error)
+	Renew(context.Context) error
+	RevokeAuthority(context.Context, string) error
+}
+
 type Service struct {
 	store       store
 	authorizer  auth.Authorizer
 	workflow    sessionWorkflow
 	shareMaxTTL time.Duration
-	authority   *executionauth.Service
+	authority   ExecutionAuthority
 	workspaces  client.Reader
+	permissions ResourcePermissions
 }
 
 type Option func(*Service)
 
-func WithExecutionAuthority(authority *executionauth.Service) Option {
+func WithExecutionAuthority(authority ExecutionAuthority) Option {
 	return func(s *Service) { s.authority = authority }
 }
 
@@ -128,10 +139,12 @@ func (s *Service) Create(ctx context.Context, agent *apiv1.ResourceReference, re
 	if err := s.bindWorkspace(ctx, agent.Namespace, grant); err != nil {
 		return nil, err
 	}
-	session, _, err := s.store.CreateSession(ctx, &apiv1.Session{
-		Id: id.String(), Creator: creator, Name: name,
-		Agent: agent, Authority: grant,
-	}, requestID)
+	session, err := s.reserveAuthorizedSession(ctx, &apiv1.Session{
+		Id: id.String(), Creator: creator, Name: name, Agent: agent, Authority: grant,
+	}, requestID, ceiling)
+	if errors.Is(err, database.ErrConflict) {
+		return nil, serviceerrors.NewAborted("Prepared Agent revision changed; retry Session creation", err)
+	}
 	if errors.Is(err, database.ErrIdempotencyConflict) {
 		return nil, serviceerrors.NewAlreadyExists("request_id was already used for a different Session", err)
 	}
@@ -142,6 +155,9 @@ func (s *Service) Create(ctx context.Context, agent *apiv1.ResourceReference, re
 		return nil, serviceerrors.NewFailedPrecondition("Agent does not have a ready prepared revision", err)
 	}
 	if err != nil {
+		if serviceerrors.CodeOf(err) != "" {
+			return nil, err
+		}
 		return nil, serviceerrors.NewInternal("Failed to reserve Session", err)
 	}
 	session, err = s.workflow.Create(ctx, session)

@@ -27,7 +27,7 @@ func createTestSchedule(t *testing.T, c *Client) (*apiv1.ScheduledRun, []byte) {
 		Agent:  &apiv1.ResourceReference{Namespace: "team-a", Name: "report"},
 		Config: scheduledrun.Normalize(&apiv1.ScheduledRunConfig{Schedule: "* * * * *", Prompt: "original prompt"}),
 	}
-	result, err := c.CreateScheduledRun(t.Context(), request, "create", hash[:])
+	result, err := c.CreateScheduledRun(t.Context(), request, "create", hash[:], scheduleTestAuthority())
 	require.NoError(t, err)
 	return result, hash[:]
 }
@@ -109,11 +109,11 @@ func TestScheduledRunRequestsSurviveEditAndDeletion(t *testing.T) {
 	require.Equal(t, 15*time.Minute, execution.Deadline.AsTime().Sub(execution.CreatedAt.AsTime()))
 	config := proto.CloneOf(schedule.Config)
 	config.Prompt, config.Paused = "new prompt", true
-	updated, err := c.UpdateScheduledRun(t.Context(), uuid.MustParse(schedule.Id), "alice", schedule.Etag, config)
+	updated, err := c.UpdateScheduledRun(t.Context(), uuid.MustParse(schedule.Id), "alice", schedule.Etag, config, nil)
 	require.NoError(t, err)
 	require.Nil(t, updated.NextExecutionTime)
 	require.NotEqual(t, schedule.Etag, updated.Etag)
-	_, err = c.UpdateScheduledRun(t.Context(), uuid.MustParse(schedule.Id), "alice", schedule.Etag, config)
+	_, err = c.UpdateScheduledRun(t.Context(), uuid.MustParse(schedule.Id), "alice", schedule.Etag, config, nil)
 	require.ErrorIs(t, err, ErrConflict)
 	require.ErrorContains(t, err, "changed; reload before updating")
 
@@ -135,7 +135,7 @@ func TestScheduledRunRequestsSurviveEditAndDeletion(t *testing.T) {
 	_, err = c.TriggerScheduledRun(t.Context(), uuid.MustParse(schedule.Id), "alice", "new-request")
 	require.ErrorIs(t, err, ErrFailedPrecondition)
 	require.ErrorContains(t, err, "was deleted")
-	_, err = c.UpdateScheduledRun(t.Context(), uuid.MustParse(schedule.Id), "alice", deleted.Etag, config)
+	_, err = c.UpdateScheduledRun(t.Context(), uuid.MustParse(schedule.Id), "alice", deleted.Etag, config, nil)
 	require.ErrorIs(t, err, ErrFailedPrecondition)
 
 	found, err := c.FindScheduledRunRequest(t.Context(), "alice", "create", hash)
@@ -144,7 +144,7 @@ func TestScheduledRunRequestsSurviveEditAndDeletion(t *testing.T) {
 	changedHash := sha256.Sum256([]byte("other input"))
 	_, err = c.FindScheduledRunRequest(t.Context(), "alice", "create", changedHash[:])
 	require.ErrorIs(t, err, ErrIdempotencyConflict)
-	recreated, err := c.CreateScheduledRun(t.Context(), schedule, "create", hash)
+	recreated, err := c.CreateScheduledRun(t.Context(), schedule, "create", hash, scheduleTestAuthority())
 	require.NoError(t, err)
 	require.True(t, proto.Equal(deleted, recreated))
 
@@ -190,7 +190,7 @@ func TestScheduledRunSQLTimestamps(t *testing.T) {
 	config := proto.CloneOf(schedule.Config)
 	config.ExecutionTimeout = durationpb.New(1500 * time.Nanosecond)
 	config.Schedule = "*/5 * * * *"
-	updated, err := c.UpdateScheduledRun(t.Context(), uuid.MustParse(schedule.Id), "alice", schedule.Etag, config)
+	updated, err := c.UpdateScheduledRun(t.Context(), uuid.MustParse(schedule.Id), "alice", schedule.Etag, config, nil)
 	require.NoError(t, err)
 	require.True(t, proto.Equal(schedule.CreatedAt, updated.CreatedAt))
 	require.True(t, updated.UpdatedAt.AsTime().After(schedule.UpdatedAt.AsTime()))
@@ -199,7 +199,7 @@ func TestScheduledRunSQLTimestamps(t *testing.T) {
 	require.Equal(t, next, updated.NextExecutionTime.AsTime())
 	invalidConfig := proto.CloneOf(config)
 	invalidConfig.Schedule = "invalid cron"
-	_, err = c.UpdateScheduledRun(t.Context(), uuid.MustParse(schedule.Id), "alice", updated.Etag, invalidConfig)
+	_, err = c.UpdateScheduledRun(t.Context(), uuid.MustParse(schedule.Id), "alice", updated.Etag, invalidConfig, nil)
 	require.Error(t, err)
 	loaded, err = c.GetScheduledRun(t.Context(), uuid.MustParse(schedule.Id), "alice")
 	require.NoError(t, err)
@@ -214,7 +214,7 @@ func TestScheduledRunSQLTimestamps(t *testing.T) {
 	// A failed cron calculation must also roll back the preceding insert.
 	invalid := proto.CloneOf(schedule)
 	invalid.Config.Schedule = "invalid cron"
-	_, err = c.CreateScheduledRun(t.Context(), invalid, "invalid", hash)
+	_, err = c.CreateScheduledRun(t.Context(), invalid, "invalid", hash, scheduleTestAuthority())
 	require.Error(t, err)
 	_, err = c.FindScheduledRunRequest(t.Context(), "alice", "invalid", hash)
 	require.ErrorIs(t, err, ErrNotFound)
@@ -275,7 +275,7 @@ func TestScheduledRunConcurrentUpdateAndDelete(t *testing.T) {
 	var wg sync.WaitGroup
 	for range 2 {
 		wg.Go(func() {
-			_, err := c.UpdateScheduledRun(t.Context(), uuid.MustParse(schedule.Id), "alice", schedule.Etag, schedule.Config)
+			_, err := c.UpdateScheduledRun(t.Context(), uuid.MustParse(schedule.Id), "alice", schedule.Etag, schedule.Config, nil)
 			results <- err
 		})
 	}
@@ -425,7 +425,7 @@ func TestScheduledExecutionExpiresBeforeSessionCreation(t *testing.T) {
 	schedule, _ := createTestSchedule(t, c)
 	config := proto.CloneOf(schedule.Config)
 	config.ExecutionTimeout = durationpb.New(time.Microsecond)
-	_, err := c.UpdateScheduledRun(t.Context(), uuid.MustParse(schedule.Id), "alice", schedule.Etag, config)
+	_, err := c.UpdateScheduledRun(t.Context(), uuid.MustParse(schedule.Id), "alice", schedule.Etag, config, nil)
 	require.NoError(t, err)
 	execution, err := c.TriggerScheduledRun(t.Context(), uuid.MustParse(schedule.Id), "alice", "expires")
 	require.NoError(t, err)
@@ -507,11 +507,11 @@ func TestMalformedScheduledRunsDoNotBlockReservation(t *testing.T) {
 	badData := [][]byte{{0xff}, {}, cronData}
 	badIDs := []string{schedule.Id}
 	for range 2 {
-		bad, err := c.CreateScheduledRun(t.Context(), schedule, uuid.NewString(), hash)
+		bad, err := c.CreateScheduledRun(t.Context(), schedule, uuid.NewString(), hash, scheduleTestAuthority())
 		require.NoError(t, err)
 		badIDs = append(badIDs, bad.Id)
 	}
-	good, err := c.CreateScheduledRun(t.Context(), schedule, "healthy", hash)
+	good, err := c.CreateScheduledRun(t.Context(), schedule, "healthy", hash, scheduleTestAuthority())
 	require.NoError(t, err)
 	for i, id := range badIDs {
 		_, err = db.Exec(t.Context(), `UPDATE scheduled_run SET data = $1 WHERE id = $2`, badData[i], id)
@@ -630,4 +630,11 @@ func TestScheduledDispatchClaimSurvivesLeaseReplacement(t *testing.T) {
 	require.ErrorIs(t, client.ClaimScheduledRunDispatch(t.Context(), leases[0].Lease), ErrConflict)
 	require.Equal(t, apiv1.ScheduledRunExecutionState_SCHEDULED_RUN_EXECUTION_STATE_RUNNING, leases[0].Execution.State)
 	require.Empty(t, leases[0].Execution.TaskId)
+}
+
+func scheduleTestAuthority() *apiv1.SessionAuthority {
+	id := uuid.NewString()
+	return &apiv1.SessionAuthority{SessionId: id, RootSessionId: id, InitiatorId: "alice", WorkspaceUid: "workspace-1", ScopeCeiling: &apiv1.ScopeCeiling{Resources: &apiv1.ResourceGrantSet{Grants: []*apiv1.ResourceGrant{{
+		Resource: &apiv1.AuthorizationResource{Resource: &apiv1.AuthorizationResource_Workspace{Workspace: &apiv1.WorkspaceAuthorizationReference{Namespace: "team-a", Uid: "workspace-1"}}}, Permissions: []apiv1.Permission{apiv1.Permission_PERMISSION_SESSION_CREATE},
+	}}}}}
 }

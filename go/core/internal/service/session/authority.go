@@ -16,10 +16,13 @@ func authPrincipal(ctx context.Context) auth.Principal {
 // ExecutionContext reconstructs the original narrowed source for durable workers.
 func (s *Service) ExecutionContext(ctx context.Context, id string) (context.Context, error) {
 	if s.authority == nil {
-		return ctx, nil
+		return nil, serviceerrors.NewUnavailable("Execution authority is not configured", nil)
 	}
 	session, err := s.authority.Resolve(ctx, id)
 	if err != nil {
+		return nil, err
+	}
+	if err := s.requireExecution(ctx, session.Principal()); err != nil {
 		return nil, err
 	}
 	return auth.AuthSessionTo(ctx, session), nil
@@ -28,7 +31,7 @@ func (s *Service) ExecutionContext(ctx context.Context, id string) (context.Cont
 func (s *Service) sendAuthority(ctx context.Context, id string, continuation bool) (auth.Session, error) {
 	caller, _ := auth.AuthSessionFrom(ctx)
 	if s.authority == nil {
-		return caller, nil
+		return nil, serviceerrors.NewUnavailable("Execution authority is not configured", nil)
 	}
 	resolved, err := s.authority.Resolve(ctx, id)
 	if err != nil {
@@ -44,6 +47,12 @@ func (s *Service) sendAuthority(ctx context.Context, id string, continuation boo
 		}
 		if origin.Principal().Execution.RootSessionId != principal.Execution.RootSessionId {
 			return nil, serviceerrors.NewPermissionDenied("Execution root mismatch", nil)
+		}
+		if !auth.ResourceGrantsWithin(principal.Execution.GetScopeCeiling().GetResources(), origin.Principal().Execution.GetScopeCeiling().GetResources()) {
+			return nil, serviceerrors.NewPermissionDenied("Target Session exceeds originating resource ceiling", nil)
+		}
+		if err := s.requireExecution(ctx, origin.Principal()); err != nil {
+			return nil, err
 		}
 		ceiling = origin.Principal().Scopes
 		if original.ID == principal.ID {
@@ -61,6 +70,9 @@ func (s *Service) sendAuthority(ctx context.Context, id string, continuation boo
 	}
 	if err := s.authorizer.Check(auth.AuthSessionTo(ctx, narrowed), principal, verb, auth.Resource{Type: "Session", Name: id}); err != nil {
 		return nil, serviceerrors.NewPermissionDenied("Execution scope denied", err)
+	}
+	if err := s.requireExecution(ctx, principal); err != nil {
+		return nil, err
 	}
 	return narrowed, nil
 }

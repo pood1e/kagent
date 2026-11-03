@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	runtimeconfig "github.com/kagent-dev/kagent/go/adk/pkg/config"
+	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	configv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/config/v1"
 	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 	"github.com/kagent-dev/kagent/go/core/internal/substrate"
@@ -963,7 +964,7 @@ func TestCompileAgentRuntimeIdentity(t *testing.T) {
 					{"reference", false}, {"inline-template", true},
 				} {
 					t.Run(name+"/"+source.name, func(t *testing.T) {
-						agent := &v1alpha3.Agent{ObjectMeta: metav1.ObjectMeta{Namespace: "test", Name: name}, Spec: v1alpha3.AgentSpec{
+						agent := &v1alpha3.Agent{ObjectMeta: metav1.ObjectMeta{Namespace: "test", Name: name, UID: types.UID(name + "-uid")}, Spec: v1alpha3.AgentSpec{
 							Template:   v1alpha3.AgentTemplateSource{Ref: &corev1.LocalObjectReference{Name: template.Name}},
 							HarnessRef: corev1.LocalObjectReference{Name: harness.Name},
 						}}
@@ -1001,7 +1002,7 @@ func TestCompileAgentRuntimeIdentity(t *testing.T) {
 // inlineAgent supplies inline behavior with a referenced Harness through the
 // same public entry point as users.
 func inlineAgent(harness *v1alpha3.Harness, template *v1alpha3.AgentTemplate) *v1alpha3.Agent {
-	return &v1alpha3.Agent{ObjectMeta: metav1.ObjectMeta{Name: "runnable-agent", Namespace: harness.Namespace},
+	return &v1alpha3.Agent{ObjectMeta: metav1.ObjectMeta{Name: "runnable-agent", Namespace: harness.Namespace, UID: "runnable-agent-uid"},
 		Spec: v1alpha3.AgentSpec{
 			Template:   v1alpha3.AgentTemplateSource{Inline: &template.Spec},
 			HarnessRef: corev1.LocalObjectReference{Name: harness.Name},
@@ -1039,4 +1040,15 @@ func TestRevisionDigestIncludesTokenPassthroughTargets(t *testing.T) {
 	revision.TokenPassthroughTargets[0].Header = "x-api-key"
 	require.NotEqual(t, without, bearer)
 	require.NotEqual(t, bearer, digest(), "the header is part of revision identity")
+}
+
+func dependencyModels(grants *apiv1.ResourceGrantSet) []string {
+	var names []string
+	for _, grant := range grants.GetGrants() {
+		if ref := grant.Resource.GetKubernetes(); ref.GetKind() == apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_MODEL_CONNECTION {
+			names = append(names, ref.Ref.Name)
+		}
+	}
+	slices.Sort(names)
+	return names
 }

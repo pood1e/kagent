@@ -32,28 +32,32 @@ func (a serviceTestAuthorizer) Check(context.Context, auth.Principal, auth.Verb,
 }
 
 type serviceTestStore struct {
-	createInput  *apiv1.Session
-	requestID    string
-	createErr    error
-	sessions     []*apiv1.Session
-	listQuery    database.SessionQuery
-	listCalls    int
-	share        *apiv1.SessionShare
-	tokenHash    []byte
-	shares       []*apiv1.SessionShare
-	shareAfterID string
-	shareLimit   int
-	renamed      *apiv1.Session
-	renameName   string
-	renameUserID string
-	renameErr    error
-	getCreator   string
-	getID        string
-	unscoped     bool
-	getErr       error
-	getResult    *apiv1.Session
-	shareUserID  string
-	shareErr     error
+	existing      *apiv1.Session
+	revision      *database.RuntimeRevision
+	revisionErr   error
+	revisionCalls int
+	createInput   *apiv1.Session
+	requestID     string
+	createErr     error
+	sessions      []*apiv1.Session
+	listQuery     database.SessionQuery
+	listCalls     int
+	share         *apiv1.SessionShare
+	tokenHash     []byte
+	shares        []*apiv1.SessionShare
+	shareAfterID  string
+	shareLimit    int
+	renamed       *apiv1.Session
+	renameName    string
+	renameUserID  string
+	renameErr     error
+	getCreator    string
+	getID         string
+	unscoped      bool
+	getErr        error
+	getResult     *apiv1.Session
+	shareUserID   string
+	shareErr      error
 }
 
 func (s *serviceTestStore) CreateSession(_ context.Context, session *apiv1.Session, requestID string) (*apiv1.Session, bool, error) {
@@ -142,7 +146,7 @@ func serviceTestContext(userID string) context.Context {
 
 func TestServiceCreateUsesAuthenticatedOwnerAndGeneratedUUID(t *testing.T) {
 	store := &serviceTestStore{}
-	service := NewService(store, serviceTestAuthorizer{}, serviceTestWorkflow{})
+	service := createTestService(store, serviceTestAuthorizer{}, serviceTestWorkflow{})
 
 	session, err := service.Create(serviceTestContext("alice"), &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}, "request-1", "", nil)
 	if err != nil {
@@ -173,7 +177,7 @@ func TestServiceCreateMapsStoreErrors(t *testing.T) {
 		{name: "database failure", err: errors.New("database unavailable"), code: serviceerrors.CodeInternal},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			service := NewService(&serviceTestStore{createErr: test.err}, serviceTestAuthorizer{}, serviceTestWorkflow{})
+			service := createTestService(&serviceTestStore{createErr: test.err}, serviceTestAuthorizer{}, serviceTestWorkflow{})
 			_, err := service.Create(serviceTestContext("alice"), &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}, "request-1", "", nil)
 			if !serviceerrors.IsCode(err, test.code) {
 				t.Fatalf("Create() error = %v, want code %s", err, test.code)
@@ -370,7 +374,7 @@ func TestServiceCreateCarriesTheNameAndLeavesAnOmittedOneEmpty(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			store := &serviceTestStore{}
-			service := NewService(store, serviceTestAuthorizer{}, serviceTestWorkflow{})
+			service := createTestService(store, serviceTestAuthorizer{}, serviceTestWorkflow{})
 			session, err := service.Create(serviceTestContext("alice"), &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}, "request-1", test.given, nil)
 			if err != nil {
 				t.Fatal(err)

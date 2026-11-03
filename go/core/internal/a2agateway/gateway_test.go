@@ -69,6 +69,7 @@ type gatewayTestStore struct {
 	unscoped         bool
 	settledRead      func() error
 	created          map[string]*apiv1.Session
+	createEnabled    bool
 }
 
 func (*gatewayTestStore) RequestTaskCancellation(context.Context, string, string) error { return nil }
@@ -106,6 +107,10 @@ func (s *gatewayTestStore) GetSession(_ context.Context, id, userID string) (*ap
 
 func (s *gatewayTestStore) CreateSession(_ context.Context, request *apiv1.Session, requestID string) (*apiv1.Session, bool, error) {
 	if s.created == nil {
+		if s.session != nil && s.err == nil {
+			s.session.Authority = proto.CloneOf(request.Authority)
+			s.session.Authority.SessionId, s.session.Authority.RootSessionId = s.session.Id, s.session.Id
+		}
 		return s.session, true, s.err
 	}
 	key := request.Creator + "/" + requestID
@@ -114,6 +119,7 @@ func (s *gatewayTestStore) CreateSession(_ context.Context, request *apiv1.Sessi
 	}
 	session := gatewayTestSession()
 	session.Id, session.ContextId, session.Agent, session.Creator = request.Id, request.Id, request.Agent, request.Creator
+	session.Authority, session.PreparedRevision = proto.CloneOf(request.Authority), request.PreparedRevision
 	s.created[key], s.session = session, session
 	return session, true, nil
 }
@@ -132,7 +138,10 @@ func (s *gatewayTestStore) ListSessions(_ context.Context, query database.Sessio
 }
 
 func (s *gatewayTestStore) GetRuntimeRevision(context.Context, string) (*database.RuntimeRevision, error) {
-	return s.revision, nil
+	if s.revision != nil {
+		return s.revision, nil
+	}
+	return &database.RuntimeRevision{Namespace: "team-a", Dependencies: &apiv1.ExecutionDependencyManifest{Direct: &apiv1.ResourceGrantSet{}}}, nil
 }
 
 func (s *gatewayTestStore) GetSessionTask(_ context.Context, _ string, taskID string, historyLength *int) (*a2atype.Task, error) {
@@ -311,6 +320,7 @@ func gatewayTestSession() *apiv1.Session {
 	return &apiv1.Session{
 		Id: gatewayTestID, ContextId: gatewayTestContextID, Creator: "alice",
 		PreparedRevision: "revision-1",
+		Authority:        &apiv1.SessionAuthority{SessionId: gatewayTestID, RootSessionId: gatewayTestID, InitiatorId: "alice", WorkspaceUid: "workspace-1", ScopeCeiling: &apiv1.ScopeCeiling{Resources: &apiv1.ResourceGrantSet{}}},
 		Agent:            &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"},
 		A2AAuthority:     "private-runtime-authority",
 		State:            apiv1.RuntimeState_RUNTIME_STATE_READY,

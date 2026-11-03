@@ -1,0 +1,28 @@
+{
+  "$defs": {
+    "kagent.api.v1.WorkspaceAuthorizationReference.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "namespace": {
+          "default": "",
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+          "type": "string"
+        },
+        "uid": {
+          "default": "",
+          "description": "When supplied, this must match the namespace's current UID.",
+          "maxLength": 128,
+          "type": "string"
+        }
+      },
+      "title": "Workspace Authorization Reference",
+      "type": "object"
+    }
+  },
+  "$id": "kagent.api.v1.WorkspaceAuthorizationReference.schema.bundle.json",
+  "$ref": "#/$defs/kagent.api.v1.WorkspaceAuthorizationReference.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

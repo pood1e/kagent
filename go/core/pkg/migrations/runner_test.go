@@ -332,7 +332,7 @@ func TestBuiltinMigrationsRoundTrip(t *testing.T) {
 	for _, source := range sources {
 		expected := []int64{0, 1, 2}
 		if source.Name == "core" {
-			expected = append(expected, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13)
+			expected = append(expected, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
 		}
 		if versions := testVersions(t, dsn, source.TrackingTable); !slices.Equal(versions, expected) {
 			t.Fatalf("%s versions = %v, want %v", source.Name, versions, expected)
@@ -348,6 +348,11 @@ func TestBuiltinMigrationsRoundTrip(t *testing.T) {
 	}
 	if !testColumnExists(t, dsn, "session", "deletion_reason") {
 		t.Fatal("session deletion reason is missing")
+	}
+	for _, table := range []string{"scheduled_run", "scheduled_run_execution"} {
+		if !testColumnExists(t, dsn, table, "authority") {
+			t.Fatalf("%s captured authority is missing", table)
+		}
 	}
 	if !testTableExists(t, dsn, "agent_definition") || testTableExists(t, dsn, "agent_template_harness_pair") {
 		t.Fatal("initial migration must create explicit Agent definitions without legacy pairs")

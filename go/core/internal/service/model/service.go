@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"strings"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 	"github.com/kagent-dev/kagent/go/core/internal/service/kubecrud"
+	"github.com/kagent-dev/kagent/go/core/internal/service/resourceaccess"
 	"github.com/kagent-dev/kagent/go/core/internal/service/secretmaterial"
 	"github.com/kagent-dev/kagent/go/core/internal/service/serviceerrors"
 	common "github.com/kagent-dev/kagent/go/core/internal/utils"
@@ -60,11 +60,18 @@ type DeleteRequest struct {
 	Ref types.NamespacedName
 }
 
-func NewService(kubeClient client.Client, authorizer auth.CollectionAuthorizer, defaultNamespace string, options ...ServiceOption) *Service {
+func NewService(kubeClient client.Client, authorizer auth.CollectionAuthorizer, permissions resourceaccess.Checker, defaultNamespace string, options ...ServiceOption) *Service {
 	service := &Service{
-		kubeClient:       kubeClient,
-		modelConfigs:     kubecrud.NewService(kubeClient, authorizer, &v1alpha3.ModelConfig{}, &v1alpha3.ModelConfigList{}, modelConfigResource),
-		providerConfigs:  kubecrud.NewService(kubeClient, authorizer, &v1alpha3.ModelProviderConfig{}, &v1alpha3.ModelProviderConfigList{}, modelProviderConfigResource),
+		kubeClient: kubeClient,
+		modelConfigs: kubecrud.NewNativeService(kubeClient, authorizer, kubecrud.NativeAccess{
+			Checker: permissions,
+			Kind:    apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_MODEL_CONNECTION,
+			Read:    apiv1.Permission_PERMISSION_MODEL_CONNECTION_READ,
+			Create:  apiv1.Permission_PERMISSION_MODEL_CONNECTION_MANAGE,
+			Update:  apiv1.Permission_PERMISSION_MODEL_CONNECTION_MANAGE,
+			Delete:  apiv1.Permission_PERMISSION_MODEL_CONNECTION_MANAGE,
+		}, &v1alpha3.ModelConfig{}, &v1alpha3.ModelConfigList{}, modelConfigResource),
+		providerConfigs:  kubecrud.NewScopedService(kubeClient, authorizer, &v1alpha3.ModelProviderConfig{}, &v1alpha3.ModelProviderConfigList{}, modelProviderConfigResource),
 		defaultNamespace: defaultNamespace,
 	}
 	for _, option := range options {
@@ -98,6 +105,9 @@ func (s *Service) Create(ctx context.Context, request CreateRequest) (*v1alpha3.
 	if err := validateAPIKeySecretRef(request.Spec.APIKeySecret, request.Spec.APIKeySecretKey, request.Spec.Provider); err != nil {
 		return nil, err
 	}
+	if request.APIKey != "" && request.Spec.APIKeySecret != "" && request.Spec.APIKeySecret != ref.Name {
+		return nil, serviceerrors.NewInvalidArgument("Inline API key must use the ModelConfig-owned Secret", nil)
+	}
 	if err := secretmaterial.ValidateMaterials(request.Secrets); err != nil {
 		return nil, err
 	}
@@ -116,7 +126,7 @@ func (s *Service) Create(ctx context.Context, request CreateRequest) (*v1alpha3.
 		Spec: spec,
 	}
 	if s.admission != nil {
-		if err := s.modelConfigs.Authorize(ctx, auth.VerbCreate, ref); err != nil {
+		if _, err := s.modelConfigs.Authorize(ctx, auth.VerbCreate, ref); err != nil {
 			return nil, err
 		}
 		if err := s.validateAdmission(ctx, modelConfig, request.APIKey, request.Secrets); err != nil {
@@ -157,95 +167,6 @@ func (s *Service) createOwnedSecrets(ctx context.Context, modelConfig *v1alpha3.
 		}
 	}
 	return secretmaterial.CreateCompanionSecrets(ctx, s.kubeClient, modelConfig, modelConfigGVK, request.Secrets)
-}
-
-// Update keeps its own write because the owned Secrets must land between the
-// authorized read and the retrying ModelConfig write; the update is authorized first.
-func (s *Service) Update(ctx context.Context, request UpdateRequest) (*v1alpha3.ModelConfig, error) {
-	if err := s.modelConfigs.Authorize(ctx, auth.VerbUpdate, request.Ref); err != nil {
-		return nil, err
-	}
-	modelConfig, err := s.modelConfigs.Get(ctx, request.Ref)
-	if err != nil {
-		return nil, err
-	}
-	if err := validateAPIKeySecretRef(request.Spec.APIKeySecret, request.Spec.APIKeySecretKey, request.Spec.Provider); err != nil {
-		return nil, err
-	}
-	if err := secretmaterial.ValidateMaterials(request.Secrets); err != nil {
-		return nil, err
-	}
-
-	oldRefs := referencedSecretNames(modelConfig.Spec)
-	spec := request.Spec
-	if request.APIKey != nil && *request.APIKey != "" && spec.APIKeySecret == "" && spec.Provider != v1alpha3.ModelProviderOllama {
-		spec.APIKeySecret = request.Ref.Name
-		spec.APIKeySecretKey = providerAPIKeySecretKey(spec.Provider)
-	}
-
-	candidate := modelConfig.DeepCopy()
-	candidate.Spec = spec
-	var pendingKey string
-	if request.APIKey != nil {
-		pendingKey = *request.APIKey
-	}
-	if err := s.validateAdmission(ctx, candidate, pendingKey, request.Secrets); err != nil {
-		return nil, err
-	}
-
-	if request.APIKey != nil && *request.APIKey != "" && spec.Provider != v1alpha3.ModelProviderOllama {
-		if err := secretmaterial.CreateOrUpdateOwnedOpaqueSecret(
-			ctx,
-			s.kubeClient,
-			modelConfig,
-			modelConfigGVK,
-			modelConfig.Name,
-			map[string]string{spec.APIKeySecretKey: *request.APIKey},
-		); err != nil {
-			return nil, serviceerrors.NewInternal("Failed to update API key secret", err)
-		}
-	}
-
-	if err := secretmaterial.CreateCompanionSecrets(ctx, s.kubeClient, modelConfig, modelConfigGVK, request.Secrets); err != nil {
-		return nil, err
-	}
-
-	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		latest := &v1alpha3.ModelConfig{}
-		if err := s.kubeClient.Get(ctx, request.Ref, latest); err != nil {
-			return err
-		}
-		latest.Spec = spec
-		if err := s.kubeClient.Update(ctx, latest); err != nil {
-			return err
-		}
-		modelConfig = latest
-		return nil
-	}); err != nil {
-		if apierrors.IsInvalid(err) {
-			return nil, serviceerrors.NewInvalidArgument(err.Error(), err)
-		}
-		return nil, serviceerrors.NewInternal("Failed to update ModelConfig", err)
-	}
-
-	newRefs := referencedSecretNames(modelConfig.Spec)
-	requestedNames := map[string]struct{}{}
-	for _, material := range request.Secrets {
-		requestedNames[material.Name] = struct{}{}
-	}
-	for name := range oldRefs {
-		if _, kept := newRefs[name]; kept {
-			continue
-		}
-		if _, kept := requestedNames[name]; kept {
-			continue
-		}
-		if err := secretmaterial.DeleteOwnedSecret(ctx, s.kubeClient, modelConfig, modelConfigGVK, name); err != nil {
-			return nil, serviceerrors.NewInternal("Failed to update ModelConfig", err)
-		}
-	}
-
-	return modelConfig, nil
 }
 
 func (s *Service) Delete(ctx context.Context, request DeleteRequest) error {

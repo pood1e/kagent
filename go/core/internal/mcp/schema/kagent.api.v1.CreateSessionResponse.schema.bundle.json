@@ -6,6 +6,39 @@
       "title": "Timestamp",
       "type": "string"
     },
+    "kagent.api.v1.AuthorizationResource.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^(mcpTool)$": {
+          "$ref": "#/$defs/kagent.api.v1.MCPToolAuthorizationReference.schema.json"
+        },
+        "^(sessionId)$": {
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "type": "string"
+        }
+      },
+      "properties": {
+        "kubernetes": {
+          "$ref": "#/$defs/kagent.api.v1.KubernetesAuthorizationReference.schema.json"
+        },
+        "mcp_tool": {
+          "$ref": "#/$defs/kagent.api.v1.MCPToolAuthorizationReference.schema.json"
+        },
+        "session_id": {
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "type": "string"
+        },
+        "task": {
+          "$ref": "#/$defs/kagent.api.v1.TaskReference.schema.json"
+        },
+        "workspace": {
+          "$ref": "#/$defs/kagent.api.v1.WorkspaceAuthorizationReference.schema.json"
+        }
+      },
+      "title": "Authorization Resource",
+      "type": "object"
+    },
     "kagent.api.v1.CreateSessionResponse.schema.json": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -31,6 +64,156 @@
         }
       },
       "title": "Failure",
+      "type": "object"
+    },
+    "kagent.api.v1.KubernetesAuthorizationReference.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "anyOf": [
+            {
+              "enum": [
+                "AUTHORIZATION_SCOPE_KIND_AGENT",
+                "AUTHORIZATION_SCOPE_KIND_AGENT_TEMPLATE",
+                "AUTHORIZATION_SCOPE_KIND_HARNESS",
+                "AUTHORIZATION_SCOPE_KIND_MODEL_CONNECTION",
+                "AUTHORIZATION_SCOPE_KIND_MCP_SERVER"
+              ],
+              "type": "string"
+            },
+            {
+              "maximum": 3,
+              "minimum": 2,
+              "type": "integer"
+            },
+            {
+              "maximum": 8,
+              "minimum": 6,
+              "type": "integer"
+            }
+          ],
+          "default": 0,
+          "title": "Authorization Scope Kind"
+        },
+        "ref": {
+          "$ref": "#/$defs/kagent.api.v1.ResourceReference.schema.json"
+        },
+        "uid": {
+          "default": "",
+          "description": "When supplied, this must match the object's current UID.",
+          "maxLength": 128,
+          "type": "string"
+        }
+      },
+      "required": [
+        "ref"
+      ],
+      "title": "Kubernetes Authorization Reference",
+      "type": "object"
+    },
+    "kagent.api.v1.MCPToolAuthorizationReference.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "default": "",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "server": {
+          "$ref": "#/$defs/kagent.api.v1.KubernetesAuthorizationReference.schema.json"
+        }
+      },
+      "required": [
+        "server"
+      ],
+      "title": "MCP Tool Authorization Reference",
+      "type": "object"
+    },
+    "kagent.api.v1.ResourceGrant.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "permissions": {
+          "items": {
+            "anyOf": [
+              {
+                "enum": [
+                  "PERMISSION_AGENT_READ",
+                  "PERMISSION_AGENT_CREATE",
+                  "PERMISSION_AGENT_UPDATE",
+                  "PERMISSION_AGENT_DELETE",
+                  "PERMISSION_AGENT_INVOKE",
+                  "PERMISSION_TEMPLATE_READ",
+                  "PERMISSION_TEMPLATE_CREATE",
+                  "PERMISSION_TEMPLATE_UPDATE",
+                  "PERMISSION_TEMPLATE_DELETE",
+                  "PERMISSION_TEMPLATE_USE",
+                  "PERMISSION_WORKFLOW_READ",
+                  "PERMISSION_WORKFLOW_EDIT",
+                  "PERMISSION_WORKFLOW_PUBLISH",
+                  "PERMISSION_WORKFLOW_EXECUTE",
+                  "PERMISSION_SESSION_READ",
+                  "PERMISSION_SESSION_CREATE",
+                  "PERMISSION_SESSION_SEND",
+                  "PERMISSION_SESSION_SHARE",
+                  "PERMISSION_SESSION_DELETE",
+                  "PERMISSION_TASK_READ",
+                  "PERMISSION_TASK_CANCEL",
+                  "PERMISSION_TASK_RESPOND",
+                  "PERMISSION_ACCESS_READ",
+                  "PERMISSION_ACCESS_MANAGE",
+                  "PERMISSION_HARNESS_READ",
+                  "PERMISSION_HARNESS_USE",
+                  "PERMISSION_HARNESS_MANAGE",
+                  "PERMISSION_MODEL_CONNECTION_READ",
+                  "PERMISSION_MODEL_CONNECTION_USE",
+                  "PERMISSION_MODEL_CONNECTION_MANAGE",
+                  "PERMISSION_MCP_SERVER_READ",
+                  "PERMISSION_MCP_SERVER_USE",
+                  "PERMISSION_MCP_SERVER_MANAGE",
+                  "PERMISSION_MCP_TOOL_CALL"
+                ],
+                "type": "string"
+              },
+              {
+                "maximum": 34,
+                "minimum": 1,
+                "type": "integer"
+              }
+            ],
+            "title": "Permission"
+          },
+          "maxItems": 34,
+          "minItems": 1,
+          "type": "array"
+        },
+        "resource": {
+          "$ref": "#/$defs/kagent.api.v1.AuthorizationResource.schema.json"
+        }
+      },
+      "required": [
+        "resource"
+      ],
+      "title": "Resource Grant",
+      "type": "object"
+    },
+    "kagent.api.v1.ResourceGrantSet.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "description": "ResourceGrantSet records exact resource identities and actions.",
+      "properties": {
+        "grants": {
+          "items": {
+            "$ref": "#/$defs/kagent.api.v1.ResourceGrant.schema.json"
+          },
+          "maxItems": 4096,
+          "type": "array"
+        }
+      },
+      "title": "Resource Grant Set",
       "type": "object"
     },
     "kagent.api.v1.ResourceReference.schema.json": {
@@ -60,6 +243,10 @@
       "additionalProperties": false,
       "description": "ScopeCeiling is an immutable upper bound. Absent means inherit; present and\n empty means no scopes. Every use also applies the initiator's current scopes.",
       "properties": {
+        "resources": {
+          "$ref": "#/$defs/kagent.api.v1.ResourceGrantSet.schema.json",
+          "description": "Absent in a request inherits resolved dependencies; an empty set denies all.\n Persisted execution authority always records a UID-bound set."
+        },
         "scopes": {
           "items": {
             "maxLength": 256,
@@ -259,6 +446,59 @@
         }
       },
       "title": "Session Authority",
+      "type": "object"
+    },
+    "kagent.api.v1.TaskReference.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^(sessionId)$": {
+          "default": "",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "type": "string"
+        },
+        "^(taskId)$": {
+          "default": "",
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "properties": {
+        "session_id": {
+          "default": "",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "type": "string"
+        },
+        "task_id": {
+          "default": "",
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "title": "Task Reference",
+      "type": "object"
+    },
+    "kagent.api.v1.WorkspaceAuthorizationReference.schema.json": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "namespace": {
+          "default": "",
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+          "type": "string"
+        },
+        "uid": {
+          "default": "",
+          "description": "When supplied, this must match the namespace's current UID.",
+          "maxLength": 128,
+          "type": "string"
+        }
+      },
+      "title": "Workspace Authorization Reference",
       "type": "object"
     }
   },

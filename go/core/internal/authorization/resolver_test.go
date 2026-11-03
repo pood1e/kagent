@@ -4,8 +4,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
@@ -29,6 +31,81 @@ func TestResolverUsesResourceAndNamespaceUIDs(t *testing.T) {
 	require.NotEqual(t, original.object, current.object)
 	_, err = r.resolve(t.Context(), original.scope)
 	require.True(t, serviceerrors.IsCode(err, serviceerrors.CodeNotFound))
+}
+
+func TestDependencyResolverUsesCurrentObjectUID(t *testing.T) {
+	kube := testResources(t)
+	r := resolver{kube: kube, store: &testStore{}}
+	for _, example := range []struct {
+		kind         apiv1.AuthorizationScopeKind
+		name         string
+		originalUID  string
+		recreatedUID string
+		objectType   string
+		object       client.Object
+	}{
+		{harnessScope, "runtime", "harness-1", "harness-2", "harness", &v1alpha3.Harness{}},
+		{modelConnectionScope, "primary", "model-1", "model-2", "model_connection", &v1alpha3.ModelConfig{}},
+		{mcpServerScope, "tools", "mcp-1", "mcp-2", "mcp_server", &v1alpha3.RemoteMCPServer{}},
+	} {
+		t.Run(example.objectType, func(t *testing.T) {
+			reference := &apiv1.AuthorizationResource{Resource: &apiv1.AuthorizationResource_Kubernetes{
+				Kubernetes: &apiv1.KubernetesAuthorizationReference{
+					Kind: example.kind, Ref: &apiv1.ResourceReference{Namespace: "team", Name: example.name},
+				},
+			}}
+			original, err := r.resolve(t.Context(), reference)
+			require.NoError(t, err)
+			require.Equal(t, example.objectType+":workspace-1/"+example.originalUID, original.object)
+			require.NoError(t, kube.Get(t.Context(), client.ObjectKey{Namespace: "team", Name: example.name}, example.object))
+			require.NoError(t, kube.Delete(t.Context(), example.object))
+			example.object.SetUID(types.UID(example.recreatedUID))
+			example.object.SetResourceVersion("")
+			require.NoError(t, kube.Create(t.Context(), example.object))
+			current, err := r.resolve(t.Context(), reference)
+			require.NoError(t, err)
+			require.NotEqual(t, original.object, current.object)
+			_, err = r.resolve(t.Context(), original.scope)
+			require.True(t, serviceerrors.IsCode(err, serviceerrors.CodeNotFound))
+		})
+	}
+}
+
+func TestMCPToolResolverBindsServerUIDAndExactName(t *testing.T) {
+	kube := testResources(t)
+	r := resolver{kube: kube, store: &testStore{}}
+	reference := &apiv1.AuthorizationResource{Resource: &apiv1.AuthorizationResource_McpTool{
+		McpTool: &apiv1.MCPToolAuthorizationReference{
+			Server: &apiv1.KubernetesAuthorizationReference{
+				Kind: mcpServerScope, Ref: &apiv1.ResourceReference{Namespace: "team", Name: "tools"},
+			},
+			Name: "search",
+		},
+	}}
+	search, err := r.resolve(t.Context(), reference)
+	require.NoError(t, err)
+	require.Equal(t, "mcp-1", search.scope.GetMcpTool().Server.Uid)
+	require.Equal(t, "mcp_server:workspace-1/mcp-1", search.facts[1].User)
+	sibling := proto.CloneOf(reference)
+	sibling.GetMcpTool().Name = "delete"
+	deleteTool, err := r.resolve(t.Context(), sibling)
+	require.NoError(t, err)
+	require.NotEqual(t, search.object, deleteTool.object)
+	server := new(v1alpha3.RemoteMCPServer)
+	require.NoError(t, kube.Get(t.Context(), client.ObjectKey{Namespace: "team", Name: "tools"}, server))
+	require.NoError(t, kube.Delete(t.Context(), server))
+	server.UID = "mcp-2"
+	server.ResourceVersion = ""
+	require.NoError(t, kube.Create(t.Context(), server))
+	recreated, err := r.resolve(t.Context(), reference)
+	require.NoError(t, err)
+	require.NotEqual(t, search.object, recreated.object)
+	_, err = r.resolve(t.Context(), search.scope)
+	require.True(t, serviceerrors.IsCode(err, serviceerrors.CodeNotFound))
+	wrong := proto.CloneOf(reference)
+	wrong.GetMcpTool().Server.Kind = harnessScope
+	_, err = r.resolve(t.Context(), wrong)
+	require.True(t, serviceerrors.IsCode(err, serviceerrors.CodeInvalidArgument))
 }
 
 func TestSessionAuthorityOwnsReadIdentity(t *testing.T) {

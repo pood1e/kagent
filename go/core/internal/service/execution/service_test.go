@@ -39,7 +39,7 @@ func TestExecutionPaginationFiltersBeforeSlicing(t *testing.T) {
 		{Task: &apiv1.TaskReference{TaskId: "b", SessionId: "denied"}, Root: root},
 		{Task: &apiv1.TaskReference{TaskId: "c", SessionId: "allowed"}, Root: root},
 	}}
-	service := NewService(fixture, fixture, nil)
+	service := NewService(fixture, fixture, nil, nil)
 	page, err := service.List(t.Context(), &apiv1.ListTaskExecutionsRequest{RootTaskId: "a", Page: &apiv1.PageRequest{Limit: 1}})
 	require.NoError(t, err)
 	require.Len(t, page.Executions, 1)
@@ -70,7 +70,7 @@ func TestExecutionInspectionAuthorizesTheAnchorSession(t *testing.T) {
 	for _, id := range []string{"allowed", "denied"} {
 		t.Run(id, func(t *testing.T) {
 			fixture := &executionFixture{executions: []*apiv1.TaskExecution{{Task: &apiv1.TaskReference{SessionId: id, TaskId: "anchor"}}}}
-			result, err := NewService(fixture, fixture, nil).Inspect(t.Context(), "anchor")
+			result, err := NewService(fixture, fixture, nil, nil).Inspect(t.Context(), "anchor")
 			if id == "denied" {
 				require.Equal(t, serviceerrors.CodePermissionDenied, serviceerrors.CodeOf(err))
 				return
