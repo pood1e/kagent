@@ -24,7 +24,7 @@ func testAgentService(t *testing.T) *kubecrud.Service[*v1alpha3.Agent, *v1alpha3
 	scheme := runtime.NewScheme()
 	require.NoError(t, v1alpha3.AddToScheme(scheme))
 	kube := fake.NewClientBuilder().WithScheme(scheme).Build()
-	return kubecrud.NewService(kube, auth.NoopAuthorizer{}, &v1alpha3.Agent{}, &v1alpha3.AgentList{}, "Agent")
+	return kubecrud.NewScopedService(kube, auth.NoopAuthorizer{}, &v1alpha3.Agent{}, &v1alpha3.AgentList{}, "Agent")
 }
 
 func TestListAgents(t *testing.T) {
@@ -69,7 +69,7 @@ func TestListAgents(t *testing.T) {
 				&v1alpha3.Agent{ObjectMeta: metav1.ObjectMeta{Namespace: a.Namespace, Name: a.Name}},
 			).Build()
 			authorizer := &collectionListAuthorizer{scope: test.scope, scopeErr: test.scopeErr}
-			agents := kubecrud.NewService(kube, authorizer, &v1alpha3.Agent{}, &v1alpha3.AgentList{}, "Agent")
+			agents := kubecrud.NewScopedService(kube, authorizer, &v1alpha3.Agent{}, &v1alpha3.AgentList{}, "Agent")
 			handler, err := New(Config{Agents: agents, Sessions: testSessionService(), Checkpoints: testCheckpointService(), Gateway: &fakeGateway{}})
 			require.NoError(t, err)
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -29,9 +29,9 @@ It shares the parent's Session unless its binding sets `isolation: Isolated`; se
 [Session isolation](a2a-subagents.md#session-isolation).
 Dedicated `agentRef` bindings are deferred and are not part of the served API.
 
-The resource boundary does not grant authorization by itself. Kubernetes RBAC
-controls who may create or update Harnesses; admission policy is required when
-Agent authors must also be restricted to an allowlist of Harness references.
+The control-plane API checks native Harness read and manage permissions for
+definition operations, and Session admission checks Harness use permission for
+the selected runtime. Kubernetes RBAC governs direct Kubernetes API access.
 
 All three are `api.kagent.dev/v1alpha3` Kubernetes resources. Infrastructure-derived
 values such as runtime addresses and inferred egress do not belong in the public

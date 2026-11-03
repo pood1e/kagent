@@ -70,7 +70,7 @@ func TestServiceFiltersBeforeSortingAndUsesTrustedAttributes(t *testing.T) {
 		&v1alpha3.AgentTemplate{ObjectMeta: metav1.ObjectMeta{Namespace: "team", Name: "a"}},
 		&v1alpha3.AgentTemplate{ObjectMeta: metav1.ObjectMeta{Namespace: "team", Name: "mutable"}},
 	).Build()
-	service := kubecrud.NewService(kubeClient, authorizer, &v1alpha3.AgentTemplate{}, &v1alpha3.AgentTemplateList{}, "AgentTemplate")
+	service := kubecrud.NewScopedService(kubeClient, authorizer, &v1alpha3.AgentTemplate{}, &v1alpha3.AgentTemplateList{}, "AgentTemplate")
 	ctx := auth.AuthSessionTo(t.Context(), testSession{})
 
 	listed, err := service.List(ctx, "team")
@@ -138,7 +138,7 @@ func TestHarnessServiceFiltersList(t *testing.T) {
 		&v1alpha3.Harness{ObjectMeta: metav1.ObjectMeta{Namespace: "team", Name: "allowed"}},
 		&v1alpha3.Harness{ObjectMeta: metav1.ObjectMeta{Namespace: "team", Name: "denied"}},
 	).Build()
-	service := kubecrud.NewService(kubeClient, authorizer, &v1alpha3.Harness{}, &v1alpha3.HarnessList{}, "Harness")
+	service := kubecrud.NewScopedService(kubeClient, authorizer, &v1alpha3.Harness{}, &v1alpha3.HarnessList{}, "Harness")
 	ctx := auth.AuthSessionTo(t.Context(), testSession{})
 
 	listed, err := service.List(ctx, "team")
@@ -167,7 +167,7 @@ func TestSandboxTemplateAuthorization(t *testing.T) {
 		&v1alpha3.SandboxTemplate{ObjectMeta: metav1.ObjectMeta{Namespace: "other", Name: "denied"}},
 		&v1alpha3.SandboxTemplate{ObjectMeta: metav1.ObjectMeta{Namespace: "team", Name: "a"}},
 	).Build()
-	service := kubecrud.NewService(kubeClient, authorizer, &v1alpha3.SandboxTemplate{}, &v1alpha3.SandboxTemplateList{}, v1alpha3.SandboxTemplateKind)
+	service := kubecrud.NewScopedService(kubeClient, authorizer, &v1alpha3.SandboxTemplate{}, &v1alpha3.SandboxTemplateList{}, v1alpha3.SandboxTemplateKind)
 	ctx := auth.AuthSessionTo(t.Context(), testSession{})
 	listed, err := service.List(ctx, "")
 	require.NoError(t, err)
@@ -201,7 +201,7 @@ func TestServiceRejectsInvalidScope(t *testing.T) {
 		t.Fatal(err)
 	}
 	authorizer := &recordingAuthorizer{scope: apiauthorization.AuthorizationScope{Kind: apiauthorization.ScopeAnyOf}}
-	service := kubecrud.NewService(
+	service := kubecrud.NewScopedService(
 		fake.NewClientBuilder().WithScheme(scheme).Build(),
 		authorizer,
 		&v1alpha3.AgentTemplate{},
@@ -259,7 +259,7 @@ func TestDeniedSingleResourceOperationsDoNotRevealExistence(t *testing.T) {
 					&v1alpha3.AgentTemplate{ObjectMeta: metav1.ObjectMeta{Namespace: "team", Name: "existing"}},
 				).Build()}
 				authorizer := &recordingAuthorizer{checkErr: errors.New("denied")}
-				service := kubecrud.NewService(kubeClient, authorizer, &v1alpha3.AgentTemplate{}, &v1alpha3.AgentTemplateList{}, "AgentTemplate")
+				service := kubecrud.NewScopedService(kubeClient, authorizer, &v1alpha3.AgentTemplate{}, &v1alpha3.AgentTemplateList{}, "AgentTemplate")
 				ctx := auth.AuthSessionTo(t.Context(), testSession{})
 
 				err := call(service, ctx, ref)
@@ -281,7 +281,7 @@ func TestDeniedUpdateDoesNotWrite(t *testing.T) {
 	}
 	kubeClient := &readRecordingClient{Client: fake.NewClientBuilder().WithScheme(scheme).Build()}
 	authorizer := &recordingAuthorizer{checkErr: errors.New("denied")}
-	service := kubecrud.NewService(kubeClient, authorizer, &v1alpha3.AgentTemplate{}, &v1alpha3.AgentTemplateList{}, "AgentTemplate")
+	service := kubecrud.NewScopedService(kubeClient, authorizer, &v1alpha3.AgentTemplate{}, &v1alpha3.AgentTemplateList{}, "AgentTemplate")
 	ctx := auth.AuthSessionTo(t.Context(), testSession{})
 
 	_, err := service.Update(ctx, &v1alpha3.AgentTemplate{ObjectMeta: metav1.ObjectMeta{Namespace: "team", Name: "existing"}})
@@ -305,7 +305,7 @@ func TestListOrdersAcrossNamespaces(t *testing.T) {
 		&v1alpha3.AgentTemplate{ObjectMeta: metav1.ObjectMeta{Namespace: "team-a", Name: "default"}},
 	).Build()
 	authorizer := &recordingAuthorizer{scope: apiauthorization.AuthorizationScope{Kind: apiauthorization.ScopeAll}}
-	service := kubecrud.NewService(kubeClient, authorizer, &v1alpha3.AgentTemplate{}, &v1alpha3.AgentTemplateList{}, "AgentTemplate")
+	service := kubecrud.NewScopedService(kubeClient, authorizer, &v1alpha3.AgentTemplate{}, &v1alpha3.AgentTemplateList{}, "AgentTemplate")
 	ctx := auth.AuthSessionTo(t.Context(), testSession{})
 
 	want := []string{"team-a/default", "team-a/zebra", "team-b/default"}
@@ -342,7 +342,7 @@ func TestAgentServiceFiltersAndAuthorizesStoredObjects(t *testing.T) {
 		&v1alpha3.Agent{ObjectMeta: metav1.ObjectMeta{Namespace: "team", Name: "a"}},
 		&v1alpha3.Agent{ObjectMeta: metav1.ObjectMeta{Namespace: "team", Name: "mutable"}},
 	).Build()
-	service := kubecrud.NewService(kubeClient, authorizer, &v1alpha3.Agent{}, &v1alpha3.AgentList{}, "Agent")
+	service := kubecrud.NewScopedService(kubeClient, authorizer, &v1alpha3.Agent{}, &v1alpha3.AgentList{}, "Agent")
 	ctx := auth.AuthSessionTo(t.Context(), testSession{})
 
 	listed, err := service.List(ctx, "team")

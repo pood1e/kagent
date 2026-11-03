@@ -171,6 +171,12 @@ func CreateOrUpdateOwnedOpaqueSecret(
 		}
 		return fmt.Errorf("failed to get existing secret %s/%s: %w", owner.GetNamespace(), name, err)
 	}
+	if existingSecret.Type != corev1.SecretTypeOpaque {
+		return serviceerrors.NewInvalidArgument("Owned Secret must be opaque", nil)
+	}
+	if !IsOwnedBy(existingSecret, owner, gvk) {
+		return serviceerrors.NewInvalidArgument("Secret is not owned by "+gvk.Kind, nil)
+	}
 
 	if existingSecret.Data == nil {
 		existingSecret.Data = map[string][]byte{}

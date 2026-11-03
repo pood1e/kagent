@@ -45,6 +45,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
+	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	configv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/config/v1"
 	kagentv1alpha3 "github.com/kagent-dev/kagent/go/api/v1alpha3"
 	"github.com/kagent-dev/kagent/go/core/internal/a2agateway"
@@ -382,11 +383,11 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 	authorizer = runtimeauth.NewAuthorizer(&executionauth.Policy{Base: authorizer, Config: cfg.GetExecutionAuthorization()}, store, executionAuthority)
 	resourceNamespace := cfg.GetKubernetes().GetNamespace()
 	admission := admission.NewService(manager.GetClient(), cfg.GetRuntimeDefaults(), cfg.GetHarnessImages())
-	models := modelservice.NewService(manager.GetClient(), authorizer, resourceNamespace, modelservice.WithAdmission(admission))
 	var toolPermissions sessionsvc.ResourcePermissions
 	if resourceAuthorization != nil {
 		toolPermissions = resourceAuthorization
 	}
+	models := modelservice.NewService(manager.GetClient(), authorizer, toolPermissions, resourceNamespace, modelservice.WithAdmission(admission))
 	tools := toolservice.NewService(manager.GetClient(), store, toolPermissions, resourceNamespace, mcpClient)
 	prompts := prompttemplateservice.NewService(manager.GetClient(), authorizer)
 	system := systemservice.NewService(manager.GetClient(), watchNamespaces, authorizer, actors)
@@ -415,7 +416,23 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 	if err != nil {
 		return err
 	}
-	agents := kubecrud.NewService(manager.GetClient(), authorizer, &kagentv1alpha3.Agent{}, &kagentv1alpha3.AgentList{}, "Agent", admission.Agent)
+	agents := kubecrud.NewScopedService(manager.GetClient(), authorizer, &kagentv1alpha3.Agent{}, &kagentv1alpha3.AgentList{}, "Agent", admission.Agent)
+	agentTemplates := kubecrud.NewNativeService(manager.GetClient(), authorizer, kubecrud.NativeAccess{
+		Checker: toolPermissions,
+		Kind:    apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_AGENT_TEMPLATE,
+		Read:    apiv1.Permission_PERMISSION_TEMPLATE_READ,
+		Create:  apiv1.Permission_PERMISSION_TEMPLATE_CREATE,
+		Update:  apiv1.Permission_PERMISSION_TEMPLATE_UPDATE,
+		Delete:  apiv1.Permission_PERMISSION_TEMPLATE_DELETE,
+	}, &kagentv1alpha3.AgentTemplate{}, &kagentv1alpha3.AgentTemplateList{}, "AgentTemplate", admission.AgentTemplate)
+	harnesses := kubecrud.NewNativeService(manager.GetClient(), authorizer, kubecrud.NativeAccess{
+		Checker: toolPermissions,
+		Kind:    apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_HARNESS,
+		Read:    apiv1.Permission_PERMISSION_HARNESS_READ,
+		Create:  apiv1.Permission_PERMISSION_HARNESS_MANAGE,
+		Update:  apiv1.Permission_PERMISSION_HARNESS_MANAGE,
+		Delete:  apiv1.Permission_PERMISSION_HARNESS_MANAGE,
+	}, &kagentv1alpha3.Harness{}, &kagentv1alpha3.HarnessList{}, "Harness", admission.Harness)
 	interactions := sessionsvc.NewInteractionService(store, agents, sessions, cfg.GetPush().GetAllowHttp())
 	pushSender := sessionsvc.NewHTTPPushSender(cfg.GetPush().GetSendTimeout().AsDuration(),
 		cfg.GetPush().GetAllowHttp(), cfg.GetPush().GetAllowPrivateNetworks())
@@ -447,7 +464,7 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 		gateway, sessions, cfg.GetScheduledRuns().GetExecutionInterval().AsDuration())); err != nil {
 		return fmt.Errorf("add scheduled run controller: %w", err)
 	}
-	sandboxTemplates := kubecrud.NewService(manager.GetClient(), authorizer, &kagentv1alpha3.SandboxTemplate{}, &kagentv1alpha3.SandboxTemplateList{}, kagentv1alpha3.SandboxTemplateKind)
+	sandboxTemplates := kubecrud.NewScopedService(manager.GetClient(), authorizer, &kagentv1alpha3.SandboxTemplate{}, &kagentv1alpha3.SandboxTemplateList{}, kagentv1alpha3.SandboxTemplateKind)
 	guests, err := sandboxservice.NewGuestDialer(cfg.GetSubstrate(), authenticator)
 	if err != nil {
 		return err
@@ -528,8 +545,8 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 		AgentService:           agents,
 		AgentIdentityService:   agentidentity.NewService(actorVerifier, store, manager.GetAPIReader()),
 		WorkflowService:        workflowservice.NewService(agents, admission, sessions, store),
-		AgentTemplateService:   kubecrud.NewService(manager.GetClient(), authorizer, &kagentv1alpha3.AgentTemplate{}, &kagentv1alpha3.AgentTemplateList{}, "AgentTemplate", admission.AgentTemplate),
-		HarnessService:         kubecrud.NewService(manager.GetClient(), authorizer, &kagentv1alpha3.Harness{}, &kagentv1alpha3.HarnessList{}, "Harness", admission.Harness),
+		AgentTemplateService:   agentTemplates,
+		HarnessService:         harnesses,
 		SandboxTemplateService: sandboxTemplates,
 		SandboxService:         sandboxes,
 		CheckpointService:      checkpoints,

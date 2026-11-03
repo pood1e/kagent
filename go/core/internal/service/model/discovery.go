@@ -384,7 +384,7 @@ func (s *Service) GetProviderModels(ctx context.Context, request GetProviderMode
 		if _, shared := auth.ShareContextFrom(ctx); shared {
 			return ProviderModelsResult{}, serviceerrors.NewPermissionDenied("Session shares cannot refresh provider models", nil)
 		}
-		if err := s.providerConfigs.Authorize(ctx, auth.VerbUpdate, ref); err != nil {
+		if _, err := s.providerConfigs.Authorize(ctx, auth.VerbUpdate, ref); err != nil {
 			return ProviderModelsResult{}, err
 		}
 		if s.providerModelRefresher == nil {

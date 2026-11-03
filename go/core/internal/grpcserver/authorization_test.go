@@ -29,6 +29,8 @@ import (
 	"github.com/kagent-dev/kagent/go/core/internal/dbtest"
 	authimpl "github.com/kagent-dev/kagent/go/core/internal/httpserver/auth"
 	"github.com/kagent-dev/kagent/go/core/internal/jwttest"
+	"github.com/kagent-dev/kagent/go/core/internal/service/kubecrud"
+	modelservice "github.com/kagent-dev/kagent/go/core/internal/service/model"
 	toolservice "github.com/kagent-dev/kagent/go/core/internal/service/tool"
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
 	"github.com/kagent-dev/kagent/go/core/pkg/env"
@@ -82,6 +84,7 @@ func TestNativeOpenFGAAuthorizationAPI(t *testing.T) {
 		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "team", UID: "workspace-1"}},
 		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "other-team", UID: "workspace-2"}},
 		&v1alpha3.Agent{ObjectMeta: metav1.ObjectMeta{Name: "assistant", Namespace: "team", UID: "agent-1"}},
+		&v1alpha3.AgentTemplate{ObjectMeta: metav1.ObjectMeta{Name: "behavior", Namespace: "team", UID: "template-1"}},
 		&v1alpha3.Harness{ObjectMeta: metav1.ObjectMeta{Name: "runtime", Namespace: "team", UID: "harness-1"}},
 		&v1alpha3.ModelConfig{ObjectMeta: metav1.ObjectMeta{Name: "primary", Namespace: "team", UID: "model-1"}},
 		&v1alpha3.RemoteMCPServer{
@@ -111,6 +114,23 @@ func TestNativeOpenFGAAuthorizationAPI(t *testing.T) {
 		config.Authenticator = provider
 		config.AuthorizationService = service
 		config.ToolService = toolservice.NewService(kube, resources, service, "team", &toolGRPCMCPClient{})
+		config.ModelService = modelservice.NewService(modelUIDClient{Client: kube}, &auth.NoopAuthorizer{}, service, "team")
+		config.AgentTemplateService = kubecrud.NewNativeService(kube, &auth.NoopAuthorizer{}, kubecrud.NativeAccess{
+			Checker: service,
+			Kind:    apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_AGENT_TEMPLATE,
+			Read:    apiv1.Permission_PERMISSION_TEMPLATE_READ,
+			Create:  apiv1.Permission_PERMISSION_TEMPLATE_CREATE,
+			Update:  apiv1.Permission_PERMISSION_TEMPLATE_UPDATE,
+			Delete:  apiv1.Permission_PERMISSION_TEMPLATE_DELETE,
+		}, &v1alpha3.AgentTemplate{}, &v1alpha3.AgentTemplateList{}, "AgentTemplate")
+		config.HarnessService = kubecrud.NewNativeService(kube, &auth.NoopAuthorizer{}, kubecrud.NativeAccess{
+			Checker: service,
+			Kind:    apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_HARNESS,
+			Read:    apiv1.Permission_PERMISSION_HARNESS_READ,
+			Create:  apiv1.Permission_PERMISSION_HARNESS_MANAGE,
+			Update:  apiv1.Permission_PERMISSION_HARNESS_MANAGE,
+			Delete:  apiv1.Permission_PERMISSION_HARNESS_MANAGE,
+		}, &v1alpha3.Harness{}, &v1alpha3.HarnessList{}, "Harness")
 	})
 	client := apiv1.NewAuthorizationServiceClient(connection)
 	identity := func(id string, groups []string) context.Context {
@@ -323,5 +343,8 @@ func TestNativeOpenFGAAuthorizationAPI(t *testing.T) {
 	})
 	t.Run("MCP business entry points", func(t *testing.T) {
 		verifyNativeMCPPermissions(t, client, apiv1.NewToolServiceClient(connection), kube, admin, alice, subject("alice"), workspace.GetWorkspace())
+	})
+	t.Run("definition entry points", func(t *testing.T) {
+		verifyNativeDefinitionPermissions(t, client, apiv1.NewHarnessServiceClient(connection), apiv1.NewAgentTemplateServiceClient(connection), apiv1.NewModelServiceClient(connection), admin, alice, subject("alice"), workspace.GetWorkspace())
 	})
 }

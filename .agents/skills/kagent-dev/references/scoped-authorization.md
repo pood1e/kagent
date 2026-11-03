@@ -50,15 +50,16 @@ Pass scopes as ordinary function arguments. Do not place policy decisions in req
 
 ## Service integration
 
-- `Agent`, `AgentTemplate`, `Harness`, and `SandboxTemplate` use `kubecrud.NewService` with a required `CollectionAuthorizer`.
-- `ModelConfig` and `ModelProviderConfig` use separate typed CRUD services and resource types. Configured-provider reads and refresh are authorized independently from ModelConfig operations.
+- `Agent` and `SandboxTemplate` use `kubecrud.NewScopedService` with a required `CollectionAuthorizer`.
+- `AgentTemplate` and `Harness` use `kubecrud.NewNativeService`; collections intersect the scoped matcher with UID-bound native reads, and mutations carry the authorized UID through the Kubernetes write.
+- `ModelConfig` uses native model-connection read/manage actions. `ModelProviderConfig` retains its scoped CRUD boundary; configured-provider reads and refresh are authorized independently from ModelConfig operations.
 - Prompt libraries and WorkerPool summary rows use `kubeauth.CollectionMatcher` for custom collection projection.
 - MCP discovery and connection operations use the native `CheckPermissions` contract, with batched server-read checks and UID-fenced catalog projection. MCP App calls check the exact tool-call action before resolving the authorized server UID.
 - `GetSubstrateSummary` requires `Check(VerbGet, Resource{Type: "SystemSummary"})` before any resource reads; denial fails the whole request with permission denied. WorkerPool rows then use their own `VerbList` scope.
 - The summary capability grants endpoint access only. ATE inventory uses independent `VerbList` scopes for `SubstrateActor`, `SubstrateActorTemplate` (both `atespace`/`name`), and `SubstrateWorker` (`namespace`/`name`). Dedicated actor and worker endpoints require their respective list scopes, without a `Substrate` or `SystemSummary` capability. Use `inventoryauth.CollectionMatcher` and intersect scopes with watched and requested locations before pagination or counts. See the source contract for cursor and embedded-placement rules.
 - Static provider definitions and supported tool-server types expose no configured object and remain available after authentication.
 
-The default OSS no-op authorizer implements `CollectionAuthorizer` and returns `ScopeAll`, preserving current OSS visibility.
+The default OSS no-op authorizer implements `CollectionAuthorizer` and returns `ScopeAll` for scoped paths. Native definition operations require the configured resource authorization engine.
 
 ## Required tests
 
