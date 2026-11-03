@@ -110,7 +110,7 @@ func (s *Service) validate(ctx context.Context, incoming client.Object, secrets 
 	}
 	switch object := incoming.(type) {
 	case *v1alpha3.Agent:
-		snapshot.agents = []*v1alpha3.Agent{object}
+		snapshot.agents = replace(snapshot.agents, object)
 	case *v1alpha3.AgentTemplate:
 		snapshot.templates = replace(snapshot.templates, object)
 	case *v1alpha3.Harness:
@@ -146,7 +146,7 @@ func (s *Service) validate(ctx context.Context, incoming client.Object, secrets 
 func (s *snapshot) affected(agent *v1alpha3.Agent, incoming client.Object) bool {
 	switch object := incoming.(type) {
 	case *v1alpha3.Agent:
-		return true
+		return client.ObjectKeyFromObject(agent) == client.ObjectKeyFromObject(object)
 	case *v1alpha3.Harness:
 		return agent.Spec.HarnessRef.Name == object.Name
 	}
