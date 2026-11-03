@@ -287,7 +287,7 @@ func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	selected = checkTarget("scope=write&server=team-a/native&credential=subject_token", http.StatusOK)
 	require.Equal(t, "Bearer "+rotated, selected.Header.Get("Authorization"))
 
-	mcpHandler, err := nativemcp.New(sessions, checkpoint.NewService(store, policy, nil, nil, authority), &struct{ a2asrv.RequestHandler }{}, nil, nil, nil)
+	mcpHandler, err := nativemcp.New(sessions, checkpoint.NewService(store, policy, nil, nil, sessions), &struct{ a2asrv.RequestHandler }{}, nil, nil, nil)
 	require.NoError(t, err)
 	mcpServer := httptest.NewServer(auth.AuthnMiddleware(provider)(mcpHandler))
 	t.Cleanup(mcpServer.Close)

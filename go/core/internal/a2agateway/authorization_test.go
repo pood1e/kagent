@@ -2,6 +2,7 @@ package a2agateway
 
 import (
 	"context"
+	"slices"
 
 	"google.golang.org/protobuf/proto"
 
@@ -50,6 +51,16 @@ func (gatewayCreationPermissions) CheckPermissions(_ context.Context, request *a
 	}
 	return response, nil
 }
-func (gatewayCreationPermissions) CheckExecutionPermissions(context.Context, auth.Principal, *apiv1.CheckPermissionsRequest) (*apiv1.CheckPermissionsResponse, error) {
-	panic("unexpected runtime dependency check")
+func (p gatewayCreationPermissions) CheckExecutionPermissions(ctx context.Context, principal auth.Principal, request *apiv1.CheckPermissionsRequest) (*apiv1.CheckPermissionsResponse, error) {
+	response, err := p.CheckPermissions(ctx, request)
+	for _, access := range response.Resources {
+		access.AllowedActions = slices.DeleteFunc(slices.Clone(access.AllowedActions), func(action apiv1.Permission) bool {
+			return !auth.ResourceGrantAllows(principal.Execution.GetScopeCeiling().GetResources(), access.Resource, action)
+		})
+	}
+	return response, err
+}
+
+func (a gatewayCreationAuthority) Session(ctx context.Context, id string) (*apiv1.Session, error) {
+	return a.store.GetSessionByID(ctx, id)
 }

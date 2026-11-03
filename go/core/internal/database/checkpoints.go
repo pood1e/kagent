@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
+	"github.com/kagent-dev/kagent/go/core/pkg/auth"
 )
 
 var (
@@ -29,6 +30,8 @@ var (
 // the existing fork for the same checkpoint, or ErrIdempotencyConflict otherwise. The
 // boolean reports creation; callers provision the runtime separately. A deleted
 // fork returns ErrFailedPrecondition and retains its request identity.
+// Explicit resource ceilings narrow the source's retained bounds while the fork
+// establishes its own credential lease.
 func (c *Client) ForkSession(ctx context.Context, checkpointID, userID, requestID, sessionID string, authority *apiv1.SessionAuthority) (*apiv1.Session, bool, error) {
 	checkpointUUID, err := uuid.Parse(checkpointID)
 	if err != nil {
@@ -62,6 +65,16 @@ func (c *Client) ForkSession(ctx context.Context, checkpointID, userID, requestI
 		source, err := toSessionCheckpoint(checkpoint)
 		if err != nil {
 			return err
+		}
+		if authority.GetScopeCeiling().GetResources() != nil {
+			sourceGrant, _, err := readSessionAuthority(ctx, tx, checkpoint.SourceSessionID.String())
+			if err != nil {
+				return err
+			}
+			if sourceGrant.GetScopeCeiling().GetResources() == nil || authority.InitiatorId != sourceGrant.InitiatorId || authority.WorkspaceUid != sourceGrant.WorkspaceUid ||
+				!auth.ResourceGrantsWithin(authority.ScopeCeiling.Resources, sourceGrant.ScopeCeiling.Resources) || !allScopesWithin(authority.ScopeCeiling.Scopes, sourceGrant.ScopeCeiling.Scopes) {
+				return ErrFailedPrecondition
+			}
 		}
 		if checkpoint.PreparedRevision == nil {
 			return fmt.Errorf("checkpoint %s has no fork source", checkpointID)

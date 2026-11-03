@@ -47,16 +47,9 @@ func (s *continuationAuthorityStore) GetSession(ctx context.Context, id, creator
 
 func TestContinuationReauthorizesEachBoundSession(t *testing.T) {
 	parentID, childID := uuid.NewString(), uuid.NewString()
-	store := &continuationAuthorityStore{serviceTestStore: &serviceTestStore{}, sessions: make(map[string]*apiv1.Session)}
-	for _, id := range []string{parentID, childID} {
-		store.sessions[id] = &apiv1.Session{Id: id, Creator: "owner", Agent: &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"},
-			Authority: &apiv1.SessionAuthority{SessionId: id, InitiatorId: "owner", RootSessionId: parentID, ScopeCeiling: &apiv1.ScopeCeiling{Scopes: []string{"read"}}}}
-	}
-	store.sessions[childID].Authority.ParentSessionId = parentID
-	authority, err := executionauth.NewService(store, nil, nil, true)
-	require.NoError(t, err)
-	policy := runtimeauth.NewAuthorizer(auth.NoopAuthorizer{}, nil, authority)
-	sessions := NewService(store, policy, nil, WithExecutionAuthority(authority))
+	parent := &apiv1.Session{Id: parentID, Creator: "owner", Agent: &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}}
+	child := &apiv1.Session{Id: childID, Creator: "owner", Agent: parent.Agent}
+	sessions, store := continuationTestSessions(t, parent, child, nil)
 	gateway := &continuationGateway{}
 	service := NewContinuations(&continuationResultStore{result: &a2a.Task{ID: "child-task", Status: a2a.TaskStatus{State: a2a.TaskStateCompleted}}}, gateway, sessions)
 	childTaskID := "child-task"
@@ -73,4 +66,27 @@ func TestContinuationReauthorizesEachBoundSession(t *testing.T) {
 		require.Error(t, err, "revoked Session %s must prevent continuation", revoked)
 		require.Len(t, gateway.messages, 1)
 	}
+}
+
+func continuationTestSessions(t *testing.T, parent, child *apiv1.Session, policy auth.Authorizer) (*Service, *continuationAuthorityStore) {
+	t.Helper()
+	resources := &apiv1.ResourceGrantSet{Grants: []*apiv1.ResourceGrant{{
+		Resource: &apiv1.AuthorizationResource{Resource: &apiv1.AuthorizationResource_Kubernetes{Kubernetes: &apiv1.KubernetesAuthorizationReference{
+			Kind: apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_AGENT, Ref: parent.Agent, Uid: "agent-uid",
+		}}}, Permissions: []apiv1.Permission{apiv1.Permission_PERMISSION_AGENT_INVOKE},
+	}}}
+	store := &continuationAuthorityStore{serviceTestStore: &serviceTestStore{revision: &database.RuntimeRevision{
+		Namespace: parent.Agent.Namespace, Dependencies: &apiv1.ExecutionDependencyManifest{Direct: resources},
+	}}, sessions: map[string]*apiv1.Session{parent.Id: parent, child.Id: child}}
+	for _, session := range store.sessions {
+		session.Authority = &apiv1.SessionAuthority{SessionId: session.Id, InitiatorId: "owner", RootSessionId: parent.Id, WorkspaceUid: "workspace-1",
+			ScopeCeiling: &apiv1.ScopeCeiling{Scopes: []string{"read"}, Resources: resources}}
+	}
+	child.Authority.ParentSessionId = parent.Id
+	authority, err := executionauth.NewService(store, nil, nil, true)
+	require.NoError(t, err)
+	if policy == nil {
+		policy = runtimeauth.NewAuthorizer(auth.NoopAuthorizer{}, nil, authority)
+	}
+	return NewService(store, policy, nil, WithExecutionAuthority(authority), WithResourceAuthorization(creationPermissions{})), store
 }

@@ -52,10 +52,11 @@ func TestContinuationUsesStableNativeAdmissionAndOriginalTaskReferences(t *testi
 	apia2a.SetResponseLocale(original, language.English)
 	store.parent = &a2a.Task{History: []*a2a.Message{original}}
 	gateway := &continuationGateway{}
-	sessions := NewService(&serviceTestStore{getResult: parent}, serviceTestAuthorizer{}, nil)
+	child := &apiv1.Session{Id: uuid.NewString(), Creator: "owner", Agent: parent.Agent}
+	sessions, _ := continuationTestSessions(t, parent, child, serviceTestAuthorizer{})
 	service := NewContinuations(store, gateway, sessions)
 	childID := "original-child"
-	value := database.TaskContinuation{ID: uuid.New(), ParentSessionID: parent.Id, ParentTaskID: "parent-task", ChildSessionID: uuid.NewString(), ChildTaskID: &childID}
+	value := database.TaskContinuation{ID: uuid.New(), ParentSessionID: parent.Id, ParentTaskID: "parent-task", ChildSessionID: child.Id, ChildTaskID: &childID}
 	ctx := auth.AuthSessionTo(t.Context(), auth.ControlPlaneSession{})
 	for range 2 {
 		id, err := service.resume(ctx, value)
@@ -75,12 +76,12 @@ func TestContinuationUsesStableNativeAdmissionAndOriginalTaskReferences(t *testi
 		require.True(t, request.Config.ReturnImmediately)
 		require.Contains(t, request.Message.Parts[0].Text(), "Permission denied")
 	}
-	service.sessions = NewService(&serviceTestStore{getResult: parent}, serviceTestAuthorizer{err: errors.New("revoked")}, nil)
+	service.sessions, _ = continuationTestSessions(t, parent, child, serviceTestAuthorizer{err: errors.New("revoked")})
 	_, err := service.resume(ctx, value)
 	require.Error(t, err)
 	require.Len(t, gateway.messages, 2, "authorization denial must not dispatch")
 	policy := &recordingAuthorizer{denied: map[string]bool{value.ChildSessionID: true}}
-	service.sessions = NewService(&serviceTestStore{getResult: parent}, policy, nil)
+	service.sessions, _ = continuationTestSessions(t, parent, child, policy)
 	_, err = service.resume(ctx, value)
 	require.Error(t, err)
 	require.Equal(t, value.ChildSessionID, policy.resource.Name)

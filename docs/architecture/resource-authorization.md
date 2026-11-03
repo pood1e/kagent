@@ -53,6 +53,14 @@ An all-tools binding snapshots discovered tool names for that server UID.
 Child ceilings narrow their complete ancestor chain. Creation retries recheck
 the original Session's fixed grants and originating authority.
 
+Native A2A dispatch and durable continuations recheck the pinned direct
+requirements before push registration or dispatch reservation. An Actor's target
+Session retains a resource ceiling bounded by that Actor's originating Session.
+Checkpoint forks check current initiator access against the retained revision and
+exact source ceiling, then establish a fresh credential lease. PostgreSQL fences
+the retained bounds atomically; creation receipts pass the same checks before
+runtime provisioning.
+
 Gateway callbacks intersect the pinned targets, fixed ceiling, and live
 initiator permissions through `CheckExecutionPermissions`. MCP selections always
 carry an explicit tool list. Credential export follows authorization; engine

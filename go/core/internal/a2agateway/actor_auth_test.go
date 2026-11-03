@@ -36,8 +36,8 @@ func TestHTTPActorA2AUsesSessionAuthorization(t *testing.T) {
 	issuer := jwttest.New(t)
 	verifier, err := substrate.NewActorJWTVerifier(t.Context(), issuer.URL, issuer.CAFile)
 	require.NoError(t, err)
-	provider := runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, binding, issuer.URL, nil)
-	policy := runtimeauth.NewAuthorizer(auth.NoopAuthorizer{}, binding, nil)
+	provider := runtimeauth.NewProvider(&authimpl.InsecureAuthenticator{}, verifier, binding, issuer.URL, gatewayCreationAuthority{store})
+	policy := runtimeauth.NewAuthorizer(auth.NoopAuthorizer{}, binding, gatewayCreationAuthority{store})
 	runtime := &gatewayTestRuntime{task: store.task}
 	gateway := newTestGateway(store, policy, &gatewayTestDialer{client: gatewayTestClient(t, runtime)}, gatewayTestURL)
 	server := httptest.NewServer(NewHTTPHandler(gateway, provider, nil))

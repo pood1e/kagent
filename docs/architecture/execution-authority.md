@@ -86,6 +86,21 @@ the immutable ceiling with the initiator's currently verified credential scopes.
 recursive native task cancellation. Credential revocation revokes that
 initiator's existing roots and their descendants.
 
+## Automated executions
+
+ScheduledRun creation captures the authenticated initiator's UID-bound resource
+ceiling and credential deadline. Each accepted firing retains its own Proto
+authority snapshot, including after schedule edits or deletion. Resuming a
+schedule captures current authorized dependencies; pausing preserves its bounds.
+Recurring execution uses a registered renewable credential source for continued
+access beyond an initial bearer deadline.
+
+The scheduler creates an independent Session root within that snapshot. Before
+Actor provisioning and dispatch, native admission rechecks current scopes,
+resource permissions, and the pinned revision. PostgreSQL owns task recovery;
+deadline cancellation uses the existing Session-bound controller cleanup path.
+Recreate retained schedules when cutting over to captured execution bounds.
+
 ## Credential lifecycle
 
 `RegisterDelegationCredential` exchanges a refresh token at the configured HTTPS
@@ -159,4 +174,6 @@ credential supplies the independently authenticated exchange subject.
 - Credential source and scope rules: `go/core/internal/executionauth`.
 - Live Actor binding: `go/core/internal/runtimeauth`.
 - Atomic grants and cancellation: `go/core/internal/database/session_authority.go`.
+- Automation snapshots: `go/core/internal/database/scheduled_authority.go`;
+  admission: `go/core/internal/service/session/captured_authority.go`.
 - Collaboration: [MCP](mcp.md); team knowledge: [Memory](memory.md).

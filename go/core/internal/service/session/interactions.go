@@ -173,6 +173,14 @@ func (s *InteractionService) PrepareSend(ctx context.Context, agent types.Namesp
 	if err != nil {
 		return nil, err
 	}
+	authorized, err := s.sessions.sendAuthority(ctx, session.Id, req.Message.TaskID != "")
+	if err != nil {
+		return nil, interactionError(ctx, err)
+	}
+	origin := dispatchOrigin(ctx, req)
+	if strings.HasPrefix(initialID, "kagent-continuation-") && (origin == nil || origin.ContinuationID == uuid.Nil) {
+		return nil, a2atype.NewError(a2atype.ErrInvalidRequest, "reserved continuation message ID")
+	}
 	if pushConfig != nil {
 		if pushConfig.ID == "" {
 			pushConfig.ID = uuid.NewSHA1(uuid.NameSpaceURL, []byte("a2a/push/"+session.Id+"/"+req.Message.ID)).String()
@@ -183,14 +191,6 @@ func (s *InteractionService) PrepareSend(ctx context.Context, agent types.Namesp
 		config := *req.Config
 		config.PushConfig = nil
 		req.Config = &config
-	}
-	origin := dispatchOrigin(ctx, req)
-	authorized, err := s.sessions.sendAuthority(ctx, session.Id, req.Message.TaskID != "")
-	if err != nil {
-		return nil, interactionError(ctx, err)
-	}
-	if strings.HasPrefix(initialID, "kagent-continuation-") && (origin == nil || origin.ContinuationID == uuid.Nil) {
-		return nil, a2atype.NewError(a2atype.ErrInvalidRequest, "reserved continuation message ID")
 	}
 	id, err := s.reserveDispatch(ctx, session.Id, initialID, origin)
 	if errors.Is(err, database.ErrMessageAccepted) {
