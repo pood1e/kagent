@@ -66,6 +66,7 @@ func replace[T client.Object](items []T, incoming T) []T {
 
 func (s *snapshot) collections() (translator.Collections, error) {
 	collections := translator.Collections{
+		Agents:           krt.NewStaticCollection(nil, s.agents),
 		AgentTemplates:   krt.NewStaticCollection(nil, s.templates),
 		Harnesses:        krt.NewStaticCollection(nil, s.harnesses),
 		RemoteMCPServers: krt.NewStaticCollection(nil, s.servers),

@@ -55,11 +55,27 @@ agents:
 	}
 	createAndWaitInteractionTemplateForHarness(t, kube, template, "kagent")
 	fixture := newInteractionFixtureForHarnessTemplate(t, target, "kagent", template.Name)
+	conn := newControllerConn(t, target)
+	session, err := fixture.sessions.GetSession(fixture.ctx, &apiv1.GetSessionRequest{SessionId: fixture.sessionID})
+	require.NoError(t, err)
+	workflows := apiv1.NewWorkflowServiceClient(conn)
+	persisted, err := workflows.GetWorkflowRevision(fixture.ctx, &apiv1.GetWorkflowRevisionRequest{Ref: session.Session.Agent})
+	require.NoError(t, err)
+	require.NotEmpty(t, persisted.PreparedRevision)
+	agent, err := apiv1.NewAgentServiceClient(conn).GetAgent(fixture.ctx, &apiv1.GetAgentRequest{Ref: session.Session.Agent})
+	require.NoError(t, err)
+	definition, err := apiv1.NewAgentTemplateServiceClient(conn).GetAgentTemplate(fixture.ctx, &apiv1.GetAgentTemplateRequest{Ref: &apiv1.ResourceReference{Namespace: template.Namespace, Name: template.Name}})
+	require.NoError(t, err)
+	candidate, err := workflows.ValidateWorkflow(fixture.ctx, &apiv1.ValidateWorkflowRequest{
+		Ref: session.Session.Agent, Resource: agent.Agent.Resource, AgentTemplate: definition.AgentTemplate.Resource,
+		Document: []byte(configMap.Data["agents.yaml"]),
+	})
+	require.NoError(t, err)
+	require.Equal(t, persisted.PreparedRevision, candidate.PreparedRevision)
 	_, _, task := fixture.send(t, "My VPN keeps dropping")
 	require.Equal(t, a2a.TaskStateCompleted, task.Status.State, taskText(task))
 	require.Contains(t, taskText(task), "mixed workflow completed")
 
-	conn := newControllerConn(t, target)
 	tree, err := apiv1.NewExecutionServiceClient(conn).ListTaskExecutions(fixture.ctx, &apiv1.ListTaskExecutionsRequest{RootTaskId: string(task.ID)})
 	require.NoError(t, err)
 	require.Len(t, tree.Executions, 4)
