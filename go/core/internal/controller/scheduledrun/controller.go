@@ -14,6 +14,7 @@ import (
 
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
+	"github.com/kagent-dev/kagent/go/core/internal/runtimeauth"
 	"github.com/kagent-dev/kagent/go/core/internal/scheduling"
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
 	"github.com/kagent-dev/kagent/go/pkg/logging"
@@ -25,6 +26,8 @@ type controllerStore interface {
 	LeaseScheduledRunExecutions(context.Context, int) ([]database.LeasedScheduledRunExecution, error)
 	UpdateScheduledRunExecution(context.Context, database.ScheduledRunExecutionLease, database.ScheduledRunExecutionProgress) error
 	GetSession(context.Context, string, string) (*apiv1.Session, error)
+	GetSessionTask(context.Context, string, string, *int) (*a2atype.Task, error)
+	GetSessionTaskByMessage(context.Context, string, string, string) (*a2atype.Task, error)
 }
 
 type controllerWorkflow interface {
@@ -33,20 +36,25 @@ type controllerWorkflow interface {
 	Delete(context.Context, *apiv1.Session) (*apiv1.Session, error)
 }
 
+type executionAuthorization interface {
+	ProvisioningContext(context.Context, string) (context.Context, error)
+}
+
 // Controller reconciles executions on every replica. SQL leases fence status
 // writes; a durable dispatch claim prevents resending after an uncertain result.
 type Controller struct {
 	store        controllerStore
 	workflow     controllerWorkflow
 	gateway      a2asrv.RequestHandler
+	authority    executionAuthorization
 	pollInterval time.Duration
 }
 
 var _ manager.LeaderElectionRunnable = (*Controller)(nil)
 var _ manager.Runnable = (*Controller)(nil)
 
-func NewController(store controllerStore, workflow controllerWorkflow, gateway a2asrv.RequestHandler, pollInterval time.Duration) *Controller {
-	return &Controller{store: store, workflow: workflow, gateway: gateway, pollInterval: pollInterval}
+func NewController(store controllerStore, workflow controllerWorkflow, gateway a2asrv.RequestHandler, authority executionAuthorization, pollInterval time.Duration) *Controller {
+	return &Controller{store: store, workflow: workflow, gateway: gateway, authority: authority, pollInterval: pollInterval}
 }
 
 func (*Controller) NeedLeaderElection() bool { return false }
@@ -164,6 +172,13 @@ func (c *Controller) reconcile(ctx context.Context, leased database.LeasedSchedu
 	}
 	dispatchCtx, cancel := context.WithDeadline(ctx, execution.GetDeadline().AsTime())
 	defer cancel()
+	if c.authority == nil {
+		return fmt.Errorf("scheduled execution authority is required")
+	}
+	dispatchCtx, err = c.authority.ProvisioningContext(dispatchCtx, session.Id)
+	if err != nil {
+		return err
+	}
 	if session.GetState() == apiv1.RuntimeState_RUNTIME_STATE_CREATING {
 		session, err = c.workflow.Create(dispatchCtx, session)
 		if err != nil {
@@ -200,32 +215,18 @@ func (c *Controller) reconcile(ctx context.Context, leased database.LeasedSchedu
 // is the sole execution identity.
 // Unlinked executions are recovered by finding their original message in history.
 func (c *Controller) executionTask(ctx context.Context, execution *apiv1.ScheduledRunExecution) (*a2atype.Task, error) {
-	if taskID := execution.GetTaskId(); taskID != "" {
+	var task *a2atype.Task
+	var err error
+	if execution.TaskId != "" {
 		zero := 0
-		task, err := c.gateway.GetTask(ctx, &a2atype.GetTaskRequest{ID: a2atype.TaskID(taskID), HistoryLength: &zero})
-		if errors.Is(err, a2atype.ErrTaskNotFound) {
-			return nil, nil
-		}
-		return task, err
+		task, err = c.store.GetSessionTask(ctx, execution.SessionId, execution.TaskId, &zero)
+	} else {
+		task, err = c.store.GetSessionTaskByMessage(ctx, execution.SessionId, "", scheduling.MessageIDPrefix+execution.Id)
 	}
-	request := &a2atype.ListTasksRequest{PageSize: 100, ContextID: execution.GetSessionId()}
-	for {
-		page, err := c.gateway.ListTasks(ctx, request)
-		if err != nil {
-			return nil, err
-		}
-		for _, task := range page.Tasks {
-			for _, message := range task.History {
-				if message.ID == scheduling.MessageIDPrefix+execution.GetId() {
-					return task, nil
-				}
-			}
-		}
-		if page.NextPageToken == "" {
-			return nil, nil
-		}
-		request.PageToken = page.NextPageToken
+	if errors.Is(err, database.ErrNotFound) {
+		return nil, nil
 	}
+	return task, err
 }
 
 func (c *Controller) stop(ctx context.Context, execution *apiv1.ScheduledRunExecution, session *apiv1.Session, task *a2atype.Task) (*a2atype.Task, error) {
@@ -233,7 +234,7 @@ func (c *Controller) stop(ctx context.Context, execution *apiv1.ScheduledRunExec
 		return task, nil
 	}
 	if execution.GetTaskId() != "" {
-		return c.gateway.CancelTask(ctx, &a2atype.CancelTaskRequest{ID: a2atype.TaskID(execution.GetTaskId())})
+		return c.gateway.CancelTask(runtimeauth.CancellationContext(ctx, session.Id, execution.TaskId), &a2atype.CancelTaskRequest{ID: a2atype.TaskID(execution.GetTaskId())})
 	}
 	// No invocation was accepted; clean up the ordinary session lifecycle.
 	if session.GetState() == apiv1.RuntimeState_RUNTIME_STATE_CREATING {

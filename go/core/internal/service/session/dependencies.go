@@ -54,15 +54,9 @@ func (s *Service) bindDependencies(ctx context.Context, agent *apiv1.ResourceRef
 		Resource:    &apiv1.AuthorizationResource{Resource: &apiv1.AuthorizationResource_Workspace{Workspace: &apiv1.WorkspaceAuthorizationReference{Namespace: agent.Namespace, Uid: grant.WorkspaceUid}}},
 		Permissions: []apiv1.Permission{apiv1.Permission_PERMISSION_SESSION_CREATE},
 	})
-	check := s.permissions.CheckPermissions
-	if grant.ParentSessionId != "" {
-		resolved, err := s.authority.Resolve(ctx, grant.ParentSessionId)
-		if err != nil {
-			return "", serviceerrors.NewPermissionDenied("Parent execution authority unavailable", err)
-		}
-		check = func(ctx context.Context, request *apiv1.CheckPermissionsRequest) (*apiv1.CheckPermissionsResponse, error) {
-			return s.permissions.CheckExecutionPermissions(ctx, resolved.Principal(), request)
-		}
+	check, err := s.dependencyChecker(ctx, grant.ParentSessionId)
+	if err != nil {
+		return "", err
 	}
 	workspace := &apiv1.WorkspaceAuthorizationReference{Namespace: agent.Namespace, Uid: grant.WorkspaceUid}
 	if err := requireDependencies(ctx, check, workspace, dependencies); err != nil {
@@ -138,4 +132,26 @@ func requireDependencies(ctx context.Context, check func(context.Context, *apiv1
 		}
 	}
 	return nil
+}
+
+func (s *Service) dependencyChecker(ctx context.Context, parentID string) (func(context.Context, *apiv1.CheckPermissionsRequest) (*apiv1.CheckPermissionsResponse, error), error) {
+	if s.permissions == nil {
+		return nil, serviceerrors.NewUnavailable("Resource execution authorization is not configured", nil)
+	}
+	if parentID == "" {
+		return s.permissions.CheckPermissions, nil
+	}
+	if s.authority == nil {
+		return nil, serviceerrors.NewUnavailable("Execution authority is not configured", nil)
+	}
+	parent, err := s.authority.Resolve(ctx, parentID)
+	if err != nil {
+		return nil, serviceerrors.NewPermissionDenied("Parent execution authority unavailable", err)
+	}
+	if err := s.requireExecution(ctx, parent.Principal()); err != nil {
+		return nil, err
+	}
+	return func(ctx context.Context, request *apiv1.CheckPermissionsRequest) (*apiv1.CheckPermissionsResponse, error) {
+		return s.permissions.CheckExecutionPermissions(ctx, parent.Principal(), request)
+	}, nil
 }

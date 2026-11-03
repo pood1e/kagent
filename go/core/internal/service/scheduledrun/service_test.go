@@ -58,7 +58,7 @@ func TestScheduleAuthorizationFailsBeforePersistence(t *testing.T) {
 		{"schedule denied", owner, "ScheduledRun", serviceerrors.CodePermissionDenied},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			svc := scheduledrun.NewService(nil, nil, authorizer{deny: tc.deny})
+			svc := scheduledrun.NewService(nil, nil, authorizer{deny: tc.deny}, nil)
 			_, err := svc.Get(tc.ctx, uuid.New())
 			require.Equal(t, tc.want, serviceerrors.CodeOf(err))
 		})
@@ -72,7 +72,7 @@ func TestTargetPermissionAndExistence(t *testing.T) {
 	kube := fake.NewClientBuilder().WithScheme(scheme).Build()
 	request := scheduledrun.CreateRequest{Agent: &apiv1.ResourceReference{Namespace: "team", Name: "template"}, RequestID: "id", Config: &apiv1.ScheduledRunConfig{Schedule: "* * * * *", Prompt: "run"}}
 	for _, denied := range []string{"Agent", "Session"} {
-		svc := scheduledrun.NewService(missingRequestStore{}, kube, authorizer{deny: denied})
+		svc := scheduledrun.NewService(missingRequestStore{}, kube, authorizer{deny: denied}, nil)
 		_, err := svc.Create(owner, request)
 		require.Equal(t, serviceerrors.CodePermissionDenied, serviceerrors.CodeOf(err))
 	}
@@ -81,7 +81,7 @@ func TestTargetPermissionAndExistence(t *testing.T) {
 			require.Equal(t, "team", resource.Namespace)
 			require.Equal(t, "template", resource.Name)
 		}
-	}})
+	}}, nil)
 	_, err := svc.Create(owner, request)
 	require.Equal(t, serviceerrors.CodeFailedPrecondition, serviceerrors.CodeOf(err))
 }
@@ -133,13 +133,13 @@ func TestScheduleAndExecutionOperationsRejectDeniedCallers(t *testing.T) {
 		t.Run(op.name, func(t *testing.T) {
 			policy := &scheduleOperationPolicy{}
 			ctx := auth.AuthSessionTo(t.Context(), session{})
-			svc := scheduledrun.NewService(nil, nil, policy)
+			svc := scheduledrun.NewService(nil, nil, policy, nil)
 			require.True(t, serviceerrors.IsCode(op.call(ctx, svc), serviceerrors.CodePermissionDenied))
 			require.Equal(t, op.verb, policy.last)
 			require.True(t, serviceerrors.IsCode(op.call(auth.ShareContextTo(ctx, &auth.ShareContext{SessionID: id.String(), UserID: "alice"}), svc), serviceerrors.CodePermissionDenied))
 			require.True(t, serviceerrors.IsCode(op.call(t.Context(), svc), serviceerrors.CodeUnauthenticated))
 			if op.verb != auth.VerbGet && op.verb != auth.VerbList {
-				require.True(t, serviceerrors.IsCode(op.call(ctx, scheduledrun.NewService(nil, nil, &scheduleOperationPolicy{readOnly: true})), serviceerrors.CodePermissionDenied))
+				require.True(t, serviceerrors.IsCode(op.call(ctx, scheduledrun.NewService(nil, nil, &scheduleOperationPolicy{readOnly: true}, nil)), serviceerrors.CodePermissionDenied))
 			}
 		})
 	}
@@ -170,7 +170,7 @@ func TestScheduleRetriesAndTriggersRecheckTargetGrants(t *testing.T) {
 	target := &apiv1.ResourceReference{Namespace: "team", Name: "assistant"}
 	for _, denied := range []string{"Agent", "Session"} {
 		store := &existingScheduleStore{schedule: &apiv1.ScheduledRun{Agent: target, Creator: "alice"}}
-		svc := scheduledrun.NewService(store, nil, authorizer{deny: denied})
+		svc := scheduledrun.NewService(store, nil, authorizer{deny: denied}, nil)
 		_, err := svc.Create(ctx, scheduledrun.CreateRequest{Agent: target, RequestID: "retry", Config: &apiv1.ScheduledRunConfig{Schedule: "* * * * *", Prompt: "run"}})
 		require.True(t, serviceerrors.IsCode(err, serviceerrors.CodePermissionDenied))
 		_, err = svc.Trigger(ctx, uuid.New(), "manual")
@@ -192,7 +192,7 @@ func (s scheduleNamespacePolicy) Check(_ context.Context, _ auth.Principal, verb
 	return nil
 }
 
-func (s *existingScheduleStore) UpdateScheduledRun(_ context.Context, _ uuid.UUID, _ string, _ string, config *apiv1.ScheduledRunConfig) (*apiv1.ScheduledRun, error) {
+func (s *existingScheduleStore) UpdateScheduledRun(_ context.Context, _ uuid.UUID, _ string, _ string, config *apiv1.ScheduledRunConfig, _ *apiv1.SessionAuthority) (*apiv1.ScheduledRun, error) {
 	s.updates++
 	s.schedule.Config = config
 	return s.schedule, nil
@@ -225,13 +225,13 @@ func TestScheduleTargetChecksUseSessionCreateNamespace(t *testing.T) {
 				if operation == "create" {
 					scheme := runtime.NewScheme()
 					require.NoError(t, v1alpha3.AddToScheme(scheme))
-					svc := scheduledrun.NewService(missingRequestStore{}, fake.NewClientBuilder().WithScheme(scheme).Build(), policy)
+					svc := scheduledrun.NewService(missingRequestStore{}, fake.NewClientBuilder().WithScheme(scheme).Build(), policy, nil)
 					_, err = svc.Create(ctx, scheduledrun.CreateRequest{Agent: target, RequestID: "create", Config: config})
 					if allowed {
 						require.True(t, serviceerrors.IsCode(err, serviceerrors.CodeFailedPrecondition), "target authorization should pass before discovering the missing Agent")
 					}
 				} else {
-					svc := scheduledrun.NewService(store, nil, policy)
+					svc := scheduledrun.NewService(store, nil, policy, nil)
 					switch operation {
 					case "retry":
 						_, err = svc.Create(ctx, scheduledrun.CreateRequest{Agent: target, RequestID: "retry", Config: config})

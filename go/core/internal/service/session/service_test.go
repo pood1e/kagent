@@ -35,6 +35,7 @@ func (a serviceTestAuthorizer) Check(context.Context, auth.Principal, auth.Verb,
 
 type serviceTestStore struct {
 	existing       *apiv1.Session
+	revision       *database.RuntimeRevision
 	revisionErr    error
 	revisionCalls  int
 	createInput    *apiv1.Session

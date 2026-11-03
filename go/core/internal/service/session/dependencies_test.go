@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -35,8 +36,17 @@ func (p creationPermissions) CheckPermissions(_ context.Context, request *apiv1.
 	}
 	return response, nil
 }
-func (creationPermissions) CheckExecutionPermissions(context.Context, auth.Principal, *apiv1.CheckPermissionsRequest) (*apiv1.CheckPermissionsResponse, error) {
-	panic("unexpected execution check")
+func (p creationPermissions) CheckExecutionPermissions(ctx context.Context, principal auth.Principal, request *apiv1.CheckPermissionsRequest) (*apiv1.CheckPermissionsResponse, error) {
+	response, err := p.CheckPermissions(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	for _, access := range response.Resources {
+		access.AllowedActions = slices.DeleteFunc(slices.Clone(access.AllowedActions), func(action apiv1.Permission) bool {
+			return !auth.ResourceGrantAllows(principal.Execution.GetScopeCeiling().GetResources(), access.Resource, action)
+		})
+	}
+	return response, nil
 }
 func (s *serviceTestStore) GetAgentRuntimeRevision(context.Context, string, string) (*database.RuntimeRevision, error) {
 	s.revisionCalls++
@@ -44,6 +54,15 @@ func (s *serviceTestStore) GetAgentRuntimeRevision(context.Context, string, stri
 		return nil, s.revisionErr
 	}
 	return &database.RuntimeRevision{Revision: "authorized-revision", Dependencies: &apiv1.ExecutionDependencyManifest{Direct: &apiv1.ResourceGrantSet{}}}, nil
+}
+func (s *serviceTestStore) GetRuntimeRevision(context.Context, string) (*database.RuntimeRevision, error) {
+	if s.revisionErr != nil {
+		return nil, s.revisionErr
+	}
+	if s.revision != nil {
+		return s.revision, nil
+	}
+	return &database.RuntimeRevision{Namespace: "team-a", Dependencies: &apiv1.ExecutionDependencyManifest{Direct: &apiv1.ResourceGrantSet{}}}, nil
 }
 func (s *serviceTestStore) GetSessionByRequestID(context.Context, string, string) (*apiv1.Session, error) {
 	if s.existing != nil {

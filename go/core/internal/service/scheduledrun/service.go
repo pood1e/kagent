@@ -22,11 +22,12 @@ import (
 )
 
 type serviceStore interface {
+	GetScheduledRunAuthority(context.Context, uuid.UUID, string) (*apiv1.SessionAuthority, error)
 	FindScheduledRunRequest(context.Context, string, string, []byte) (*apiv1.ScheduledRun, error)
-	CreateScheduledRun(context.Context, *apiv1.ScheduledRun, string, []byte) (*apiv1.ScheduledRun, error)
+	CreateScheduledRun(context.Context, *apiv1.ScheduledRun, string, []byte, *apiv1.SessionAuthority) (*apiv1.ScheduledRun, error)
 	GetScheduledRun(context.Context, uuid.UUID, string) (*apiv1.ScheduledRun, error)
 	ListScheduledRuns(context.Context, database.ScheduledRunQuery) ([]*apiv1.ScheduledRun, error)
-	UpdateScheduledRun(context.Context, uuid.UUID, string, string, *apiv1.ScheduledRunConfig) (*apiv1.ScheduledRun, error)
+	UpdateScheduledRun(context.Context, uuid.UUID, string, string, *apiv1.ScheduledRunConfig, *apiv1.SessionAuthority) (*apiv1.ScheduledRun, error)
 	DeleteScheduledRun(context.Context, uuid.UUID, string) (*apiv1.ScheduledRun, error)
 	TriggerScheduledRun(context.Context, uuid.UUID, string, string) (*apiv1.ScheduledRunExecution, error)
 	GetScheduledRunExecution(context.Context, uuid.UUID, string) (*apiv1.ScheduledRunExecution, error)
@@ -37,6 +38,7 @@ type Service struct {
 	store      serviceStore
 	kube       client.Reader
 	authorizer auth.Authorizer
+	execution  ExecutionAuthorization
 }
 
 type CreateRequest struct {
@@ -45,8 +47,8 @@ type CreateRequest struct {
 	Config    *apiv1.ScheduledRunConfig
 }
 
-func NewService(store serviceStore, kube client.Reader, authorizer auth.Authorizer) *Service {
-	return &Service{store: store, kube: kube, authorizer: authorizer}
+func NewService(store serviceStore, kube client.Reader, authorizer auth.Authorizer, execution ExecutionAuthorization) *Service {
+	return &Service{store: store, kube: kube, authorizer: authorizer, execution: execution}
 }
 
 func (s *Service) Create(ctx context.Context, request CreateRequest) (*apiv1.ScheduledRun, error) {
@@ -71,6 +73,11 @@ func (s *Service) Create(ctx context.Context, request CreateRequest) (*apiv1.Sch
 		if err := s.authorizeTarget(ctx, existing); err != nil {
 			return nil, err
 		}
+		if existing.DeletedAt == nil {
+			if err := s.checkAuthority(ctx, existing); err != nil {
+				return nil, err
+			}
+		}
 		return existing, nil
 	}
 	if !errors.Is(err, database.ErrNotFound) {
@@ -86,7 +93,14 @@ func (s *Service) Create(ctx context.Context, request CreateRequest) (*apiv1.Sch
 	if err := s.validateTarget(ctx, schedule); err != nil {
 		return nil, err
 	}
-	result, err := s.store.CreateScheduledRun(ctx, schedule, request.RequestID, hash[:])
+	if s.execution == nil {
+		return nil, serviceerrors.NewUnavailable("Scheduled execution authorization is not configured", nil)
+	}
+	grant, err := s.execution.CaptureExecutionAuthority(ctx, schedule.Agent, creator)
+	if err != nil {
+		return nil, err
+	}
+	result, err := s.store.CreateScheduledRun(ctx, schedule, request.RequestID, hash[:], grant)
 	return result, storeError(err)
 }
 
@@ -135,8 +149,18 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, etag string, config 
 	if err := s.authorizeTarget(ctx, existing); err != nil {
 		return nil, err
 	}
+	var grant *apiv1.SessionAuthority
+	if !config.Paused {
+		if s.execution == nil {
+			return nil, serviceerrors.NewUnavailable("Scheduled execution authorization is not configured", nil)
+		}
+		grant, err = s.execution.CaptureExecutionAuthority(ctx, existing.Agent, creator)
+		if err != nil {
+			return nil, err
+		}
+	}
 	// Target readiness is checked by execution. A missing target must not prevent pausing.
-	result, err := s.store.UpdateScheduledRun(ctx, id, creator, etag, config)
+	result, err := s.store.UpdateScheduledRun(ctx, id, creator, etag, config, grant)
 	return result, storeError(err)
 }
 
@@ -159,6 +183,9 @@ func (s *Service) Trigger(ctx context.Context, id uuid.UUID, requestID string) (
 		return nil, storeError(err)
 	}
 	if err := s.authorizeTarget(ctx, existing); err != nil {
+		return nil, err
+	}
+	if err := s.checkAuthority(ctx, existing); err != nil {
 		return nil, err
 	}
 	result, err := s.store.TriggerScheduledRun(ctx, id, creator, requestID)

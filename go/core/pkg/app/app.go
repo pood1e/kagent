@@ -407,7 +407,7 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 	}
 	shareMaxTTL := cfg.GetSessions().GetShareMaxTtl().AsDuration()
 	sessions := sessionsvc.NewService(store, authorizer, sessionWorkflow, sessionsvc.WithShareMaxTTL(shareMaxTTL), sessionsvc.WithExecutionAuthority(executionAuthority), sessionsvc.WithWorkspaceIdentity(manager.GetAPIReader()), sessionsvc.WithResourceAuthorization(toolPermissions))
-	checkpoints := checkpoint.NewService(store, authorizer, actors, sessionWorkflow, executionAuthority)
+	checkpoints := checkpoint.NewService(store, authorizer, actors, sessionWorkflow, sessions)
 	gatewayDialer, err := a2agateway.NewRuntimeDialer(
 		cfg.GetSubstrate(),
 		authenticator,
@@ -439,12 +439,12 @@ func Run(ctx context.Context, input *configv1.ControllerConfig, opts Options) er
 	if err := manager.Add(sessionsvc.NewCancellations(store, gateway)); err != nil {
 		return fmt.Errorf("register recursive task cancellation: %w", err)
 	}
-	schedules := scheduledrun.NewService(store, manager.GetClient(), authorizer)
+	schedules := scheduledrun.NewService(store, manager.GetClient(), authorizer, sessions)
 	if err := manager.Add(scheduledruncontroller.NewScheduler(store, cfg.GetScheduledRuns().GetPollInterval().AsDuration())); err != nil {
 		return fmt.Errorf("add scheduled run scheduler: %w", err)
 	}
 	if err := manager.Add(scheduledruncontroller.NewController(store, sessionWorkflow,
-		gateway, cfg.GetScheduledRuns().GetExecutionInterval().AsDuration())); err != nil {
+		gateway, sessions, cfg.GetScheduledRuns().GetExecutionInterval().AsDuration())); err != nil {
 		return fmt.Errorf("add scheduled run controller: %w", err)
 	}
 	sandboxTemplates := kubecrud.NewService(manager.GetClient(), authorizer, &kagentv1alpha3.SandboxTemplate{}, &kagentv1alpha3.SandboxTemplateList{}, kagentv1alpha3.SandboxTemplateKind)

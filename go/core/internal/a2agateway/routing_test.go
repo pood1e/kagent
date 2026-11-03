@@ -50,11 +50,9 @@ func (gatewayTestWorkflow) Create(_ context.Context, session *apiv1.Session) (*a
 }
 
 func newTestSessions(store *gatewayTestStore, authorizer auth.Authorizer) *sessionsvc.Service {
-	var options []sessionsvc.Option
-	if store.created != nil || store.createEnabled {
-		options = append(options, sessionsvc.WithExecutionAuthority(gatewayCreationAuthority{store}), sessionsvc.WithResourceAuthorization(gatewayCreationPermissions{}))
-	}
-	return sessionsvc.NewService(store, authorizer, gatewayTestWorkflow{}, options...)
+	return sessionsvc.NewService(store, authorizer, gatewayTestWorkflow{},
+		sessionsvc.WithExecutionAuthority(gatewayCreationAuthority{store}),
+		sessionsvc.WithResourceAuthorization(gatewayCreationPermissions{}))
 }
 
 func newTestGateway(store *gatewayTestStore, authorizer auth.Authorizer, dialer *gatewayTestDialer, url string) a2asrv.RequestHandler {

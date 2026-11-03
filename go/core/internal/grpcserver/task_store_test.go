@@ -42,6 +42,7 @@ import (
 	"github.com/kagent-dev/kagent/go/core/internal/a2agateway"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
 	"github.com/kagent-dev/kagent/go/core/internal/dbtest"
+	"github.com/kagent-dev/kagent/go/core/internal/executionauth"
 	authimpl "github.com/kagent-dev/kagent/go/core/internal/httpserver/auth"
 	"github.com/kagent-dev/kagent/go/core/internal/jwttest"
 	"github.com/kagent-dev/kagent/go/core/internal/runtimeauth"
@@ -310,7 +311,10 @@ func TestRuntimeTaskStoreThroughGRPC(t *testing.T) {
 	var httpTransport a2aclient.Transport
 	for i := range gateways {
 		publicListener := bufconn.Listen(DefaultMaxMessageSize)
-		interactions := sessionsvc.NewInteractionService(store, nil, sessionsvc.NewService(store, &auth.NoopAuthorizer{}, nil), true)
+		authority, err := executionauth.NewService(store, nil, nil, true)
+		require.NoError(t, err)
+		sessions := sessionsvc.NewService(store, &auth.NoopAuthorizer{}, nil, sessionsvc.WithExecutionAuthority(authority), sessionsvc.WithResourceAuthorization(authorityTestPermissions{}))
+		interactions := sessionsvc.NewInteractionService(store, nil, sessions, true)
 		gateway := a2agateway.New(interactions, taskStoreRuntimeDialer{runtimeListener}, "http://gateway.test")
 		public, err := New(Config{
 			Listener: publicListener, SystemService: testSystemService(),
@@ -733,17 +737,20 @@ func TestRuntimeTaskStoreThroughGRPC(t *testing.T) {
 // pins, authority and actor identity invariants as a real runtime session.
 func createTaskStoreSession(t *testing.T, store *database.Client) *apiv1.Session {
 	t.Helper()
-	revision := database.RuntimeRevision{Namespace: "team-a", AgentName: "assistant", AgentUID: "template-uid", Revision: "revision-1",
-		SourceSnapshot: []byte("{}"),
-		AgentCard:      &a2apb.AgentCard{Name: "assistant"}, EgressDestinations: []string{},
+	revision := database.RuntimeRevision{
+		Revision: "revision-1", Namespace: "team-a", AgentName: "assistant", AgentUID: "template-uid",
+		SourceSnapshot: []byte("{}"), Dependencies: &apiv1.ExecutionDependencyManifest{Direct: &apiv1.ResourceGrantSet{}},
+		AgentCard: &a2apb.AgentCard{Name: "assistant"}, EgressDestinations: []string{},
 		ActorTemplateAtespace: "team-a", ActorTemplateName: "assistant-kagent-revision", ActorTemplateUID: "actor-template-uid",
 	}
 	upsertErr := store.UpsertAgentDefinition(t.Context(), database.AgentDefinition{Namespace: revision.Namespace, AgentName: revision.AgentName, AgentUID: revision.AgentUID, DesiredRevision: revision.Revision})
 	require.NoError(t, upsertErr)
 	_, err := store.RecordRuntimeRevision(t.Context(), revision, database.RecordRevisionOptions{Ready: true})
 	require.NoError(t, err)
+	id := uuid.NewString()
 	session, _, err := store.CreateSession(t.Context(), &apiv1.Session{
-		Id: uuid.NewString(), Creator: "alice", Agent: &apiv1.AgentProvenance{Ref: &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}},
+		Id: id, Creator: "alice", Authority: &apiv1.SessionAuthority{SessionId: id, RootSessionId: id, InitiatorId: "alice", WorkspaceUid: "workspace-1", ScopeCeiling: &apiv1.ScopeCeiling{Resources: &apiv1.ResourceGrantSet{}}},
+		Agent: &apiv1.AgentProvenance{Ref: &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}},
 	}, uuid.NewString())
 	require.NoError(t, err)
 	operation, err := store.BeginSessionOperation(t.Context(), session.Id, apiv1.RuntimeOperation_RUNTIME_OPERATION_CREATE)

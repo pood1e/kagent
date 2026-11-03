@@ -524,6 +524,10 @@ func (*fakeGateway) GetExtendedAgentCard(context.Context, *a2atype.GetExtendedAg
 
 type fakeSessionStore struct{}
 
+func (*fakeSessionStore) GetRuntimeRevision(context.Context, string) (*database.RuntimeRevision, error) {
+	return nil, database.ErrNotFound
+}
+
 func (*fakeSessionStore) GetAgentRuntimeRevision(context.Context, string, string) (*database.RuntimeRevision, error) {
 	return &database.RuntimeRevision{Revision: "prepared", Dependencies: &apiv1.ExecutionDependencyManifest{Direct: &apiv1.ResourceGrantSet{}}}, nil
 }

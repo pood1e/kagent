@@ -16,7 +16,6 @@ import (
 
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
-	"github.com/kagent-dev/kagent/go/core/internal/executionauth"
 	"github.com/kagent-dev/kagent/go/core/internal/service/serviceerrors"
 	"github.com/kagent-dev/kagent/go/core/internal/substrate"
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
@@ -35,6 +34,7 @@ type store interface {
 	ListSessionCheckpoints(context.Context, string, string, string, int) ([]*apiv1.Checkpoint, error)
 	BeginDeleteSessionCheckpoint(context.Context, string, string) (*database.SessionTaskSnapshot, string, error)
 	DeleteSessionCheckpoint(context.Context, string, string) error
+	GetCheckpointExecution(context.Context, string, string) (*database.CheckpointExecution, error)
 	ForkSession(context.Context, string, string, string, string, *apiv1.SessionAuthority) (*apiv1.Session, bool, error)
 	UpdateCheckpointName(context.Context, string, string, string) (*apiv1.Checkpoint, error)
 }
@@ -59,7 +59,7 @@ type Service struct {
 	authorizer auth.Authorizer
 	tags       tagClient
 	workflow   workflow
-	authority  *executionauth.Service
+	forks      ForkAuthorizer
 }
 
 type ListRequest struct {
@@ -73,8 +73,8 @@ type ListResult struct {
 	NextPageToken string
 }
 
-func NewService(store store, authorizer auth.Authorizer, tags tagClient, workflow workflow, authority *executionauth.Service) *Service {
-	return &Service{store: store, authorizer: authorizer, tags: tags, workflow: workflow, authority: authority}
+func NewService(store store, authorizer auth.Authorizer, tags tagClient, workflow workflow, forks ForkAuthorizer) *Service {
+	return &Service{store: store, authorizer: authorizer, tags: tags, workflow: workflow, forks: forks}
 }
 
 func (s *Service) Create(ctx context.Context, sessionID, requestID, expectedHeadTaskID string) (*apiv1.Checkpoint, error) {
@@ -313,93 +313,6 @@ func (s *Service) Rename(ctx context.Context, checkpointID, name string) (*apiv1
 		return nil, serviceerrors.NewInternal("Failed to rename checkpoint", err)
 	}
 	return checkpoint, nil
-}
-
-func (s *Service) Fork(ctx context.Context, checkpointID, requestID string) (*apiv1.Session, error) {
-	checkpointID, err := validateCreate(checkpointID, requestID)
-	if err != nil {
-		return nil, err
-	}
-	userID, err := s.authorize(ctx, auth.VerbGet, auth.Resource{Type: "Checkpoint", Name: checkpointID})
-	if err != nil {
-		return nil, err
-	}
-	source, err := s.store.GetSessionCheckpointForkSource(ctx, checkpointID, userID)
-	if errors.Is(err, database.ErrNotFound) {
-		return nil, serviceerrors.NewNotFound("Checkpoint not found", err)
-	}
-	if err != nil {
-		return nil, serviceerrors.NewInternal("Failed to get checkpoint fork source", err)
-	}
-	authSession, _ := auth.AuthSessionFrom(ctx) // authorize authenticated the caller.
-	// A retained checkpoint outlives its source Session. Authorize its saved
-	// source ID and target Agent without requiring a live source Session.
-	sourceID, err := validateIdentity(source.Checkpoint.GetSessionId())
-	if err != nil {
-		return nil, serviceerrors.NewInternal("Invalid checkpoint source Session", err)
-	}
-	if _, err := s.authorize(ctx, auth.VerbGet, auth.Resource{Type: "Session", Name: sourceID}); err != nil {
-		return nil, err
-	}
-	agent := source.Agent
-	if agent.GetNamespace() == "" || agent.GetName() == "" {
-		return nil, serviceerrors.NewFailedPrecondition("Checkpoint has no target Agent", nil)
-	}
-	if _, err := s.authorize(ctx, auth.VerbCreate, auth.Resource{Type: "Session", Namespace: agent.Namespace}); err != nil {
-		return nil, err
-	}
-	if err := s.authorizer.Check(ctx, authSession.Principal(), auth.VerbGet, auth.Resource{Type: "Agent", Namespace: agent.Namespace, Name: agent.Name}); err != nil {
-		return nil, serviceerrors.NewPermissionDenied("Not authorized to access target Agent", err)
-	}
-	snapshot, tagUID := source.Snapshot, source.TagUID
-	if snapshot.Fidelity != "SNAPSHOT_FIDELITY_VOLUMES" {
-		return nil, serviceerrors.NewFailedPrecondition("Only volume checkpoints can be forked", nil)
-	}
-	tag, err := s.tags.GetTag(ctx, snapshot.Atespace, tagName(checkpointID))
-	if err != nil {
-		return nil, serviceerrors.NewUnavailable("Failed to get checkpoint tag", err)
-	}
-	if tagUID == "" || tag.GetMetadata().GetUid() != tagUID ||
-		tag.GetMetadata().GetAtespace() != snapshot.Atespace || tag.GetMetadata().GetName() != tagName(checkpointID) ||
-		snapshot.URI == "" || substrate.SnapshotURI(tag.GetStatus().GetSnapshot()) != snapshot.URI ||
-		tag.GetStatus().GetSnapshot().GetFidelity() != ateapipb.SnapshotFidelity_SNAPSHOT_FIDELITY_VOLUMES {
-		return nil, serviceerrors.NewFailedPrecondition("Checkpoint tag identity changed", nil)
-	}
-	id, err := uuid.NewV7()
-	if err != nil {
-		return nil, serviceerrors.NewInternal("Failed to generate Session identifier", err)
-	}
-	var grant *apiv1.SessionAuthority
-	if s.authority != nil {
-		grant, err = s.authority.Bind(ctx, id.String(), userID, nil)
-		if err != nil {
-			return nil, serviceerrors.NewPermissionDenied("Cannot establish fork authority", err)
-		}
-	}
-	session, _, err := s.store.ForkSession(ctx, checkpointID, userID, requestID, id.String(), grant)
-	if errors.Is(err, database.ErrIdempotencyConflict) {
-		return nil, serviceerrors.NewAlreadyExists("request_id was already used for a different Session", err)
-	}
-	if errors.Is(err, database.ErrFailedPrecondition) {
-		return nil, serviceerrors.NewFailedPrecondition("request_id belongs to a deleted Session", err)
-	}
-	if errors.Is(err, database.ErrNotFound) {
-		return nil, serviceerrors.NewNotFound("Checkpoint not found", err)
-	}
-	if err != nil {
-		return nil, serviceerrors.NewInternal("Failed to reserve fork Session", err)
-	}
-	session, err = s.workflow.Create(ctx, session)
-	if errors.Is(err, database.ErrConflict) {
-		return nil, serviceerrors.NewAborted(err.Error(), err)
-	}
-	if errors.Is(err, database.ErrNotFound) {
-		return nil, serviceerrors.NewNotFound("Session was deleted", err)
-	}
-	if err != nil {
-		return nil, serviceerrors.NewUnavailable("Failed to create fork Session", err)
-	}
-	return session, nil
 }
 
 func (s *Service) authorize(ctx context.Context, verb auth.Verb, resource auth.Resource) (string, error) {

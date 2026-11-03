@@ -84,7 +84,13 @@ func authorityActive(rows []authorityRow) bool {
 // Scope ceilings are intersected across the complete chain. Missing grants return
 // ErrNotFound; callers must independently authorize the Session.
 func (c *Client) GetSessionAuthority(ctx context.Context, id string) (*apiv1.SessionAuthority, bool, error) {
-	rows, err := readAuthorityChain(ctx, c.db, id)
+	return readSessionAuthority(ctx, c.db, id)
+}
+
+// readSessionAuthority resolves immutable inherited ceilings on the supplied
+// executor. Callers own authorization and any transaction or locking requirements.
+func readSessionAuthority(ctx context.Context, db dbExecutor, id string) (*apiv1.SessionAuthority, bool, error) {
+	rows, err := readAuthorityChain(ctx, db, id)
 	if err != nil {
 		return nil, false, err
 	}

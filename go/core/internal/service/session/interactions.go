@@ -176,6 +176,14 @@ func (s *InteractionService) PrepareSend(ctx context.Context, agent types.Namesp
 	if err != nil {
 		return nil, err
 	}
+	authorized, err := s.sessions.sendAuthority(ctx, session.Id, req.Message.TaskID != "")
+	if err != nil {
+		return nil, interactionError(ctx, err)
+	}
+	origin := dispatchOrigin(ctx, req)
+	if strings.HasPrefix(initialID, continuationMessageIDPrefix) && (origin == nil || origin.ContinuationID == uuid.Nil) {
+		return nil, a2atype.NewError(a2atype.ErrInvalidRequest, "reserved continuation message ID")
+	}
 	if err := s.registerContinuation(ctx, session.Id, req.Message.ID); err != nil {
 		return nil, err
 	}
@@ -189,14 +197,6 @@ func (s *InteractionService) PrepareSend(ctx context.Context, agent types.Namesp
 		config := *req.Config
 		config.PushConfig = nil
 		req.Config = &config
-	}
-	origin := dispatchOrigin(ctx, req)
-	authorized, err := s.sessions.sendAuthority(ctx, session.Id, req.Message.TaskID != "")
-	if err != nil {
-		return nil, interactionError(ctx, err)
-	}
-	if strings.HasPrefix(initialID, "kagent-continuation-") && (origin == nil || origin.ContinuationID == uuid.Nil) {
-		return nil, a2atype.NewError(a2atype.ErrInvalidRequest, "reserved continuation message ID")
 	}
 	id, err := s.reserveDispatch(ctx, session.Id, initialID, origin)
 	if errors.Is(err, database.ErrMessageAccepted) {
@@ -390,10 +390,8 @@ func checkReservedMessageID(ctx context.Context, message *a2atype.Message) error
 	}) {
 		return nil
 	}
-	if caller, _ := auth.AuthSessionFrom(ctx); caller != nil {
-		if _, controlPlane := caller.(auth.ControlPlaneSession); controlPlane {
-			return nil
-		}
+	if controlPlaneCaller(ctx) {
+		return nil
 	}
 	return a2atype.NewError(a2atype.ErrInvalidParams, "message ID prefix is reserved for the control plane")
 }
@@ -570,8 +568,7 @@ func initialMessageID(ctx context.Context, req *a2atype.SendMessageRequest) stri
 	if req.Message.ContextID == "" {
 		return req.Message.ID
 	}
-	session, _ := auth.AuthSessionFrom(ctx)
-	if _, internal := session.(auth.ControlPlaneSession); internal && strings.HasPrefix(req.Message.ID, continuationMessageIDPrefix) {
+	if controlPlaneCaller(ctx) && strings.HasPrefix(req.Message.ID, continuationMessageIDPrefix) {
 		return req.Message.ID
 	}
 	return ""

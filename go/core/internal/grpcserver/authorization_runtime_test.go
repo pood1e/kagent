@@ -29,7 +29,9 @@ import (
 	"github.com/kagent-dev/kagent/go/core/internal/executionauth"
 	"github.com/kagent-dev/kagent/go/core/internal/jwttest"
 	"github.com/kagent-dev/kagent/go/core/internal/runtimeauth"
+	"github.com/kagent-dev/kagent/go/core/internal/service/checkpoint"
 	executionsvc "github.com/kagent-dev/kagent/go/core/internal/service/execution"
+	"github.com/kagent-dev/kagent/go/core/internal/service/scheduledrun"
 	sessionsvc "github.com/kagent-dev/kagent/go/core/internal/service/session"
 	"github.com/kagent-dev/kagent/go/core/internal/substrate"
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
@@ -59,7 +61,7 @@ func verifyNativeRuntimePermissions(t *testing.T, api apiv1.AuthorizationService
 		return response.Binding
 	}
 	grant(apiv1.AccessRole_ACCESS_ROLE_WORKSPACE_MEMBER, workspaceScope)
-	grant(apiv1.AccessRole_ACCESS_ROLE_EXECUTOR, workspaceScope)
+	executorGrant := grant(apiv1.AccessRole_ACCESS_ROLE_EXECUTOR, workspaceScope)
 	modelGrant := grant(apiv1.AccessRole_ACCESS_ROLE_DEPENDENCY_USER, model)
 	serverGrant := grant(apiv1.AccessRole_ACCESS_ROLE_DEPENDENCY_USER, mcpServer)
 	dependencies := &apiv1.ResourceGrantSet{Grants: []*apiv1.ResourceGrant{
@@ -77,7 +79,7 @@ func verifyNativeRuntimePermissions(t *testing.T, api apiv1.AuthorizationService
 	require.NoError(t, err)
 	keyFile := filepath.Join(t.TempDir(), "execution-key")
 	require.NoError(t, os.WriteFile(keyFile, key, 0o600))
-	cfg := &configv1.ExecutionAuthorizationConfig{ScopeClaim: "roles", EncryptionKeyFile: keyFile, Rules: []*configv1.ResourceScopeRule{{ResourceType: "Session", Verbs: []string{"get", "create"}}, {ResourceType: "Agent", Verbs: []string{"get", "list"}}}}
+	cfg := &configv1.ExecutionAuthorizationConfig{ScopeClaim: "roles", EncryptionKeyFile: keyFile, Rules: []*configv1.ResourceScopeRule{{ResourceType: "ScheduledRun", Verbs: []string{"get", "create", "update", "delete"}}, {ResourceType: "Session", Verbs: []string{"get", "create"}}, {ResourceType: "Agent", Verbs: []string{"get", "list"}}}}
 	authority, err := executionauth.NewService(store, users, cfg, false)
 	require.NoError(t, err)
 	actors := jwttest.New(t)
@@ -88,8 +90,11 @@ func verifyNativeRuntimePermissions(t *testing.T, api apiv1.AuthorizationService
 	policy := runtimeauth.NewAuthorizer(&executionauth.Policy{Base: auth.NoopAuthorizer{}, Config: cfg}, store, authority)
 	sessions := sessionsvc.NewService(store, policy, authorityWorkflow{store: store}, sessionsvc.WithExecutionAuthority(authority), sessionsvc.WithWorkspaceIdentity(kube), sessionsvc.WithResourceAuthorization(permissions))
 	executions := executionsvc.NewService(store, sessions, authority, permissions)
+	tags := &authorizationCheckpointTags{}
 	connection := newConfigurationConnection(t, kube, func(config *Config) {
 		config.Authenticator, config.SessionService, config.ExecutionService = provider, sessions, executions
+		config.CheckpointService = checkpoint.NewService(store, policy, tags, authorityWorkflow{store: store}, sessions)
+		config.ScheduledRunService = scheduledrun.NewService(store, kube, policy, sessions)
 	})
 	sessionClient := apiv1.NewSessionServiceClient(connection)
 	userToken := issuer.Token(t, jwt.MapClaims{"iss": issuer.URL, "sub": "runtime-alice", "aud": "kagent-api", "exp": time.Now().Add(5 * time.Minute).Unix(), "roles": []string{"read"}, "groups": []string{}})
@@ -103,6 +108,23 @@ func verifyNativeRuntimePermissions(t *testing.T, api apiv1.AuthorizationService
 	require.Equal(t, revision.Revision, created.Session.PreparedRevision)
 	require.NotNil(t, created.Session.Authority.ScopeCeiling.Resources)
 	require.Len(t, created.Session.Authority.ScopeCeiling.Resources.Grants, 6)
+	admission := &nativeAdmission{t: t, store: store, sessions: sessions, source: created.Session, forks: apiv1.NewCheckpointServiceClient(connection), schedules: apiv1.NewScheduledRunServiceClient(connection), user: user}
+	admission.prepare(normalized, userToken, tags)
+	admission.check(true)
+	reauthorize := func(binding *apiv1.RoleBinding) *apiv1.RoleBinding {
+		t.Helper()
+		_, err := api.RevokeRole(admin, &apiv1.RevokeRoleRequest{Workspace: workspace, RequestId: uuid.NewString(), Binding: binding})
+		require.NoError(t, err)
+		admission.check(false)
+		renewed := grant(binding.Role, binding.Scope)
+		admission.check(true)
+		return renewed
+	}
+	_ = reauthorize(executorGrant)
+	harnessGrant = reauthorize(harnessGrant)
+	modelGrant = reauthorize(modelGrant)
+	serverGrant = reauthorize(serverGrant)
+
 	gatewayVerifier, err := substrate.NewGatewayActorJWTVerifier(ctx, actors.URL, actors.CAFile, "https://runtime-gateway.example")
 	require.NoError(t, err)
 	gatewayProvider := runtimeauth.NewProvider(normalized, gatewayVerifier, store, actors.URL, authority)
@@ -148,6 +170,8 @@ func verifyNativeRuntimePermissions(t *testing.T, api apiv1.AuthorizationService
 	require.NoError(t, err)
 	require.Equal(t, created.Session.Id, retried.Session.Id)
 	selected()
+	admission.request.RequestId = uuid.NewString()
+	admission.check(true)
 	_, err = api.RevokeRole(admin, &apiv1.RevokeRoleRequest{Workspace: workspace, RequestId: uuid.NewString(), Binding: serverGrant})
 	require.NoError(t, err)
 	denied := call("server=team/runtime-tools&credential=subject_token", http.StatusForbidden)

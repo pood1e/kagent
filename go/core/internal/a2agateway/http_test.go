@@ -236,7 +236,7 @@ func TestHTTPAgentURLIsAuthoritative(t *testing.T) {
 func TestHTTPAgentCardDiscoveryAndRouting(t *testing.T) {
 	store := &gatewayTestStore{
 		session: gatewayTestSession(),
-		revision: &database.RuntimeRevision{AgentCard: &a2apb.AgentCard{
+		revision: &database.RuntimeRevision{Namespace: "team-a", Dependencies: &apiv1.ExecutionDependencyManifest{Direct: &apiv1.ResourceGrantSet{}}, AgentCard: &a2apb.AgentCard{
 			Name: "assistant", Description: "pinned description", Version: "1",
 			SupportedInterfaces: []*a2apb.AgentInterface{{Url: "http://private-runtime", ProtocolBinding: "GRPC", ProtocolVersion: "1.0"}},
 			Capabilities:        &a2apb.AgentCapabilities{Extensions: []*a2apb.AgentExtension{{Uri: "https://kagent.dev/extensions/hitl/v1"}}},

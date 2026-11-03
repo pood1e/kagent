@@ -138,7 +138,10 @@ func (s *gatewayTestStore) ListSessions(_ context.Context, query database.Sessio
 }
 
 func (s *gatewayTestStore) GetRuntimeRevision(context.Context, string) (*database.RuntimeRevision, error) {
-	return s.revision, nil
+	if s.revision != nil {
+		return s.revision, nil
+	}
+	return &database.RuntimeRevision{Namespace: "team-a", Dependencies: &apiv1.ExecutionDependencyManifest{Direct: &apiv1.ResourceGrantSet{}}}, nil
 }
 
 func (s *gatewayTestStore) GetSessionTask(_ context.Context, _ string, taskID string, historyLength *int) (*a2atype.Task, error) {
@@ -310,6 +313,7 @@ func gatewayTestSession() *apiv1.Session {
 	return &apiv1.Session{
 		Id: gatewayTestID, ContextId: gatewayTestContextID, Creator: "alice",
 		PreparedRevision: "revision-1",
+		Authority:        &apiv1.SessionAuthority{SessionId: gatewayTestID, RootSessionId: gatewayTestID, InitiatorId: "alice", WorkspaceUid: "workspace-1", ScopeCeiling: &apiv1.ScopeCeiling{Resources: &apiv1.ResourceGrantSet{}}},
 		Agent:            &apiv1.AgentProvenance{Ref: &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}},
 		A2AAuthority:     "private-runtime-authority",
 		State:            apiv1.RuntimeState_RUNTIME_STATE_READY,

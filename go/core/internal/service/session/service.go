@@ -29,6 +29,7 @@ const (
 
 type store interface {
 	GetAgentRuntimeRevision(context.Context, string, string) (*database.RuntimeRevision, error)
+	GetRuntimeRevision(context.Context, string) (*database.RuntimeRevision, error)
 	GetSessionByRequestID(context.Context, string, string) (*apiv1.Session, error)
 	CreateSession(context.Context, *apiv1.Session, string) (*apiv1.Session, bool, error)
 	GetSession(context.Context, string, string) (*apiv1.Session, error)

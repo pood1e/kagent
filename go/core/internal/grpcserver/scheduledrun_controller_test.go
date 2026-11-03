@@ -30,7 +30,9 @@ import (
 	"github.com/kagent-dev/kagent/go/core/internal/a2agateway"
 	"github.com/kagent-dev/kagent/go/core/internal/controller/scheduledrun"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
+	"github.com/kagent-dev/kagent/go/core/internal/executionauth"
 	authimpl "github.com/kagent-dev/kagent/go/core/internal/httpserver/auth"
+	"github.com/kagent-dev/kagent/go/core/internal/runtimeauth"
 	sessionsvc "github.com/kagent-dev/kagent/go/core/internal/service/session"
 	"github.com/kagent-dev/kagent/go/core/internal/substrate"
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
@@ -99,23 +101,12 @@ type scheduledControllerAuth struct {
 }
 
 func (a *scheduledControllerAuth) UpstreamAuth(req *http.Request, session auth.Session, destinationSessionID string) error {
-	if _, ok := session.(auth.ControlPlaneSession); !ok || session.Principal().ID != "" || destinationSessionID == "" {
-		return errors.New("expected control-plane session and destination session")
+	_, internal := session.(auth.ControlPlaneSession)
+	principal := session.Principal()
+	if destinationSessionID == "" || !internal && (principal.ID != "alice" || principal.Execution.GetSessionId() != destinationSessionID) {
+		return errors.New("expected bounded initiator or internal cleanup authority")
 	}
 	req.Header.Set("Authorization", "Bearer controller-test-credential")
-	return nil
-}
-
-type scheduledControllerAuthorizer struct{}
-
-func (scheduledControllerAuthorizer) Check(ctx context.Context, principal auth.Principal, _ auth.Verb, _ auth.Resource) error {
-	session, ok := auth.AuthSessionFrom(ctx)
-	if !ok {
-		return errors.New("missing controller session")
-	}
-	if _, ok := session.(auth.ControlPlaneSession); !ok || principal.ID != "" {
-		return errors.New("controller impersonated owner")
-	}
 	return nil
 }
 
@@ -356,8 +347,12 @@ func TestScheduledRunControllerThroughGRPC(t *testing.T) {
 			if tc.want == apiv1.ScheduledRunExecutionState_SCHEDULED_RUN_EXECUTION_STATE_SUCCEEDED && !tc.stream {
 				controllerStore.loseTaskLink = true
 			}
-			interactions := sessionsvc.NewInteractionService(store, nil, sessionsvc.NewService(store, scheduledControllerAuthorizer{}, nil), false)
-			controller := scheduledrun.NewController(controllerStore, workflow, a2agateway.New(interactions, dialer, "http://gateway.test"), time.Second)
+			authority, err := executionauth.NewService(store, nil, nil, true)
+			require.NoError(t, err)
+			policy := runtimeauth.NewAuthorizer(auth.NoopAuthorizer{}, store, authority)
+			sessions := sessionsvc.NewService(store, policy, nil, sessionsvc.WithExecutionAuthority(authority), sessionsvc.WithResourceAuthorization(authorityTestPermissions{}))
+			interactions := sessionsvc.NewInteractionService(store, nil, sessions, false)
+			controller := scheduledrun.NewController(controllerStore, workflow, a2agateway.New(interactions, dialer, "http://gateway.test"), sessions, time.Second)
 			go func() { done <- controller.Start(ctx) }()
 			t.Cleanup(func() { cancel(); require.NoError(t, <-done) })
 			if tc.want == apiv1.ScheduledRunExecutionState_SCHEDULED_RUN_EXECUTION_STATE_SUCCEEDED {
@@ -398,7 +393,7 @@ func TestScheduledRunControllerThroughGRPC(t *testing.T) {
 				ctx, cancel = context.WithCancel(t.Context())
 				defer cancel()
 				done = make(chan error, 1)
-				controller = scheduledrun.NewController(store, workflow, a2agateway.New(interactions, dialer, "http://gateway.test"), time.Second)
+				controller = scheduledrun.NewController(store, workflow, a2agateway.New(interactions, dialer, "http://gateway.test"), sessions, time.Second)
 				go func() { done <- controller.Start(ctx) }()
 			}
 			var execution *apiv1.ScheduledRunExecution

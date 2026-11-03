@@ -64,15 +64,9 @@ func (s *Service) authorizeReservationRetry(ctx context.Context, existing, reque
 		current.ParentSessionId != "" && !auth.ResourceGrantsWithin(resources, current.ScopeCeiling.Resources) {
 		return serviceerrors.NewPermissionDenied("Existing Session exceeds execution resource ceiling", nil)
 	}
-	check := s.permissions.CheckPermissions
-	if current.ParentSessionId != "" {
-		parent, err := s.authority.Resolve(ctx, current.ParentSessionId)
-		if err != nil {
-			return serviceerrors.NewPermissionDenied("Parent authority unavailable", err)
-		}
-		check = func(ctx context.Context, request *apiv1.CheckPermissionsRequest) (*apiv1.CheckPermissionsResponse, error) {
-			return s.permissions.CheckExecutionPermissions(ctx, parent.Principal(), request)
-		}
+	check, err := s.dependencyChecker(ctx, current.ParentSessionId)
+	if err != nil {
+		return err
 	}
 	return requireDependencies(ctx, check, &apiv1.WorkspaceAuthorizationReference{Namespace: existing.GetAgent().GetRef().GetNamespace(), Uid: original.WorkspaceUid}, resources)
 }
