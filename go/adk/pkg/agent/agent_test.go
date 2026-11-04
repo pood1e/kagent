@@ -116,9 +116,9 @@ func TestCreateLLM_AnthropicPromptCaching(t *testing.T) {
 		PromptCaching: true,
 		CacheTtl:      "1h"}}}
 
-	llm, err := CreateLLM(context.Background(), m)
+	llm, err := providerLLM(context.Background(), m)
 	if err != nil {
-		t.Fatalf("CreateLLM: %v", err)
+		t.Fatalf("providerLLM: %v", err)
 	}
 	am, ok := llm.(*models.AnthropicModel)
 	if !ok {
@@ -366,13 +366,13 @@ func TestCreateLLMConfig_Mistral(t *testing.T) {
 		t.Errorf("base_url = %q, want %q", mistral.BaseUrl, "https://api.mistral.ai/v1")
 	}
 
-	llm, err := CreateLLM(t.Context(), cfg.Agent.Model)
+	llm, err := providerLLM(t.Context(), cfg.Agent.Model)
 	if err != nil {
-		t.Fatalf("CreateLLM returned error: %v", err)
+		t.Fatalf("providerLLM returned error: %v", err)
 	}
 	mm, ok := llm.(*models.MistralModel)
 	if !ok {
-		t.Fatalf("CreateLLM returned %T, want *models.MistralModel", llm)
+		t.Fatalf("providerLLM returned %T, want *models.MistralModel", llm)
 	}
 	if mm.Name() != "mistral-large-latest" {
 		t.Errorf("Name() = %q, want %q", mm.Name(), "mistral-large-latest")
@@ -428,9 +428,9 @@ func TestCreateLLM_BedrockTimeouts(t *testing.T) {
 		ReadTimeout:    durationpb.New(read),
 		ConnectTimeout: durationpb.New(connect)}}}
 
-	llm, err := CreateLLM(context.Background(), m)
+	llm, err := providerLLM(context.Background(), m)
 	if err != nil {
-		t.Fatalf("CreateLLM: %v", err)
+		t.Fatalf("providerLLM: %v", err)
 	}
 	bm, ok := llm.(*models.BedrockModel)
 	if !ok {
@@ -450,9 +450,9 @@ func TestCreateLLM_BedrockTimeoutsUnset(t *testing.T) {
 	m := &configv1.ADKModelConfig{Model: "anthropic.claude-3-sonnet-20240229-v1:0", Provider: &configv1.ADKModelConfig_Bedrock{Bedrock: &configv1.ADKBedrock{
 		Region: "us-east-1"}}}
 
-	llm, err := CreateLLM(context.Background(), m)
+	llm, err := providerLLM(context.Background(), m)
 	if err != nil {
-		t.Fatalf("CreateLLM: %v", err)
+		t.Fatalf("providerLLM: %v", err)
 	}
 	bm, ok := llm.(*models.BedrockModel)
 	if !ok {
