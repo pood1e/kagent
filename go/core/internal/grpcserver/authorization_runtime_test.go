@@ -79,7 +79,7 @@ func verifyNativeRuntimePermissions(t *testing.T, api apiv1.AuthorizationService
 	require.NoError(t, err)
 	keyFile := filepath.Join(t.TempDir(), "execution-key")
 	require.NoError(t, os.WriteFile(keyFile, key, 0o600))
-	cfg := &configv1.ExecutionAuthorizationConfig{ScopeClaim: "roles", EncryptionKeyFile: keyFile, Rules: []*configv1.ResourceScopeRule{{ResourceType: "ScheduledRun", Verbs: []string{"get", "create", "update", "delete"}}, {ResourceType: "Session", Verbs: []string{"get", "create"}}, {ResourceType: "Agent", Verbs: []string{"get", "list"}}}}
+	cfg := &configv1.ExecutionAuthorizationConfig{ScopeClaim: "roles", EncryptionKeyFile: keyFile, Rules: []*configv1.ResourceScopeRule{{ResourceType: "ScheduledRun", Verbs: []string{"get", "create", "update", "delete"}}, {ResourceType: "Session", Verbs: []string{"get", "create"}}, {ResourceType: "Checkpoint", Verbs: []string{"get"}}, {ResourceType: "Agent", Verbs: []string{"get", "list"}}}}
 	authority, err := executionauth.NewService(store, users, cfg, false)
 	require.NoError(t, err)
 	actors := jwttest.New(t)

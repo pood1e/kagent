@@ -84,7 +84,7 @@ jobs:
             cp ../agentos/images/toolbox.sh "$out/$harness/toolbox.sh"
           done
           CGO_ENABLED=0 go build -trimpath -buildvcs=false \
-            -ldflags "-s -w -X github.com/kagent-dev/kagent/go/core/internal/version.Version=$VERSION -X github.com/kagent-dev/kagent/go/core/internal/version.GitCommit=$GITHUB_SHA -X github.com/kagent-dev/kagent/go/core/internal/version.SubstrateVersion=0.6.0-alpha3" \
+            -ldflags "-s -w -X github.com/kagent-dev/kagent/go/core/internal/version.Version=$VERSION -X github.com/kagent-dev/kagent/go/core/internal/version.GitCommit=$GITHUB_SHA -X github.com/kagent-dev/kagent/go/core/internal/version.SubstrateVersion=1.0.0-rc1" \
             -o "$out/controller/kagent-controller" ./core/cmd/controller
           CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags '-s -w' \
             -o "$out/claude-harness/kagent-claude" ./harness/claude/cmd
@@ -214,8 +214,7 @@ jobs:
           config['controller']['image'].update(registry='ghcr.io', repository=os.environ['GITHUB_REPOSITORY'] + '/controller', tag=os.environ['GITHUB_SHA'] + '@' + digest)
           config['ui']['replicas'] = 0
           config['ui']['image']['tag'] = '0.0.0-alpha.g692964d30c6b@sha256:c212265004302450b7a0f10442e125e528fddc16aaaf3cbfd1cb760afab19e6b'
-          for name in ('kagent-tools', 'grafana-mcp'):
-              config[name]['enabled'] = False
+          config['kagent-tools']['enabled'] = False
           values.write_text(yaml.safe_dump(config, sort_keys=False))
           for name in ('kagent', 'kagent-crds'):
               template = root / name / 'Chart-template.yaml'

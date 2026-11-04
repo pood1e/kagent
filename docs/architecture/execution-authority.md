@@ -46,17 +46,16 @@ executionAuthorization:
   gatewayAudiences: [https://gateway.example, http://mcp-gateway.team.svc.cluster.local:8080]
   rules:
     - resourceType: Session
-      verbs: [get]
+      verbs: [get, list]
     - resourceType: Session
       verbs: [create, update, delete]
       anyScope: [execute]
+    - resourceType: Checkpoint
+      verbs: [get]
     - resourceType: Agent
       verbs: [get, list]
-    - resourceType: TeamMemory
-      verbs: [get, list]
-    - resourceType: TeamMemory
-      verbs: [create, delete]
-      anyScope: [knowledge-manage]
+    - resourceType: Memory
+      verbs: [get, list, create, delete]
 ```
 
 Complete the rule set for the resource types enabled by the installation,
