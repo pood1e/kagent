@@ -49,6 +49,6 @@ Unbound human collection reads renew eligible delegation once per request.
 - `go/core/internal/service/taskcatalog`: request orchestration and page binding.
 - `go/core/internal/service/session/catalog.go`: Session scope authorization.
 - `go/core/internal/database/task_catalog*.go`: queries, publication, and decoding.
-- `go/core/pkg/migrations/core/000008_task_catalog.sql` through
-  `000013_task_catalog_workspace_uid.sql`: indexed columns, native tree aggregation,
+- `go/core/pkg/migrations/core/000007_task_catalog.sql` through
+  `000012_task_catalog_workspace_uid.sql`: indexed columns, native tree aggregation,
   and workspace-incarnation filtering.

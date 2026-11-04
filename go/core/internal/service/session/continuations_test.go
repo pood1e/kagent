@@ -113,6 +113,27 @@ func (s *delegationStore) ReserveSessionDispatch(_ context.Context, sessionID st
 	return nil
 }
 
+// delegationAuthority resolves every Session to the owner's bounded authority.
+type delegationAuthority struct{ creationAuthority }
+
+func (delegationAuthority) Resolve(_ context.Context, id string) (auth.Session, error) {
+	return auth.NewCredentialSession(auth.Principal{ID: "owner", Execution: &apiv1.SessionAuthority{
+		SessionId: id, RootSessionId: id, InitiatorId: "owner", WorkspaceUid: "workspace-1",
+		ScopeCeiling: &apiv1.ScopeCeiling{Resources: &apiv1.ResourceGrantSet{}},
+	}}, nil), nil
+}
+
+// delegationSessions places execution Sessions in the fixture's namespace.
+type delegationSessions struct{ *serviceTestStore }
+
+func (s delegationSessions) GetSessionByID(ctx context.Context, id string) (*apiv1.Session, error) {
+	session, err := s.serviceTestStore.GetSessionByID(ctx, id)
+	if err == nil && session.Agent == nil {
+		session.Agent = &apiv1.AgentProvenance{Ref: &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}}
+	}
+	return session, err
+}
+
 type delegationFixture struct {
 	t          *testing.T
 	agent      types.NamespacedName
@@ -160,7 +181,8 @@ func (f *delegationFixture) WhenSendContinuesSession(messageID string) *delegati
 }
 
 func (f *delegationFixture) send(message *a2a.Message) *delegationFixture {
-	sessions := NewService(f.sessions, f.authorizer, serviceTestWorkflow{})
+	sessions := NewService(delegationSessions{f.sessions}, f.authorizer, serviceTestWorkflow{},
+		WithExecutionAuthority(delegationAuthority{}), WithResourceAuthorization(creationPermissions{}))
 	service := NewInteractionService(f.store, delegationAgents{}, sessions, false)
 	f.prepared, f.err = service.PrepareSend(f.ctx, f.agent, &a2a.SendMessageRequest{Message: message})
 	return f

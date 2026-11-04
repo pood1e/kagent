@@ -270,11 +270,11 @@ func (c *Client) writeRuntimeTask(ctx context.Context, sessionID string, expecte
 				return ErrFailedPrecondition
 			}
 		}
-		if dispatchID == "" && (stored == nil || wasWaiting && (task.Status.State == a2a.TaskStateSubmitted || task.Status.State == a2a.TaskStateWorking)) {
-			return fmt.Errorf("native task admission requires a dispatch: %w", ErrFailedPrecondition)
-		}
 		if session.State != "RUNTIME_STATE_READY" || session.Operation != "RUNTIME_OPERATION_NONE" {
 			return fmt.Errorf("session cannot accept runtime updates during a lifecycle operation: %w", ErrConflict)
+		}
+		if dispatchID == "" && (stored == nil || wasWaiting && (task.Status.State == a2a.TaskStateSubmitted || task.Status.State == a2a.TaskStateWorking)) {
+			return fmt.Errorf("native task admission requires a dispatch: %w", ErrFailedPrecondition)
 		}
 		if (stored == nil || wasWaiting) && dispatchID != "" {
 			tag, err := tx.Exec(ctx, `

@@ -25,7 +25,7 @@ func (n NamespaceObservation) ResourceName() string { return n.Name }
 func authorizeReference(ctx krt.HandlerContext, collections Collections, source string, target types.NamespacedName, policy *v1alpha3.AllowedNamespaces) error {
 	var namespace *corev1.Namespace
 	if policy != nil && policy.From == v1alpha3.NamespacesFromSelector && collections.Namespaces != nil {
-		observed := krt.FetchOne(ctx, collections.Namespaces, krt.FilterKey(source))
+		observed := FetchOne(ctx, collections.Namespaces, krt.FilterKey(source))
 		if observed != nil {
 			if observed.Error != "" {
 				return fmt.Errorf("observe source namespace %q for allowedNamespaces.from=Selector: %s", source, observed.Error)
@@ -47,7 +47,7 @@ func authorizeReference(ctx krt.HandlerContext, collections Collections, source 
 // errors. Target validity remains independent of any particular consumer.
 func ResolveModelReference(ctx krt.HandlerContext, collections Collections, source string, ref v1alpha3.ObjectReference) (*ResolvedModelConfig, error) {
 	key := ref.NamespacedName(source)
-	model := krt.FetchOne(ctx, collections.ResolvedModelConfigs, krt.FilterObjectName(key))
+	model := FetchOne(ctx, collections.ResolvedModelConfigs, krt.FilterObjectName(key))
 	if model == nil {
 		return nil, fmt.Errorf("resolve ModelConfig %q: not found", key)
 	}
@@ -86,7 +86,7 @@ func MCPRuntimeName(source string, server *v1alpha3.RemoteMCPServer) string {
 // ValidateSecretKey tracks target-local credentials without returning their values.
 func ValidateSecretKey(ctx krt.HandlerContext, collections Collections, namespace, name, key string) error {
 	ref := types.NamespacedName{Namespace: namespace, Name: name}
-	secret := krt.FetchOne(ctx, collections.Secrets, krt.FilterObjectName(ref))
+	secret := FetchOne(ctx, collections.Secrets, krt.FilterObjectName(ref))
 	if secret == nil {
 		return fmt.Errorf("secret %q not found", ref)
 	}

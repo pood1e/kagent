@@ -221,7 +221,7 @@ func (c *Builder) BuildProvenance(ctx context.Context, harness *translator.Harne
 				continue
 			}
 			key := types.NamespacedName{Namespace: server.Namespace, Name: header.ValueFrom.Name}
-			found := krt.FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(key))
+			found := translator.FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(key))
 			if found == nil {
 				return nil, fmt.Errorf("ConfigMap %q not found", key)
 			}

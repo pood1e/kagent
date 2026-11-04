@@ -415,7 +415,7 @@ func (c *Compiler) buildProvenance(ctx context.Context, input *translator.Harnes
 	}
 	addAgent(input.Root)
 	for name := range configMaps {
-		configMap := krt.FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(name))
+		configMap := translator.FetchOne(c.ctx, c.collections.ConfigMaps, krt.FilterObjectName(name))
 		if configMap == nil {
 			return nil, fmt.Errorf("ConfigMap %q not found", name)
 		}

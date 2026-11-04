@@ -116,9 +116,13 @@ func saveThroughControllerRestart(t *testing.T, store *database.Client, issuer *
 	require.NoError(t, os.WriteFile(identityPath, []byte("session-"+session.Id), 0o600))
 	runtime := runtimetaskstore.New(controller, identityPath)
 
+	// Native task creation requires an admitted dispatch; only the save is under test.
 	task := &a2a.Task{ID: a2a.TaskID(uuid.NewString()), ContextID: session.ContextId, Status: a2a.TaskStatus{State: a2a.TaskStateWorking}}
-	created, err := runtime.Create(t.Context(), task)
+	dispatch := uuid.New()
+	require.NoError(t, store.ReserveSessionDispatch(t.Context(), session.Id, dispatch, "", nil))
+	initial, err := store.CreateRuntimeTask(t.Context(), session.Id, make([]byte, 32), task, dispatch.String())
 	require.NoError(t, err)
+	created := sdktaskstore.TaskVersion(initial)
 
 	stopController()
 	// The controller requires the saved task to carry the event's status.

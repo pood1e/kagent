@@ -45,6 +45,8 @@ require (
 	github.com/muesli/termenv v0.16.0
 	github.com/ollama/ollama v0.40.13
 	github.com/openai/openai-go/v3 v3.90.0
+	github.com/openfga/api/proto v0.0.0-20260928071936-c0650ce2169b
+	github.com/openfga/go-sdk v0.8.3
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/pgvector/pgvector-go v0.4.1
 	github.com/pgvector/pgvector-go/pgx v0.4.1
@@ -75,6 +77,7 @@ require (
 	golang.org/x/sync v0.24.0
 	golang.org/x/sys v0.49.0
 	golang.org/x/term v0.47.0
+	golang.org/x/text v0.43.0
 	google.golang.org/adk/v2 v2.6.0
 	google.golang.org/genai v1.77.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20261005182115-fad411399dd8
@@ -360,8 +363,6 @@ require (
 	github.com/nunnatsa/ginkgolinter v0.23.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
-	github.com/openfga/api/proto v0.0.0-20260928071936-c0650ce2169b // indirect
-	github.com/openfga/go-sdk v0.8.3 // indirect
 	github.com/pb33f/ordered-map/v2 v2.3.1 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
@@ -469,7 +470,6 @@ require (
 	golang.org/x/exp/typeparams v0.0.0-20260718201538-764159d718ef // indirect
 	golang.org/x/mod v0.42.0 // indirect
 	golang.org/x/telemetry v0.0.0-20261010193011-f71dc92da45e // indirect
-	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/time v0.16.0 // indirect
 	golang.org/x/tools v0.52.0 // indirect
 	golang.org/x/vuln v1.9.0 // indirect

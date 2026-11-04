@@ -59,15 +59,15 @@ agents:
 	session, err := fixture.sessions.GetSession(fixture.ctx, &apiv1.GetSessionRequest{SessionId: fixture.sessionID})
 	require.NoError(t, err)
 	workflows := apiv1.NewWorkflowServiceClient(conn)
-	persisted, err := workflows.GetWorkflowRevision(fixture.ctx, &apiv1.GetWorkflowRevisionRequest{Ref: session.Session.Agent})
+	persisted, err := workflows.GetWorkflowRevision(fixture.ctx, &apiv1.GetWorkflowRevisionRequest{Ref: session.Session.GetAgent().GetRef()})
 	require.NoError(t, err)
 	require.NotEmpty(t, persisted.PreparedRevision)
-	agent, err := apiv1.NewAgentServiceClient(conn).GetAgent(fixture.ctx, &apiv1.GetAgentRequest{Ref: session.Session.Agent})
+	agent, err := apiv1.NewAgentServiceClient(conn).GetAgent(fixture.ctx, &apiv1.GetAgentRequest{Ref: session.Session.GetAgent().GetRef()})
 	require.NoError(t, err)
 	definition, err := apiv1.NewAgentTemplateServiceClient(conn).GetAgentTemplate(fixture.ctx, &apiv1.GetAgentTemplateRequest{Ref: &apiv1.ResourceReference{Namespace: template.Namespace, Name: template.Name}})
 	require.NoError(t, err)
 	candidate, err := workflows.ValidateWorkflow(fixture.ctx, &apiv1.ValidateWorkflowRequest{
-		Ref: session.Session.Agent, Resource: agent.Agent.Resource, AgentTemplate: definition.AgentTemplate.Resource,
+		Ref: session.Session.GetAgent().GetRef(), Resource: agent.Agent.Resource, AgentTemplate: definition.AgentTemplate.Resource,
 		Document: []byte(configMap.Data["agents.yaml"]),
 	})
 	require.NoError(t, err)

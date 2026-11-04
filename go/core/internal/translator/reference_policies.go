@@ -19,12 +19,12 @@ func agentReferencePolicies(ctx krt.HandlerContext, inputs Collections, agent *v
 			return
 		}
 		key := ref.NamespacedName(agent.Namespace)
-		model := krt.FetchOne(ctx, inputs.ResolvedModelConfigs, krt.FilterObjectName(key))
+		model := FetchOne(ctx, inputs.ResolvedModelConfigs, krt.FilterObjectName(key))
 		if model != nil {
 			policies = append(policies, model.Config.Spec.AllowedNamespaces)
 		}
 	}
-	if harness := krt.FetchOne(ctx, inputs.Harnesses, krt.FilterObjectName(types.NamespacedName{Namespace: agent.Namespace, Name: agent.Spec.HarnessRef.Name})); harness != nil && (*harness).Spec.Kagent != nil {
+	if harness := FetchOne(ctx, inputs.Harnesses, krt.FilterObjectName(types.NamespacedName{Namespace: agent.Namespace, Name: agent.Spec.HarnessRef.Name})); harness != nil && (*harness).Spec.Kagent != nil {
 		spec := (*harness).Spec.Kagent
 		if spec.Memory != nil {
 			addModel(&spec.Memory.ModelConfigRef)
@@ -40,7 +40,7 @@ func agentReferencePolicies(ctx krt.HandlerContext, inputs Collections, agent *v
 			return
 		}
 		seen[name] = true
-		template := krt.FetchOne(ctx, inputs.AgentTemplates, krt.FilterObjectName(types.NamespacedName{Namespace: agent.Namespace, Name: name}))
+		template := FetchOne(ctx, inputs.AgentTemplates, krt.FilterObjectName(types.NamespacedName{Namespace: agent.Namespace, Name: name}))
 		if template != nil {
 			visitTemplate(&(*template).Spec)
 		}
@@ -50,7 +50,7 @@ func agentReferencePolicies(ctx krt.HandlerContext, inputs Collections, agent *v
 		for _, tool := range spec.Tools {
 			if tool.MCP != nil && tool.MCP.Server.Kind == "RemoteMCPServer" {
 				key := (v1alpha3.ObjectReference{Name: tool.MCP.Server.Name, Namespace: ptr.Deref(tool.MCP.Server.Namespace, "")}).NamespacedName(agent.Namespace)
-				server := krt.FetchOne(ctx, inputs.RemoteMCPServers, krt.FilterObjectName(key))
+				server := FetchOne(ctx, inputs.RemoteMCPServers, krt.FilterObjectName(key))
 				if server != nil {
 					policies = append(policies, (*server).Spec.AllowedNamespaces)
 				}

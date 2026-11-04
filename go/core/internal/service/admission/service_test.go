@@ -109,3 +109,22 @@ func TestAdmissionSwitchesHarnessAndRootModelInOneAgentUpdate(t *testing.T) {
 	anthropic.Spec.Model = ""
 	require.Error(t, service.ValidateModel(t.Context(), anthropic, nil), "model overrides remain native compiler dependencies")
 }
+
+func TestAdmissionResolvesSharedModelsByNamespacePolicy(t *testing.T) {
+	service, agent, model := admissionFixture(t, "codex")
+	shared := model.DeepCopy()
+	shared.Namespace, shared.ResourceVersion = "shared", ""
+	shared.Spec.AllowedNamespaces = &v1alpha3.AllowedNamespaces{From: v1alpha3.NamespacesFromSelector, Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"models": "shared"}}}
+	secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Namespace: shared.Namespace, Name: model.Spec.APIKeySecret}, Data: map[string][]byte{"key": []byte("shared-key")}}
+	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: agent.Namespace, Labels: map[string]string{"models": "shared"}}}
+	for _, object := range []client.Object{shared, secret, namespace} {
+		require.NoError(t, service.kube.Create(t.Context(), object))
+	}
+	template := &v1alpha3.AgentTemplate{}
+	require.NoError(t, service.kube.Get(t.Context(), client.ObjectKey{Namespace: agent.Namespace, Name: agent.Spec.Template.Ref.Name}, template))
+	template.Spec.ModelConfig.Namespace = shared.Namespace
+	require.NoError(t, service.AgentTemplate(t.Context(), template))
+	namespace.Labels = nil
+	require.NoError(t, service.kube.Update(t.Context(), namespace))
+	require.ErrorContains(t, service.AgentTemplate(t.Context(), template), "allowedNamespaces")
+}

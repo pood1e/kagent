@@ -319,7 +319,7 @@ func (c *Compiler) buildInputs(ctx context.Context, tree *resolvedTemplateTree) 
 				return nil, NewValidationError("unsupported MCP server kind %q", tool.MCP.Server.Kind)
 			}
 			key := (v1alpha3.ObjectReference{Name: tool.MCP.Server.Name, Namespace: ptr.Deref(tool.MCP.Server.Namespace, "")}).NamespacedName(template.Namespace)
-			server := krt.FetchOne(c.ctx, c.collections.RemoteMCPServers, krt.FilterObjectName(key))
+			server := FetchOne(c.ctx, c.collections.RemoteMCPServers, krt.FilterObjectName(key))
 			if server == nil {
 				return nil, fmt.Errorf("resolve %s %q: not found", tool.MCP.Server.Kind, tool.MCP.Server.Name)
 			}

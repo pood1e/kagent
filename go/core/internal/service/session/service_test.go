@@ -686,7 +686,7 @@ func TestServiceCreateRequiresTargetAgentBeforeReservation(t *testing.T) {
 		t.Run("denied="+deniedType, func(t *testing.T) {
 			store := &serviceTestStore{}
 			authorizer := &recordingAuthorizer{deniedTypes: map[string]bool{deniedType: true}}
-			service := NewService(store, authorizer, serviceTestWorkflow{})
+			service := createTestService(store, authorizer, serviceTestWorkflow{})
 			agent := &apiv1.ResourceReference{Namespace: "team-a", Name: "assistant"}
 			_, err := service.Create(serviceTestContext("alice"), agent, "request-1", "", nil)
 			if deniedType != "" {
@@ -753,7 +753,7 @@ func TestSessionCreateUsesTargetNamespace(t *testing.T) {
 	for _, namespace := range []string{"team-a", "team-b"} {
 		t.Run(namespace, func(t *testing.T) {
 			store := &serviceTestStore{}
-			svc := NewService(store, sessionCreateNamespacePolicy{namespace: "team-a"}, serviceTestWorkflow{})
+			svc := createTestService(store, sessionCreateNamespacePolicy{namespace: "team-a"}, serviceTestWorkflow{})
 			created, err := svc.Create(serviceTestContext("alice"), &apiv1.ResourceReference{Namespace: namespace, Name: "assistant"}, "request", "", nil)
 			if namespace == "team-a" {
 				if err != nil || created.GetAgent().GetRef().GetNamespace() != namespace || created.GetCreator() != "alice" {

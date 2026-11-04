@@ -165,6 +165,20 @@ func (s *existingScheduleStore) TriggerScheduledRun(context.Context, uuid.UUID, 
 	s.triggers++
 	return &apiv1.ScheduledRunExecution{}, nil
 }
+func (s *existingScheduleStore) GetScheduledRunAuthority(context.Context, uuid.UUID, string) (*apiv1.SessionAuthority, error) {
+	return &apiv1.SessionAuthority{}, nil
+}
+
+// capturedExecution accepts captured authority so target checks stay isolated.
+type capturedExecution struct{}
+
+func (capturedExecution) CaptureExecutionAuthority(context.Context, *apiv1.ResourceReference, string) (*apiv1.SessionAuthority, error) {
+	return &apiv1.SessionAuthority{}, nil
+}
+
+func (capturedExecution) CheckCapturedAuthority(context.Context, *apiv1.ResourceReference, *apiv1.SessionAuthority) error {
+	return nil
+}
 func TestScheduleRetriesAndTriggersRecheckTargetGrants(t *testing.T) {
 	ctx := auth.AuthSessionTo(t.Context(), session{})
 	target := &apiv1.ResourceReference{Namespace: "team", Name: "assistant"}
@@ -203,7 +217,7 @@ func TestScheduleTargetChecksUseSessionCreateNamespace(t *testing.T) {
 		for _, allowed := range []bool{true, false} {
 			t.Run(fmt.Sprintf("%s/allowed=%v", operation, allowed), func(t *testing.T) {
 				target := &apiv1.ResourceReference{Namespace: "team", Name: "assistant"}
-				store := &existingScheduleStore{schedule: &apiv1.ScheduledRun{Agent: target, Creator: "alice"}}
+				store := &existingScheduleStore{schedule: &apiv1.ScheduledRun{Id: uuid.NewString(), Agent: target, Creator: "alice"}}
 				namespace := "team"
 				if !allowed {
 					namespace = "other"
@@ -231,7 +245,7 @@ func TestScheduleTargetChecksUseSessionCreateNamespace(t *testing.T) {
 						require.True(t, serviceerrors.IsCode(err, serviceerrors.CodeFailedPrecondition), "target authorization should pass before discovering the missing Agent")
 					}
 				} else {
-					svc := scheduledrun.NewService(store, nil, policy, nil)
+					svc := scheduledrun.NewService(store, nil, policy, capturedExecution{})
 					switch operation {
 					case "retry":
 						_, err = svc.Create(ctx, scheduledrun.CreateRequest{Agent: target, RequestID: "retry", Config: config})

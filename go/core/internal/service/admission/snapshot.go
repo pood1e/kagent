@@ -15,26 +15,31 @@ import (
 )
 
 type snapshot struct {
+	namespace  translator.NamespaceObservation
 	agents     []*v1alpha3.Agent
 	templates  []*v1alpha3.AgentTemplate
 	harnesses  []*v1alpha3.Harness
 	models     []*v1alpha3.ModelConfig
 	servers    []*v1alpha3.RemoteMCPServer
+	policies   []*v1alpha3.EgressPolicy
 	configMaps []*corev1.ConfigMap
 	secrets    []*corev1.Secret
 	pools      []*atev1.WorkerPool
 }
 
+// loadSnapshot reads the source namespace's compilation inputs. ModelConfigs,
+// RemoteMCPServers and their Secrets may be referenced across namespaces.
 func loadSnapshot(ctx context.Context, kube client.Client, namespace string) (*snapshot, error) {
-	s := &snapshot{}
+	s := &snapshot{namespace: observeNamespace(ctx, kube, namespace)}
 	for _, read := range []func() error{
 		func() error { return readList(ctx, kube, namespace, &v1alpha3.AgentList{}, &s.agents) },
 		func() error { return readList(ctx, kube, namespace, &v1alpha3.AgentTemplateList{}, &s.templates) },
 		func() error { return readList(ctx, kube, namespace, &v1alpha3.HarnessList{}, &s.harnesses) },
-		func() error { return readList(ctx, kube, namespace, &v1alpha3.ModelConfigList{}, &s.models) },
-		func() error { return readList(ctx, kube, namespace, &v1alpha3.RemoteMCPServerList{}, &s.servers) },
+		func() error { return readList(ctx, kube, "", &v1alpha3.ModelConfigList{}, &s.models) },
+		func() error { return readList(ctx, kube, "", &v1alpha3.RemoteMCPServerList{}, &s.servers) },
+		func() error { return readList(ctx, kube, namespace, &v1alpha3.EgressPolicyList{}, &s.policies) },
 		func() error { return readList(ctx, kube, namespace, &corev1.ConfigMapList{}, &s.configMaps) },
-		func() error { return readList(ctx, kube, namespace, &corev1.SecretList{}, &s.secrets) },
+		func() error { return readList(ctx, kube, "", &corev1.SecretList{}, &s.secrets) },
 		func() error { return readList(ctx, kube, namespace, &atev1.WorkerPoolList{}, &s.pools) },
 	} {
 		if err := read(); err != nil {
@@ -42,6 +47,16 @@ func loadSnapshot(ctx context.Context, kube client.Client, namespace string) (*s
 		}
 	}
 	return s, nil
+}
+
+// observeNamespace supplies metadata for allowedNamespaces selectors. Read
+// failures only affect references that require that metadata.
+func observeNamespace(ctx context.Context, kube client.Client, name string) translator.NamespaceObservation {
+	namespace := &corev1.Namespace{}
+	if err := kube.Get(ctx, client.ObjectKey{Name: name}, namespace); err != nil {
+		return translator.NamespaceObservation{Name: name, Error: err.Error()}
+	}
+	return translator.NamespaceObservation{Name: name, Namespace: namespace}
 }
 
 func readList[T client.Object](ctx context.Context, kube client.Client, namespace string, list client.ObjectList, target *[]T) error {
@@ -66,6 +81,8 @@ func replace[T client.Object](items []T, incoming T) []T {
 
 func (s *snapshot) collections() (translator.Collections, error) {
 	collections := translator.Collections{
+		Namespaces:       krt.NewStaticCollection(nil, []translator.NamespaceObservation{s.namespace}),
+		EgressPolicies:   krt.NewStaticCollection(nil, s.policies),
 		Agents:           krt.NewStaticCollection(nil, s.agents),
 		AgentTemplates:   krt.NewStaticCollection(nil, s.templates),
 		Harnesses:        krt.NewStaticCollection(nil, s.harnesses),

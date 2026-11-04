@@ -55,14 +55,6 @@ func (w authorityWorkflow) Create(ctx context.Context, session *apiv1.Session) (
 	return w.store.FinishSessionOperation(ctx, session.Id, operation.ID, owner, substrate.ActorHost(session.GetAgent().GetRef().GetNamespace(), substrate.ActorName(session.Id), ""), "actor-uid", "")
 }
 
-type authorityTransport struct{ token string }
-
-func (t authorityTransport) RoundTrip(r *http.Request) (*http.Response, error) {
-	cloned := r.Clone(r.Context())
-	cloned.Header.Set("Authorization", "Bearer "+t.token)
-	return http.DefaultTransport.RoundTrip(cloned)
-}
-
 func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	dsn := dbtest.StartT(t.Context(), t)
 	dbtest.MigrateT(t, dsn, false)
@@ -88,7 +80,7 @@ func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	keyFile := filepath.Join(t.TempDir(), "execution-key")
 	require.NoError(t, os.WriteFile(keyFile, key, 0o600))
 	cfg := &configv1.ExecutionAuthorizationConfig{ScopeClaim: "roles", EncryptionKeyFile: keyFile, Rules: []*configv1.ResourceScopeRule{
-		{ResourceType: "Session", Verbs: []string{"get"}},
+		{ResourceType: "Session", Verbs: []string{"get", "list"}},
 		{ResourceType: "Session", Verbs: []string{"create", "update"}, AnyScope: []string{"write"}},
 		{ResourceType: "Agent", Verbs: []string{"get", "list"}},
 	}}

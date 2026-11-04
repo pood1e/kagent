@@ -627,7 +627,7 @@ func TestCreateGoogleADKAgentSendsStrictOutputSchema(t *testing.T) {
 						Sha256:     "test",
 					},
 				}}
-				root, err := CreateGoogleADKAgent(t.Context(), config, "root", nil, nil, nil)
+				root, err := CreateGoogleADKAgent(t.Context(), config, "root", nil, nil)
 				require.NoError(t, err)
 				run, err := runner.NewInMemory("app", root)
 				require.NoError(t, err)
@@ -679,7 +679,7 @@ func TestCreateGoogleADKAgentOffersSetModelResponseWhenOutputSchemaSaysSo(t *tes
 				Model: model, Instruction: "reply", SkillsDirectory: t.TempDir(),
 				Output: &configv1.ADKOutputConfig{JsonSchema: []byte(`{"type":"object","properties":{"ticket":{"type":"string"}}}`), Sha256: "test"},
 			}}
-			root, err := CreateGoogleADKAgent(t.Context(), config, "root", nil, nil, nil)
+			root, err := CreateGoogleADKAgent(t.Context(), config, "root", nil, nil)
 			require.NoError(t, err)
 			run, err := runner.NewInMemory("app", root)
 			require.NoError(t, err)

@@ -66,7 +66,7 @@ func TestAskUserAvailability(t *testing.T) {
 					SubAgents: []*configv1.ADKAgentConfig{{Name: "grandchild", Model: model, Stream: new(false)}},
 				}},
 			}}
-			root, err := CreateGoogleADKAgent(t.Context(), config, "root", nil, nil, nil)
+			root, err := CreateGoogleADKAgent(t.Context(), config, "root", nil, nil)
 			require.NoError(t, err)
 			child := root.SubAgents()[0]
 			for _, agent := range []adkagent.Agent{root, child, child.SubAgents()[0]} {
