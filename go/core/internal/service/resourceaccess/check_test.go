@@ -2,9 +2,12 @@ package resourceaccess_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
+	"buf.build/go/protovalidate"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	"github.com/kagent-dev/kagent/go/core/internal/service/resourceaccess"
@@ -53,4 +56,30 @@ func TestCheckRejectsIncompleteOrBroadenedDecision(t *testing.T) {
 		return nil
 	}), "team", checks)
 	require.True(t, serviceerrors.IsCode(err, serviceerrors.CodeUnauthenticated))
+}
+
+func TestCheckSplitsRequestsAtTheAPILimit(t *testing.T) {
+	ctx := auth.AuthSessionTo(t.Context(), session{})
+	var checks []*apiv1.ResourceGrant
+	for i := range 2*auth.MaxPermissionChecks + 1 {
+		checks = append(checks, &apiv1.ResourceGrant{
+			Resource: &apiv1.AuthorizationResource{Resource: &apiv1.AuthorizationResource_Workspace{
+				Workspace: &apiv1.WorkspaceAuthorizationReference{Namespace: fmt.Sprintf("team-%d", i)},
+			}},
+			Permissions: []apiv1.Permission{apiv1.Permission_PERMISSION_HARNESS_READ},
+		})
+	}
+	var sizes []int
+	result, err := resourceaccess.Check(ctx, checker(func(request *apiv1.CheckPermissionsRequest) *apiv1.CheckPermissionsResponse {
+		require.NoError(t, protovalidate.Validate(request))
+		sizes = append(sizes, len(request.Checks))
+		response := &apiv1.CheckPermissionsResponse{}
+		for _, check := range request.Checks {
+			response.Resources = append(response.Resources, &apiv1.ResourceAccess{Resource: proto.CloneOf(check.Resource)})
+		}
+		return response
+	}), "team", checks)
+	require.NoError(t, err)
+	require.Len(t, result, len(checks))
+	require.Equal(t, []int{auth.MaxPermissionChecks, auth.MaxPermissionChecks, 1}, sizes)
 }

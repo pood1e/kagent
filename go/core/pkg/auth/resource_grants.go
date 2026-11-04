@@ -11,6 +11,9 @@ import (
 	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 )
 
+// MaxPermissionChecks is the largest CheckPermissionsRequest the API accepts.
+const MaxPermissionChecks = 50
+
 // CanonicalResourceGrants validates references and merges exact resources
 // into deterministic action sets. An absent set remains absent.
 func CanonicalResourceGrants(input *apiv1.ResourceGrantSet) (*apiv1.ResourceGrantSet, error) {
