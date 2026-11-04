@@ -26,8 +26,7 @@ func Check(ctx context.Context, checker Checker, namespace string, checks []*api
 		return nil, serviceerrors.NewUnavailable("Resource authorization is not configured", nil)
 	}
 	result := make([]*apiv1.ResourceAccess, 0, len(checks))
-	for start := 0; start < len(checks); start += 100 {
-		batch := checks[start:min(start+100, len(checks))]
+	for batch := range slices.Chunk(checks, auth.MaxPermissionChecks) {
 		response, err := checker.CheckPermissions(ctx, &apiv1.CheckPermissionsRequest{
 			Workspace: &apiv1.WorkspaceAuthorizationReference{Namespace: namespace}, Checks: batch,
 		})
