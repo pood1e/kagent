@@ -2,9 +2,11 @@ package session
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"testing"
 
+	"buf.build/go/protovalidate"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
@@ -107,4 +109,29 @@ func TestCreationRetryReauthorizesItsOriginalCeilingWithoutReadingNewTargets(t *
 	require.Equal(t, 1, store.revisionCalls)
 	_, err = service.Create(serviceTestContext("alice"), agent, "request-1", "", &apiv1.ScopeCeiling{Resources: &apiv1.ResourceGrantSet{}})
 	require.Error(t, err, "an idempotency key cannot bypass an explicitly narrowed ceiling")
+}
+
+func TestDependencyChecksStayWithinTheAPILimit(t *testing.T) {
+	server := &apiv1.KubernetesAuthorizationReference{
+		Kind: apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_MCP_SERVER,
+		Ref:  &apiv1.ResourceReference{Namespace: "team", Name: "tools"}, Uid: "server-1",
+	}
+	dependencies := &apiv1.ResourceGrantSet{}
+	for i := range 2*auth.MaxPermissionChecks + 1 {
+		dependencies.Grants = append(dependencies.Grants, &apiv1.ResourceGrant{
+			Resource: &apiv1.AuthorizationResource{Resource: &apiv1.AuthorizationResource_McpTool{
+				McpTool: &apiv1.MCPToolAuthorizationReference{Server: server, Name: fmt.Sprintf("tool-%d", i)},
+			}},
+			Permissions: []apiv1.Permission{apiv1.Permission_PERMISSION_MCP_TOOL_CALL},
+		})
+	}
+	var sizes []int
+	check := func(ctx context.Context, request *apiv1.CheckPermissionsRequest) (*apiv1.CheckPermissionsResponse, error) {
+		require.NoError(t, protovalidate.Validate(request))
+		sizes = append(sizes, len(request.Checks))
+		return creationPermissions{}.CheckPermissions(ctx, request)
+	}
+	workspace := &apiv1.WorkspaceAuthorizationReference{Namespace: "team", Uid: "workspace-1"}
+	require.NoError(t, requireDependencies(t.Context(), check, workspace, dependencies))
+	require.Equal(t, []int{auth.MaxPermissionChecks, auth.MaxPermissionChecks, 1}, sizes)
 }

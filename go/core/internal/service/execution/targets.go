@@ -93,8 +93,7 @@ func mcpTargetGrants(grant *apiv1.ResourceGrant, ceiling *apiv1.ResourceGrantSet
 
 func (s *Service) checkRuntimeGrants(ctx context.Context, principal auth.Principal, workspace *apiv1.WorkspaceAuthorizationReference, grants []*apiv1.ResourceGrant) ([]*apiv1.ResourceGrant, error) {
 	var result []*apiv1.ResourceGrant
-	for offset := 0; offset < len(grants); offset += 100 {
-		batch := grants[offset:min(offset+100, len(grants))]
+	for batch := range slices.Chunk(grants, auth.MaxPermissionChecks) {
 		response, err := s.permissions.CheckExecutionPermissions(ctx, principal, &apiv1.CheckPermissionsRequest{Workspace: workspace, Checks: batch})
 		if err != nil {
 			return nil, err

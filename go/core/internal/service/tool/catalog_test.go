@@ -14,6 +14,7 @@ import (
 	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
 	"github.com/kagent-dev/kagent/go/core/internal/service/serviceerrors"
+	"github.com/kagent-dev/kagent/go/core/pkg/auth"
 )
 
 func catalogRemote(namespace, name string, tools ...string) *v1alpha3.RemoteMCPServer {
@@ -69,7 +70,7 @@ func TestCatalogFiltersThroughCurrentAuthorizedServer(t *testing.T) {
 
 func TestCatalogBatchesChecksBeforeProjection(t *testing.T) {
 	store := new(fakeDiscoveryStore)
-	objects := make([]client.Object, 205)
+	objects := make([]client.Object, 4*auth.MaxPermissionChecks+5)
 	for i := range objects {
 		name := fmt.Sprintf("server-%03d", i)
 		objects[i] = catalogRemote("team", name)
@@ -79,9 +80,10 @@ func TestCatalogBatchesChecksBeforeProjection(t *testing.T) {
 	service := NewService(toolTestKube(t, objects...), store, checker, "team", nil)
 	servers, err := service.ListToolServers(toolTestContext())
 	require.NoError(t, err)
-	require.Len(t, servers, 205)
-	require.Len(t, checker.requests, 3)
-	for i, size := range []int{100, 100, 5} {
+	require.Len(t, servers, len(objects))
+	sizes := []int{auth.MaxPermissionChecks, auth.MaxPermissionChecks, auth.MaxPermissionChecks, auth.MaxPermissionChecks, 5}
+	require.Len(t, checker.requests, len(sizes))
+	for i, size := range sizes {
 		require.Len(t, checker.requests[i].Checks, size)
 		require.Equal(t, "team", checker.requests[i].Workspace.Namespace)
 	}

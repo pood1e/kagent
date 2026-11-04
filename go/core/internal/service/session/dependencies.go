@@ -111,8 +111,7 @@ func (s *Service) expandMCPTools(ctx context.Context, dependencies *apiv1.Resour
 }
 
 func requireDependencies(ctx context.Context, check func(context.Context, *apiv1.CheckPermissionsRequest) (*apiv1.CheckPermissionsResponse, error), workspace *apiv1.WorkspaceAuthorizationReference, dependencies *apiv1.ResourceGrantSet) error {
-	for offset := 0; offset < len(dependencies.Grants); offset += 100 {
-		batch := dependencies.Grants[offset:min(offset+100, len(dependencies.Grants))]
+	for batch := range slices.Chunk(dependencies.Grants, auth.MaxPermissionChecks) {
 		response, err := check(ctx, &apiv1.CheckPermissionsRequest{Workspace: workspace, Checks: batch})
 		if err != nil {
 			return err
