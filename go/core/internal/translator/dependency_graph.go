@@ -28,7 +28,11 @@ func (c *Compiler) runtimeDependencies(ctx context.Context, root *v1alpha3.Agent
 			return NewValidationError("runtime dependency graph exceeds 32 delegation levels")
 		}
 		visited[key] = true
-		grants, err := runtimeTargets(agent, input)
+		models, err := c.harnessModels(input.Harness)
+		if err != nil {
+			return err
+		}
+		grants, err := runtimeTargets(agent, input, models)
 		if err != nil {
 			return err
 		}
@@ -78,4 +82,29 @@ func (c *Compiler) runtimeDependencies(ctx context.Context, root *v1alpha3.Agent
 		return nil, err
 	}
 	return &apiv1.ExecutionDependencyManifest{Direct: direct, Delegated: delegated}, nil
+}
+
+// harnessModels resolves the models a kagent Harness configures for memory
+// embeddings and context compaction.
+func (c *Compiler) harnessModels(harness *HarnessConfiguration) ([]*ResolvedModelConfig, error) {
+	spec := harness.Spec.Kagent
+	if spec == nil {
+		return nil, nil
+	}
+	var refs []v1alpha3.ObjectReference
+	if spec.Memory != nil {
+		refs = append(refs, spec.Memory.ModelConfigRef)
+	}
+	if spec.Compaction != nil && spec.Compaction.Summarizer != nil && spec.Compaction.Summarizer.ModelConfigRef != nil {
+		refs = append(refs, *spec.Compaction.Summarizer.ModelConfigRef)
+	}
+	models := make([]*ResolvedModelConfig, 0, len(refs))
+	for _, ref := range refs {
+		model, err := ResolveModelReference(c.ctx, c.collections, harness.Namespace, ref)
+		if err != nil {
+			return nil, err
+		}
+		models = append(models, model)
+	}
+	return models, nil
 }
