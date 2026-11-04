@@ -12,8 +12,10 @@ import (
 
 // runtimeTargets captures authoritative dependency UIDs as revision inputs.
 // An all-tools binding retains server-use; Session admission expands it into
-// exact tool grants before fixing the execution ceiling.
-func runtimeTargets(agent *v1alpha3.Agent, input *HarnessInput) (*apiv1.ResourceGrantSet, error) {
+// exact tool grants before fixing the execution ceiling. harnessModels are the
+// Harness's own memory and summarizer models, which the runtime calls beside
+// the agent tree.
+func runtimeTargets(agent *v1alpha3.Agent, input *HarnessInput, harnessModels []*ResolvedModelConfig) (*apiv1.ResourceGrantSet, error) {
 	grants := &apiv1.ResourceGrantSet{}
 	add := func(kind apiv1.AuthorizationScopeKind, namespace, name string, uid types.UID, permissions ...apiv1.Permission) {
 		grants.Grants = append(grants.Grants, &apiv1.ResourceGrant{
@@ -24,6 +26,9 @@ func runtimeTargets(agent *v1alpha3.Agent, input *HarnessInput) (*apiv1.Resource
 	}
 	add(apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_AGENT, agent.Namespace, agent.Name, agent.UID, apiv1.Permission_PERMISSION_AGENT_INVOKE)
 	add(apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_HARNESS, input.Harness.Namespace, input.Harness.Name, input.Harness.Source.UID, apiv1.Permission_PERMISSION_HARNESS_USE)
+	for _, model := range harnessModels {
+		add(apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_MODEL_CONNECTION, model.Config.Namespace, model.Config.Name, model.Config.UID, apiv1.Permission_PERMISSION_MODEL_CONNECTION_USE)
+	}
 	var visit func(*AgentInput)
 	visit = func(node *AgentInput) {
 		if node.Template.Source != nil {

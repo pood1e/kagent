@@ -236,6 +236,23 @@ func TestCompileAgentRunsWorkflowOnKagent(t *testing.T) {
 	require.Contains(t, string(revision.Provenance), "workflows-uid")
 }
 
+func TestCompileAgentGrantsHarnessModels(t *testing.T) {
+	embedding, summarizer := modelConfig(), reviewModel()
+	embedding.Name, embedding.Spec.Model = "embedding-model", "text-embedding-3-small"
+	harness := kagentHarness()
+	harness.Spec.Kagent = &v1alpha3.KagentHarness{
+		Memory: &v1alpha3.KagentHarnessMemory{ModelConfigRef: v1alpha3.ObjectReference{Name: embedding.Name}},
+		Compaction: &v1alpha3.KagentHarnessCompaction{CompactionInterval: new(5),
+			Summarizer: &v1alpha3.KagentHarnessSummarizer{ModelConfigRef: &v1alpha3.ObjectReference{Name: summarizer.Name}}},
+	}
+	template := &v1alpha3.AgentTemplate{ObjectMeta: metav1.ObjectMeta{Name: "helper", Namespace: "test"},
+		Spec: v1alpha3.AgentTemplateSpec{ModelConfig: &v1alpha3.ObjectReference{Name: "default-model"}}}
+
+	revision, err := compiler(t, modelConfig(), embedding, summarizer, harness).CompileAgent(t.Context(), inlineAgent(harness, template))
+	require.NoError(t, err)
+	require.Equal(t, []string{"default-model", "embedding-model", "review-model"}, dependencyModels(revision.Dependencies.Direct), "the gateway admits the Harness's memory and summarizer calls")
+}
+
 func TestCompileAgentResolvesTemplateNamesInKagentWorkflows(t *testing.T) {
 	const document = `
 apiVersion: adk.declarative/v0.2
