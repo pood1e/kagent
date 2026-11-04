@@ -319,9 +319,18 @@ func generateContentConfig(m *configv1.ADKModelConfig) *genai.GenerateContentCon
 	return &genai.GenerateContentConfig{MaxOutputTokens: int32(*maxOutputTokens)}
 }
 
-// CreateLLM creates an adkmodel.LLM from the model configuration.
+// CreateLLM creates an adkmodel.LLM from the model configuration. Model turns
+// that end incomplete fail instead of completing (see models.RequireCompleteOutput).
 // This is exported to allow reuse of model creation logic (e.g., for memory summarization).
 func CreateLLM(ctx context.Context, m *configv1.ADKModelConfig) (adkmodel.LLM, error) {
+	llm, err := providerLLM(ctx, m)
+	if err != nil {
+		return nil, err
+	}
+	return models.RequireCompleteOutput(llm), nil
+}
+
+func providerLLM(ctx context.Context, m *configv1.ADKModelConfig) (adkmodel.LLM, error) {
 	switch p := m.GetProvider().(type) {
 	case *configv1.ADKModelConfig_Openai:
 		cfg := &models.OpenAIConfig{

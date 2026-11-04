@@ -410,16 +410,15 @@ func (m *SAPAICoreModel) handleStream(ctx context.Context, body io.Reader, yield
 	if aggregatedTextStr != "" {
 		finalParts = append(finalParts, &genai.Part{Text: aggregatedTextStr})
 	}
+	malformed := false
 	for _, idx := range indices {
 		tc := toolCallsAcc[idx]
 		argsStr, _ := tc["arguments"].(string)
-		var args map[string]any
-		if argsStr != "" {
-			_ = json.Unmarshal([]byte(argsStr), &args)
-		}
+		args, ok := decodeFunctionArgs(argsStr)
 		name, _ := tc["name"].(string)
 		id, _ := tc["id"].(string)
 		if name != "" || id != "" {
+			malformed = malformed || !ok
 			p := genai.NewPartFromFunctionCall(name, args)
 			p.FunctionCall.ID = id
 			finalParts = append(finalParts, p)
@@ -437,7 +436,7 @@ func (m *SAPAICoreModel) handleStream(ctx context.Context, body io.Reader, yield
 	yield(&model.LLMResponse{
 		Partial:       false,
 		TurnComplete:  true,
-		FinishReason:  openAIFinishReasonToGenai(finishReason),
+		FinishReason:  functionCallFinish(openAIFinishReasonToGenai(finishReason), malformed),
 		UsageMetadata: usage,
 		Content:       &genai.Content{Role: string(genai.RoleModel), Parts: finalParts},
 	}, nil)
@@ -469,6 +468,7 @@ func (m *SAPAICoreModel) handleNonStream(body io.Reader, yield func(*model.LLMRe
 		parts = append(parts, &genai.Part{Text: content})
 	}
 
+	malformed := false
 	if toolCalls, ok := msg["tool_calls"].([]any); ok {
 		for _, tcRaw := range toolCalls {
 			tc, ok := tcRaw.(map[string]any)
@@ -478,10 +478,8 @@ func (m *SAPAICoreModel) handleNonStream(body io.Reader, yield func(*model.LLMRe
 			fn, _ := tc["function"].(map[string]any)
 			name, _ := fn["name"].(string)
 			argsStr, _ := fn["arguments"].(string)
-			var args map[string]any
-			if argsStr != "" {
-				_ = json.Unmarshal([]byte(argsStr), &args)
-			}
+			args, ok := decodeFunctionArgs(argsStr)
+			malformed = malformed || !ok
 			id, _ := tc["id"].(string)
 			p := genai.NewPartFromFunctionCall(name, args)
 			p.FunctionCall.ID = id
@@ -509,7 +507,7 @@ func (m *SAPAICoreModel) handleNonStream(body io.Reader, yield func(*model.LLMRe
 	yield(&model.LLMResponse{
 		Partial:       false,
 		TurnComplete:  true,
-		FinishReason:  openAIFinishReasonToGenai(fr),
+		FinishReason:  functionCallFinish(openAIFinishReasonToGenai(fr), malformed),
 		UsageMetadata: usage,
 		Content:       &genai.Content{Role: string(genai.RoleModel), Parts: parts},
 	}, nil)

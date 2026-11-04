@@ -401,12 +401,11 @@ func runAnthropicStreaming(ctx context.Context, m *AnthropicModel, params anthro
 	if aggregatedTextValue != "" {
 		finalParts = append(finalParts, &genai.Part{Text: aggregatedTextValue})
 	}
+	malformed := false
 	for _, block := range toolUseBlocks {
-		var args map[string]any
-		if block.inputJSON != "" {
-			_ = json.Unmarshal([]byte(block.inputJSON), &args)
-		}
+		args, ok := decodeFunctionArgs(block.inputJSON)
 		if block.name != "" || block.id != "" {
+			malformed = malformed || !ok
 			p := genai.NewPartFromFunctionCall(block.name, args)
 			p.FunctionCall.ID = block.id
 			finalParts = append(finalParts, p)
@@ -416,7 +415,7 @@ func runAnthropicStreaming(ctx context.Context, m *AnthropicModel, params anthro
 	resp := &model.LLMResponse{
 		Partial:       false,
 		TurnComplete:  true,
-		FinishReason:  anthropicStopReasonToGenai(stopReason),
+		FinishReason:  functionCallFinish(anthropicStopReasonToGenai(stopReason), malformed),
 		UsageMetadata: anthropicUsageToGenai(usage),
 		Content:       &genai.Content{Role: string(genai.RoleModel), Parts: finalParts},
 	}

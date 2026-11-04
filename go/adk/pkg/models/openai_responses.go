@@ -331,6 +331,7 @@ func runResponsesStreaming(
 	var toolCallOrder []string
 	var usage *genai.GenerateContentResponseUsageMetadata
 	var finishReason = genai.FinishReasonStop
+	malformed := false
 
 	for stream.Next() {
 		event := stream.Current()
@@ -352,10 +353,8 @@ func runResponsesStreaming(
 			}
 		case responses.ResponseOutputItemDoneEvent:
 			if fc, ok := v.Item.AsAny().(responses.ResponseFunctionToolCall); ok {
-				var args map[string]any
-				if fc.Arguments != "" {
-					_ = json.Unmarshal([]byte(fc.Arguments), &args)
-				}
+				args, decoded := decodeFunctionArgs(fc.Arguments)
+				malformed = malformed || !decoded
 				callID := fc.CallID
 				if callID == "" {
 					callID = fc.ID
@@ -393,7 +392,7 @@ func runResponsesStreaming(
 	out := &model.LLMResponse{
 		Partial:       false,
 		TurnComplete:  true,
-		FinishReason:  finishReason,
+		FinishReason:  functionCallFinish(finishReason, malformed),
 		UsageMetadata: usage,
 		Content:       &genai.Content{Role: string(genai.RoleModel), Parts: finalParts},
 	}
@@ -402,6 +401,7 @@ func runResponsesStreaming(
 
 func responseToLLMResponse(resp *responses.Response) *model.LLMResponse {
 	parts := make([]*genai.Part, 0, len(resp.Output))
+	malformed := false
 	for _, item := range resp.Output {
 		switch v := item.AsAny().(type) {
 		case responses.ResponseOutputMessage:
@@ -411,10 +411,8 @@ func responseToLLMResponse(resp *responses.Response) *model.LLMResponse {
 				}
 			}
 		case responses.ResponseFunctionToolCall:
-			var args map[string]any
-			if v.Arguments != "" {
-				_ = json.Unmarshal([]byte(v.Arguments), &args)
-			}
+			args, ok := decodeFunctionArgs(v.Arguments)
+			malformed = malformed || !ok
 			callID := v.CallID
 			if callID == "" {
 				callID = v.ID
@@ -426,7 +424,7 @@ func responseToLLMResponse(resp *responses.Response) *model.LLMResponse {
 	return &model.LLMResponse{
 		Partial:       false,
 		TurnComplete:  true,
-		FinishReason:  responsesStatusToFinishReason(resp.Status),
+		FinishReason:  functionCallFinish(responsesStatusToFinishReason(resp.Status), malformed),
 		UsageMetadata: responsesUsageToGenai(resp.Usage),
 		Content:       &genai.Content{Role: string(genai.RoleModel), Parts: parts},
 	}

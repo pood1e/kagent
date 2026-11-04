@@ -456,16 +456,15 @@ func runStreaming(ctx context.Context, m *OpenAIModel, params openai.ChatComplet
 	if text != "" {
 		finalParts = append(finalParts, &genai.Part{Text: text})
 	}
+	malformed := false
 	for _, idx := range indices {
 		tc := toolCallsAcc[idx]
 		argsStr, _ := tc["arguments"].(string)
-		var args map[string]any
-		if argsStr != "" {
-			_ = json.Unmarshal([]byte(argsStr), &args)
-		}
+		args, ok := decodeFunctionArgs(argsStr)
 		name, _ := tc["name"].(string)
 		id, _ := tc["id"].(string)
 		if name != "" || id != "" {
+			malformed = malformed || !ok
 			thoughtSignature, _ := tc["thought_signature"].([]byte)
 			p := newFunctionCallPart(name, args, id, thoughtSignature)
 			finalParts = append(finalParts, p)
@@ -483,7 +482,7 @@ func runStreaming(ctx context.Context, m *OpenAIModel, params openai.ChatComplet
 	resp := &model.LLMResponse{
 		Partial:       false,
 		TurnComplete:  true,
-		FinishReason:  openAIFinishReasonToGenai(finishReason),
+		FinishReason:  functionCallFinish(openAIFinishReasonToGenai(finishReason), malformed),
 		UsageMetadata: usage,
 		Content:       &genai.Content{Role: string(genai.RoleModel), Parts: finalParts},
 	}
@@ -516,12 +515,11 @@ func chatCompletionToLLMResponse(completion *openai.ChatCompletion) *model.LLMRe
 	if msg.Content != "" {
 		parts = append(parts, &genai.Part{Text: msg.Content})
 	}
+	malformed := false
 	for _, tc := range msg.ToolCalls {
 		if tc.Type == openAIToolTypeFunction && tc.Function.Name != "" {
-			var args map[string]any
-			if tc.Function.Arguments != "" {
-				_ = json.Unmarshal([]byte(tc.Function.Arguments), &args)
-			}
+			args, ok := decodeFunctionArgs(tc.Function.Arguments)
+			malformed = malformed || !ok
 			functionToolCall := tc.AsFunction()
 			p := newFunctionCallPart(
 				tc.Function.Name,
@@ -543,7 +541,7 @@ func chatCompletionToLLMResponse(completion *openai.ChatCompletion) *model.LLMRe
 	return &model.LLMResponse{
 		Partial:       false,
 		TurnComplete:  true,
-		FinishReason:  openAIFinishReasonToGenai(choice.FinishReason),
+		FinishReason:  functionCallFinish(openAIFinishReasonToGenai(choice.FinishReason), malformed),
 		UsageMetadata: usage,
 		Content:       &genai.Content{Role: string(genai.RoleModel), Parts: parts},
 	}
