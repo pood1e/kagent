@@ -126,22 +126,24 @@ func TestNativeHarnessFencesAuthorizedUID(t *testing.T) {
 }
 
 func TestNativeHarnessListBatchesBeforePublishing(t *testing.T) {
-	objects := make([]client.Object, 101)
+	objects := make([]client.Object, 2*auth.MaxPermissionChecks+1)
 	for i := range objects {
 		name := fmt.Sprintf("runtime-%03d", i)
 		objects[i] = &v1alpha3.Harness{ObjectMeta: metav1.ObjectMeta{Namespace: "team", Name: name, UID: types.UID(name + "-uid")}}
 	}
+	last := fmt.Sprintf("runtime-%03d", len(objects)-1)
 	checker := &nativeChecker{allow: func(resource *apiv1.AuthorizationResource, _ apiv1.Permission) bool {
-		return resource.GetKubernetes().GetRef().GetName() == "runtime-100"
+		return resource.GetKubernetes().GetRef().GetName() == last
 	}}
 	service, _ := nativeHarnessService(t, checker, objects...)
 	items, err := service.List(auth.AuthSessionTo(t.Context(), testSession{}), "team")
 	require.NoError(t, err)
 	require.Len(t, items, 1)
-	require.Equal(t, "runtime-100", items[0].Name)
-	require.Len(t, checker.requests, 2)
-	require.Len(t, checker.requests[0].Checks, 100)
-	require.Len(t, checker.requests[1].Checks, 1)
+	require.Equal(t, last, items[0].Name)
+	require.Len(t, checker.requests, 3)
+	for i, size := range []int{auth.MaxPermissionChecks, auth.MaxPermissionChecks, 1} {
+		require.Len(t, checker.requests[i].Checks, size)
+	}
 	for _, request := range checker.requests {
 		for _, check := range request.Checks {
 			require.NotEmpty(t, check.Resource.GetKubernetes().GetUid())
