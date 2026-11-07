@@ -78,20 +78,25 @@ jobs:
       - name: Build binaries
         run: |
           out=../dist
-          mkdir -p "$out/controller" "$out/claude-harness" "$out/standard-harness/rootfs" \
-            "$out/codex-harness/rootfs/usr/local/bin"
           for harness in claude-harness standard-harness codex-harness; do
+            mkdir -p "$out/$harness"
             cp ../agentos/images/toolbox.sh "$out/$harness/toolbox.sh"
           done
-          CGO_ENABLED=0 go build -trimpath -buildvcs=false \
-            -ldflags "-s -w -X github.com/kagent-dev/kagent/go/core/internal/version.Version=$VERSION -X github.com/kagent-dev/kagent/go/core/internal/version.GitCommit=$GITHUB_SHA -X github.com/kagent-dev/kagent/go/core/internal/version.SubstrateVersion=1.0.0-rc1" \
-            -o "$out/controller/kagent-controller" ./core/cmd/controller
-          CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags '-s -w' \
-            -o "$out/claude-harness/kagent-claude" ./harness/claude/cmd
-          CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags '-s -w' \
-            -o "$out/standard-harness/rootfs/app" ./adk/cmd
-          CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags '-s -w' \
-            -o "$out/codex-harness/rootfs/usr/local/bin/kagent-codex" ./harness/codex/cmd
+          for arch in amd64 arm64; do
+            bin="linux/$arch"
+            mkdir -p "$out/controller/$bin" "$out/claude-harness/$bin" "$out/standard-harness/$bin/rootfs" \
+              "$out/codex-harness/$bin/rootfs/usr/local/bin"
+            export CGO_ENABLED=0 GOOS=linux GOARCH="$arch"
+            go build -trimpath -buildvcs=false \
+              -ldflags "-s -w -X github.com/kagent-dev/kagent/go/core/internal/version.Version=$VERSION -X github.com/kagent-dev/kagent/go/core/internal/version.GitCommit=$GITHUB_SHA -X github.com/kagent-dev/kagent/go/core/internal/version.SubstrateVersion=1.0.0-rc1" \
+              -o "$out/controller/$bin/kagent-controller" ./core/cmd/controller
+            go build -trimpath -buildvcs=false -ldflags '-s -w' \
+              -o "$out/claude-harness/$bin/kagent-claude" ./harness/claude/cmd
+            go build -trimpath -buildvcs=false -ldflags '-s -w' \
+              -o "$out/standard-harness/$bin/rootfs/app" ./adk/cmd
+            go build -trimpath -buildvcs=false -ldflags '-s -w' \
+              -o "$out/codex-harness/$bin/rootfs/usr/local/bin/kagent-codex" ./harness/codex/cmd
+          done
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: contexts
@@ -102,12 +107,14 @@ jobs:
   images:
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
     needs: verify
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     permissions:
       contents: read
       packages: write
     strategy:
       matrix:
+        arch: [amd64, arm64]
+        component: [controller, claude-harness, standard-harness, codex-harness]
         include:
           - component: controller
             dockerfile: controller
@@ -142,12 +149,9 @@ jobs:
           context: dist/${{ matrix.component }}
           file: agentos/images/${{ matrix.dockerfile }}/Dockerfile
           build-args: ${{ matrix.base && format('HARNESS_IMAGE={0}', matrix.base) || '' }}
-          platforms: linux/amd64
-          push: true
+          platforms: linux/${{ matrix.arch }}
           provenance: false
-          tags: |
-            ${{ env.REGISTRY }}/${{ matrix.component }}:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ matrix.component }}:${{ github.ref_name }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ matrix.component }},push-by-digest=true,name-canonical=true,push=true
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
@@ -155,11 +159,55 @@ jobs:
             org.opencontainers.image.ref.name=${{ github.ref_name }}
       - name: Verify the published entrypoint
         run: docker run --rm --entrypoint '${{ matrix.entrypoint }}' "${REGISTRY}/${{ matrix.component }}@${{ steps.build.outputs.digest }}" --help
-      - run: echo "${REGISTRY}/${{ matrix.component }}@${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
+      - name: Export the architecture digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p digests
+          touch "digests/${DIGEST#sha256:}"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: digests-${{ matrix.component }}-${{ matrix.arch }}
+          path: digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  index:
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
+    needs: images
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        component: [controller, claude-harness, standard-harness, codex-harness]
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.component }}
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: digests-${{ matrix.component }}-*
+          merge-multiple: true
+          path: digests/
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Publish the multi-arch image
+        working-directory: digests
+        run: |
+          docker buildx imagetools create --tag "$IMAGE:$GITHUB_SHA" --tag "$IMAGE:$GITHUB_REF_NAME" \
+            $(printf "$IMAGE@sha256:%s " *)
+      - id: index
+        run: echo "digest=$(docker buildx imagetools inspect "$IMAGE:$GITHUB_SHA" --format '{{json .Manifest}}' | jq -r .digest)" >> "$GITHUB_OUTPUT"
+      - run: echo "$IMAGE@${{ steps.index.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
       - name: Export image metadata
         env:
           COMPONENT: ${{ matrix.component }}
-          DIGEST: ${{ steps.build.outputs.digest }}
+          DIGEST: ${{ steps.index.outputs.digest }}
         run: |
           mkdir -p metadata
           name="$COMPONENT"
@@ -174,7 +222,7 @@ jobs:
 
   charts:
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
-    needs: images
+    needs: index
     runs-on: ubuntu-24.04
     permissions:
       contents: write
