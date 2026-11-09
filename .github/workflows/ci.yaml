@@ -449,7 +449,7 @@ jobs:
           kubectl logs -n kagent deployment/kagent-controller || true
 
   go-unit-tests:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-24.04
     env:
       # Use the disk build cache restored below on every runner.
       GOCACHEPROG: ""
@@ -499,7 +499,7 @@ jobs:
   helm-unit-tests:
     env:
       VERSION: v0.0.1-test
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -650,7 +650,7 @@ jobs:
   python-test:
     env:
       OPENAI_API_KEY: fake
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
