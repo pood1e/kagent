@@ -28,6 +28,7 @@ import (
 	"github.com/kagent-dev/kagent/go/api/v1alpha3"
 	"github.com/kagent-dev/kagent/go/core/internal/authorization"
 	"github.com/kagent-dev/kagent/go/core/internal/service/agentidentity"
+	"github.com/kagent-dev/kagent/go/core/internal/service/bootstrap"
 	"github.com/kagent-dev/kagent/go/core/internal/service/checkpoint"
 	"github.com/kagent-dev/kagent/go/core/internal/service/execution"
 	"github.com/kagent-dev/kagent/go/core/internal/service/inventory"
@@ -59,6 +60,7 @@ type Config struct {
 	InventoryService       *inventory.Service
 	ExecutionService       *execution.Service
 	TaskCatalogService     *taskcatalog.Service
+	BootstrapService       *bootstrap.Service
 	SandboxService         *sandbox.Service
 	BindAddress            string
 	MaxMessageBytes        int
@@ -82,6 +84,7 @@ type Config struct {
 	ScheduledRunService    *scheduledrun.Service
 	A2AHandler             a2asrv.RequestHandler
 	SandboxTemplateService *kubecrud.Service[*v1alpha3.SandboxTemplate, *v1alpha3.SandboxTemplateList]
+	EgressPolicyService    *kubecrud.Service[*v1alpha3.EgressPolicy, *v1alpha3.EgressPolicyList]
 	// RegisterServices registers services core does not own. Called during New,
 	// because gRPC requires every service to be registered before Serve.
 	RegisterServices func(grpc.ServiceRegistrar)
@@ -123,14 +126,14 @@ func New(config Config) (*Server, error) {
 		grpc.ChainUnaryInterceptor(
 			loggingUnaryInterceptor,
 			recoverUnaryInterceptor,
-			authenticationUnaryInterceptor(config.Authenticator, config.ShareStore, config.MethodPolicies, config.AgentIdentityService),
+			authenticationUnaryInterceptor(config.Authenticator, config.ShareStore, config.MethodPolicies, config.AgentIdentityService, config.BootstrapService),
 			protovalidatemiddleware.UnaryServerInterceptor(validator),
 			errorMappingUnaryInterceptor,
 		),
 		grpc.ChainStreamInterceptor(
 			loggingStreamInterceptor,
 			recoverStreamInterceptor,
-			authenticationStreamInterceptor(config.Authenticator, config.ShareStore, config.MethodPolicies, config.AgentIdentityService),
+			authenticationStreamInterceptor(config.Authenticator, config.ShareStore, config.MethodPolicies, config.AgentIdentityService, config.BootstrapService),
 			protovalidatemiddleware.StreamServerInterceptor(validator),
 			errorMappingStreamInterceptor,
 		),
@@ -147,6 +150,7 @@ func New(config Config) (*Server, error) {
 	apiv1.RegisterSystemServiceServer(grpcServer, newSystemServer(config.SystemService, config.MaxMessageBytes))
 	apiv1.RegisterAuthorizationServiceServer(grpcServer, &authorizationServer{service: config.AuthorizationService})
 	apiv1.RegisterAgentServiceServer(grpcServer, newAgentServer(config.AgentService, config.MaxMessageBytes, config.InventoryService))
+	runtimev1.RegisterBootstrapServiceServer(grpcServer, &bootstrapServer{service: config.BootstrapService})
 	apiv1.RegisterAgentIdentityServiceServer(grpcServer, &agentIdentityServer{service: config.AgentIdentityService})
 	if config.WorkflowService != nil {
 		apiv1.RegisterWorkflowServiceServer(grpcServer, &workflowServer{service: config.WorkflowService, maxMessageBytes: config.MaxMessageBytes})
@@ -158,6 +162,7 @@ func New(config Config) (*Server, error) {
 	guestpb.RegisterProcessServiceServer(grpcServer, guestServer)
 	guestpb.RegisterFileSystemServiceServer(grpcServer, guestServer)
 	apiv1.RegisterSandboxTemplateServiceServer(grpcServer, &sandboxTemplateServer{service: config.SandboxTemplateService, maxMessageBytes: config.MaxMessageBytes})
+	apiv1.RegisterEgressPolicyServiceServer(grpcServer, &egressPolicyServer{service: config.EgressPolicyService, maxMessageBytes: config.MaxMessageBytes})
 	apiv1.RegisterModelServiceServer(grpcServer, newModelServer(config.ModelService, config.MaxMessageBytes))
 	apiv1.RegisterToolServiceServer(grpcServer, newToolServer(config.ToolService, config.MaxMessageBytes))
 	apiv1.RegisterPromptTemplateServiceServer(grpcServer, newPromptTemplateServer(config.PromptTemplateService))

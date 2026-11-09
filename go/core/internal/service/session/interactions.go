@@ -162,12 +162,13 @@ func (s *InteractionService) ListTasks(ctx context.Context, agent types.Namespac
 }
 
 // PrepareSend authorizes and resolves the conversation, then reserves its input.
-// An initial-message retry returns its saved task without granting another send.
+// A retry of a message that opens a task, in a new or an existing
+// conversation, returns its saved task without granting another send.
 func (s *InteractionService) PrepareSend(ctx context.Context, agent types.NamespacedName, req *a2atype.SendMessageRequest) (*PreparedSend, error) {
 	if err := captureResponseLocale(ctx, req); err != nil {
 		return nil, err
 	}
-	initialID := initialMessageID(ctx, req)
+	initialID := openingMessageID(req)
 	pushConfig, err := initialPushConfig(agent, req, s.allowPushHTTP)
 	if err != nil {
 		return nil, err
@@ -560,15 +561,10 @@ func (s *InteractionService) listSessions(ctx context.Context, agent types.Names
 	}
 }
 
-// initialMessageID limits existing-context replay to trusted controller continuations.
-func initialMessageID(ctx context.Context, req *a2atype.SendMessageRequest) string {
-	if req == nil || req.Message == nil || req.Message.TaskID != "" {
-		return ""
-	}
-	if req.Message.ContextID == "" {
-		return req.Message.ID
-	}
-	if controlPlaneCaller(ctx) && strings.HasPrefix(req.Message.ID, continuationMessageIDPrefix) {
+// openingMessageID is the ID of a message that opens a task, which the store
+// accepts once per conversation; "" for a message continuing a task.
+func openingMessageID(req *a2atype.SendMessageRequest) string {
+	if req != nil && req.Message != nil && req.Message.TaskID == "" {
 		return req.Message.ID
 	}
 	return ""

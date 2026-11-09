@@ -21,7 +21,7 @@ import (
 // Config is the input to New.
 type Config struct {
 	ToolObserver runtime.ToolObserver
-	// ConfigJSON is the compiler-owned KAGENT_CONFIG_JSON document.
+	// ConfigJSON is the compiler-owned bootstrap configuration document.
 	ConfigJSON []byte
 	// DataDir is the absolute durable directory; it is created if missing.
 	DataDir string

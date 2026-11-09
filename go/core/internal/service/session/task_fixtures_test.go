@@ -21,3 +21,17 @@ func createRuntimeTask(t *testing.T, store interface {
 	}
 	return store.CreateRuntimeTask(t.Context(), sessionID, hash, task, dispatch.String())
 }
+
+// updateRuntimeTask resumes a waiting fixture task through the native dispatch
+// boundary.
+func updateRuntimeTask(t *testing.T, store interface {
+	ReserveSessionDispatch(context.Context, string, uuid.UUID, string, *database.DispatchOrigin) error
+	UpdateSessionTask(context.Context, string, int64, []byte, *a2a.Task, a2a.Event, string) (int64, error)
+}, sessionID string, version int64, hash []byte, task *a2a.Task) (int64, error) {
+	t.Helper()
+	dispatch := uuid.New()
+	if err := store.ReserveSessionDispatch(t.Context(), sessionID, dispatch, "", nil); err != nil {
+		return 0, err
+	}
+	return store.UpdateSessionTask(t.Context(), sessionID, version, hash, task, task, dispatch.String())
+}

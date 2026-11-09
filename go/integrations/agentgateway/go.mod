@@ -4,7 +4,7 @@ go 1.27.3
 
 require (
 	github.com/agentgateway/agentgateway v1.7.0
-	github.com/kagent-dev/kagent/go v0.0.0-20261103181048-e3b807935db5
+	github.com/kagent-dev/kagent/go v0.0.0-20261108141215-347acbe55041
 	github.com/stretchr/testify v1.12.1
 	k8s.io/api v0.37.2
 	k8s.io/apimachinery v0.37.2
@@ -76,6 +76,6 @@ require (
 
 replace github.com/kagent-dev/kagent/go => ../..
 
-replace go.ate.dev/substrate => github.com/kagent-dev/substrate v1.0.0-rc1
+replace go.ate.dev/substrate => github.com/kagent-dev/substrate v1.0.0
 
 replace github.com/agentgateway/agentgateway/api => github.com/agentgateway/agentgateway/api v0.0.0-20261027162624-26f5aebe99a3

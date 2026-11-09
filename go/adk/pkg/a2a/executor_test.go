@@ -42,6 +42,7 @@ type recordingExecutor struct {
 	userID        string
 	cleanupCalled bool
 	events        []a2atype.Event
+	onExecute     func(context.Context)
 	// span, when set, is a span the turn emits, the way ADK does.
 	span string
 }
@@ -51,6 +52,9 @@ func (e *recordingExecutor) Execute(ctx context.Context, reqCtx *a2asrv.Executor
 		e.message = reqCtx.Message
 		e.userID = auth.UserIDFromContext(ctx)
 		e.locale = apia2a.ContextResponseLocale(ctx).String()
+		if e.onExecute != nil {
+			e.onExecute(ctx)
+		}
 		if e.span != "" {
 			_, span := otel.Tracer("adk-test").Start(ctx, e.span)
 			span.End()
@@ -894,7 +898,7 @@ func TestRequestSpanAttributesCarryOnlyATrustedUser(t *testing.T) {
 		{
 			name:   "trusted user",
 			userID: "alice",
-			want:   map[string]string{"gen_ai.conversation.id": "ctx-1", "a2a.task.id": "task-1", "enduser.id": "alice"},
+			want:   map[string]string{"gen_ai.conversation.id": "ctx-1", "a2a.task.id": "task-1", "user.id": "alice"},
 		},
 		{
 			name: "no trusted user",

@@ -11,6 +11,7 @@ import (
 
 	ateapipb "go.ate.dev/substrate/api/ateapi/v1"
 
+	"github.com/kagent-dev/kagent/go/api/bootstrap"
 	"github.com/kagent-dev/kagent/go/core/internal/egress"
 	"github.com/kagent-dev/kagent/go/core/pkg/egresspolicy"
 )
@@ -158,4 +159,34 @@ func policyHeaders(policy *ateapipb.EgressPolicy) (map[string]*ateapipb.Credenti
 		}
 	}
 	return headers, nil
+}
+
+// goldenEgressPolicy grants golden initialization bootstrap authority at the
+// control plane and credential-free access to the revision's compiled
+// destinations, such as skill sources needed during preparation.
+func goldenEgressPolicy(atespace, controlPlaneURL string, destinations []string) (*ateapipb.EgressPolicyTemplate, error) {
+	policy, err := ActorEgressPolicy(atespace, []string{controlPlaneURL}, nil, controlPlaneURL)
+	if err != nil {
+		return nil, err
+	}
+	for _, rule := range policy.Rules {
+		effects := rule.GetHttp().GetEffects()
+		if rule.GetHttps() != nil {
+			effects = rule.GetHttps().GetEffects()
+		}
+		for _, header := range effects.GetReplaceHeaders() {
+			header.ActorJwt.Audiences = []string{bootstrap.Audience}
+		}
+	}
+	access, err := egress.CanonicalAccess(append([]string{controlPlaneURL}, destinations...), nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	controlPlane, _ := egress.ParseOrigin(controlPlaneURL) // validated by ActorEgressPolicy
+	for _, origin := range access.Destinations {
+		if origin != controlPlane.String() {
+			policy.Rules = append(policy.Rules, originEgressRule(origin, nil))
+		}
+	}
+	return &ateapipb.EgressPolicyTemplate{Rules: policy.Rules}, nil
 }
