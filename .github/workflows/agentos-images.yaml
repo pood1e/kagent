@@ -78,6 +78,7 @@ jobs:
       - name: Build binaries
         run: |
           out=../dist
+          substrate_version="$(awk '/github\.com\/kagent-dev\/substrate/ { print substr($5, 2) }' go.mod)"
           for harness in claude-harness standard-harness codex-harness; do
             mkdir -p "$out/$harness"
             cp ../agentos/images/toolbox.sh "$out/$harness/toolbox.sh"
@@ -88,7 +89,7 @@ jobs:
               "$out/codex-harness/$bin/rootfs/usr/local/bin"
             export CGO_ENABLED=0 GOOS=linux GOARCH="$arch"
             go build -trimpath -buildvcs=false \
-              -ldflags "-s -w -X github.com/kagent-dev/kagent/go/core/internal/version.Version=$VERSION -X github.com/kagent-dev/kagent/go/core/internal/version.GitCommit=$GITHUB_SHA -X github.com/kagent-dev/kagent/go/core/internal/version.SubstrateVersion=1.0.0-rc1" \
+              -ldflags "-s -w -X github.com/kagent-dev/kagent/go/core/internal/version.Version=$VERSION -X github.com/kagent-dev/kagent/go/core/internal/version.GitCommit=$GITHUB_SHA -X github.com/kagent-dev/kagent/go/core/internal/version.SubstrateVersion=$substrate_version" \
               -o "$out/controller/$bin/kagent-controller" ./core/cmd/controller
             go build -trimpath -buildvcs=false -ldflags '-s -w' \
               -o "$out/claude-harness/$bin/kagent-claude" ./harness/claude/cmd

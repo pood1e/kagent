@@ -29,14 +29,16 @@ type interactionTestStore struct {
 	dispatchErr    error
 	pushWrites     int
 	dispatchWrites int
+	reservedIDs    []string
 }
 
 func (*interactionTestStore) RequestTaskCancellation(context.Context, string, string) error {
 	return nil
 }
 
-func (s *interactionTestStore) ReserveSessionDispatch(context.Context, string, uuid.UUID, string, *database.DispatchOrigin) error {
+func (s *interactionTestStore) ReserveSessionDispatch(_ context.Context, _ string, _ uuid.UUID, initialMessageID string, _ *database.DispatchOrigin) error {
 	s.dispatchWrites++
+	s.reservedIDs = append(s.reservedIDs, initialMessageID)
 	return s.dispatchErr
 }
 
@@ -102,38 +104,28 @@ func TestPrepareSendStampsInboundTimeline(t *testing.T) {
 	}
 }
 
-func TestInitialMessageIDDeduplicationScope(t *testing.T) {
+func TestPrepareSendReservesTaskOpeningMessages(t *testing.T) {
 	for _, test := range []struct {
-		name         string
-		contextID    string
-		taskID       a2atype.TaskID
-		continuation bool
-		internal     bool
-		wantID       bool
+		name   string
+		taskID a2atype.TaskID
+		want   string
 	}{
-		{name: "initial message", wantID: true},
-		{name: "user conversation", contextID: "session"},
-		{name: "user continuation prefix", contextID: "session", continuation: true},
-		{name: "controller conversation", contextID: "session", internal: true},
-		{name: "controller continuation", contextID: "session", continuation: true, internal: true, wantID: true},
-		{name: "existing task", contextID: "session", taskID: "task", continuation: true, internal: true},
+		{name: "opening a task in an existing conversation", want: "opening"},
+		{name: "continuing a task", taskID: "task"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			ctx := serviceTestContext("alice")
-			if test.internal {
-				ctx = auth.AuthSessionTo(ctx, auth.ControlPlaneSession{})
-			}
-			message := &a2atype.Message{ID: "message", ContextID: test.contextID, TaskID: test.taskID}
-			if test.continuation {
-				message.ID = "kagent-continuation-" + uuid.NewString()
-			}
-			want := ""
-			if test.wantID {
-				want = message.ID
-			}
-			if got := initialMessageID(ctx, &a2atype.SendMessageRequest{Message: message}); got != want {
-				t.Fatalf("initialMessageID() = %q, want %q", got, want)
-			}
+			id := uuid.NewString()
+			agent := types.NamespacedName{Namespace: "team-a", Name: "assistant"}
+			stored := &apiv1.Session{Id: id, ContextId: id, State: apiv1.RuntimeState_RUNTIME_STATE_READY,
+				Operation: apiv1.RuntimeOperation_RUNTIME_OPERATION_NONE,
+				Agent:     &apiv1.AgentProvenance{Ref: &apiv1.ResourceReference{Namespace: agent.Namespace, Name: agent.Name}}}
+			tasks := &interactionTestStore{task: &a2atype.Task{ID: "task", ContextID: id, Status: a2atype.TaskStatus{State: a2atype.TaskStateInputRequired}}}
+			service := NewInteractionService(tasks, nil, dispatchTestService(t, stored), false)
+			message := a2atype.NewMessage(a2atype.MessageRoleUser, a2atype.NewTextPart("hello"))
+			message.ID, message.ContextID, message.TaskID = "opening", id, test.taskID
+			_, err := service.PrepareSend(serviceTestContext("alice"), agent, &a2atype.SendMessageRequest{Message: message})
+			require.NoError(t, err)
+			require.Equal(t, []string{test.want}, tasks.reservedIDs)
 		})
 	}
 }

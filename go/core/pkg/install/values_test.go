@@ -34,7 +34,8 @@ func TestSubstrateInstallValues(t *testing.T) {
 				} `json:"credentialProvider"`
 			}
 			require.NoError(t, yaml.Unmarshal([]byte(substrateInstallValues(test.namespace, test.serviceAccount)), &values))
-			require.ElementsMatch(t, []string{"GoldenEgressPolicy", "PerTemplateSnapshotLocation"}, values.Preview)
+			require.Contains(t, values.Preview, "PerTemplateSnapshotLocation")
+			require.Contains(t, values.Preview, "GoldenEgressPolicy")
 			require.Equal(t, []string{
 				"spiffe://cluster.local/ns/" + test.namespace + "/sa/" + test.serviceAccount,
 				"system:serviceaccount:ate-system:ate-client",

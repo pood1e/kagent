@@ -109,7 +109,7 @@ func TestTaskCatalogGeneratedClientReadsPublishedForestAfterRootDeletion(t *test
 	version, err = store.UpdateSessionTask(t.Context(), root.Id, version, hash[:], rootTask, rootTask, "")
 	require.NoError(t, err)
 	require.NoError(t, store.SettleSessionTask(t.Context(), root.Id, string(rootTask.ID), version))
-	operation, err := store.BeginSessionOperation(t.Context(), root.Id, apiv1.RuntimeOperation_RUNTIME_OPERATION_DELETE)
+	operation, err := store.BeginSessionOperation(t.Context(), root.Id, apiv1.RuntimeOperation_RUNTIME_OPERATION_DELETE, false)
 	require.NoError(t, err)
 	executor := uuid.New()
 	claimed, err := store.ClaimSessionOperation(t.Context(), root.Id, operation.ID, executor)

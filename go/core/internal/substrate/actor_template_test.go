@@ -7,20 +7,20 @@ import (
 	"strings"
 	"testing"
 
-	a2atype "github.com/a2aproject/a2a-go/v2/a2a"
 	a2apb "github.com/a2aproject/a2a-go/v2/a2apb/v1"
 	"github.com/stretchr/testify/require"
 	ateapipb "go.ate.dev/substrate/api/ateapi/v1"
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/kagent-dev/kagent/go/api/bootstrap"
 	"github.com/kagent-dev/kagent/go/core/internal/translator"
 )
 
 func TestActorTemplateSkillVolumeLimit(t *testing.T) {
 	for _, count := range []int{0, 29, 30} {
 		t.Run(fmt.Sprint(count), func(t *testing.T) {
-			spec := &translator.Revision{CPU: "1", Memory: "1Gi", Namespace: "test", AgentName: "skills", AgentCard: &a2apb.AgentCard{
+			spec := &translator.Revision{ControlPlaneURL: testControlPlaneURL, CPU: "1", Memory: "1Gi", Namespace: "test", AgentName: "skills", ConfigJSON: []byte(`{}`), AgentCard: &a2apb.AgentCard{
 				Name: "skills", Version: "v1", Capabilities: &a2apb.AgentCapabilities{},
 				DefaultInputModes: []string{"text"}, DefaultOutputModes: []string{"text"},
 				SupportedInterfaces: []*a2apb.AgentInterface{{Url: "http://127.0.0.1:80", ProtocolBinding: "GRPC", ProtocolVersion: "1.0"}},
@@ -30,7 +30,9 @@ func TestActorTemplateSkillVolumeLimit(t *testing.T) {
 			}
 			id, err := spec.Digest()
 			require.NoError(t, err)
-			actor, err := ActorTemplateForRevision(spec, id)
+			bundle, err := spec.BootstrapBundle(id)
+			require.NoError(t, err)
+			actor, err := ActorTemplateForRevision(spec, id, bundle)
 			if count > 29 {
 				require.ErrorContains(t, err, "33 volumes and 33 container mounts")
 				require.ErrorContains(t, err, "at most 32 volumes and 32 mounts per container")
@@ -55,7 +57,7 @@ func testWorkerPoolSelection(t *testing.T, template *ateapipb.ActorTemplate, nam
 }
 
 func TestActorTemplateForRevision(t *testing.T) {
-	spec := &translator.Revision{CPU: "1", Memory: "1Gi",
+	spec := &translator.Revision{ControlPlaneURL: testControlPlaneURL, CPU: "1", Memory: "1Gi",
 		Namespace: "agents", AgentName: "helper",
 		Image:          "agent.example/image@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		Command:        []string{"/agent"},
@@ -69,7 +71,9 @@ func TestActorTemplateForRevision(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	template, err := ActorTemplateForRevision(spec, revisionID)
+	bundle, err := spec.BootstrapBundle(revisionID)
+	require.NoError(t, err)
+	template, err := ActorTemplateForRevision(spec, revisionID, bundle)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,16 +106,12 @@ func TestActorTemplateForRevision(t *testing.T) {
 	if len(identity) != 1 || identity[0].GetField() != ateapipb.ActorMetadataField_ACTOR_METADATA_FIELD_NAME || identity[0].GetPath() != "name" || container.VolumeMounts[2].GetMountPath() != actorIdentityMount {
 		t.Fatal("actor routing identity was not projected")
 	}
-	var rendered a2atype.AgentCard
-	if err := json.Unmarshal([]byte(environment["KAGENT_AGENT_CARD_JSON"].Value), &rendered); err != nil {
-		t.Fatal(err)
-	}
-	if rendered.Name != spec.AgentCard.Name || rendered.Description != "" || !rendered.Capabilities.Streaming || len(rendered.Skills) != 0 {
-		t.Fatalf("runtime card = %#v", rendered)
-	}
-	if environment["KAGENT_CONFIG_JSON"].Value != string(spec.ConfigJSON) {
-		t.Fatal("config was not embedded as a non-secret literal")
-	}
+	var descriptor bootstrap.Descriptor
+	require.NoError(t, json.Unmarshal([]byte(environment[bootstrap.Environment].Value), &descriptor))
+	require.NoError(t, descriptor.Verify(bundle))
+	require.NotContains(t, environment, "KAGENT_CONFIG_JSON")
+	require.NotContains(t, environment, "KAGENT_AGENT_CARD_JSON")
+	require.NotNil(t, template.GoldenEgressPolicy)
 }
 
 func TestActorTemplateStampsTheRevisionOnTheResource(t *testing.T) {
@@ -125,16 +125,18 @@ func TestActorTemplateStampsTheRevisionOnTheResource(t *testing.T) {
 		{name: "replaces forged version", environment: []corev1.EnvVar{{Name: "OTEL_RESOURCE_ATTRIBUTES", Value: "gen_ai.main_agent.name=helper-kagent,service.version=forged"}}, wantPrefix: "gen_ai.main_agent.name=helper-kagent,"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			spec := &translator.Revision{CPU: "1", Memory: "1Gi",
+			spec := &translator.Revision{ControlPlaneURL: testControlPlaneURL, CPU: "1", Memory: "1Gi",
 				Namespace: "agents", AgentName: "helper", WorkerPoolName: "default",
 				AgentCard: &a2apb.AgentCard{Name: "helper", Version: "v1", Capabilities: &a2apb.AgentCapabilities{},
 					SupportedInterfaces: []*a2apb.AgentInterface{{Url: "http://127.0.0.1:80", ProtocolBinding: "GRPC", ProtocolVersion: "1.0"}},
 					DefaultInputModes:   []string{"text"}, DefaultOutputModes: []string{"text"}},
-				Environment: slices.Clone(test.environment),
+				ConfigJSON: []byte(`{}`), Environment: slices.Clone(test.environment),
 			}
 			revisionID, err := spec.Digest()
 			require.NoError(t, err)
-			template, err := ActorTemplateForRevision(spec, revisionID)
+			bundle, err := spec.BootstrapBundle(revisionID)
+			require.NoError(t, err)
+			template, err := ActorTemplateForRevision(spec, revisionID, bundle)
 			require.NoError(t, err)
 			require.Equal(t, test.environment, spec.Environment, "stamping the revision must not change the compiled revision")
 			for _, variable := range template.GetContainers()[0].Env {
@@ -191,19 +193,23 @@ func TestActorTemplateEnvironmentValueSize(t *testing.T) {
 		wantError   string
 	}{
 		{name: "ASCII boundary", instruction: strings.Repeat("a", 32768-configOverhead)},
-		{name: "ASCII overflow", instruction: strings.Repeat("a", 32769-configOverhead), wantError: `environment variable "KAGENT_CONFIG_JSON" is 32769 characters; Substrate supports at most 32768`},
+		{name: "ASCII overflow", instruction: strings.Repeat("a", 32769-configOverhead)},
 		{name: "Unicode boundary", instruction: strings.Repeat("日", 32768-configOverhead)},
-		{name: "Unicode overflow", instruction: strings.Repeat("日", 32769-configOverhead), wantError: `environment variable "KAGENT_CONFIG_JSON" is 32769 characters; Substrate supports at most 32768`},
-		{name: "JSON escaping", instruction: strings.Repeat("<>&", 2000), wantError: `environment variable "KAGENT_CONFIG_JSON" is 36018 characters; Substrate supports at most 32768`},
+		{name: "Unicode overflow", instruction: strings.Repeat("日", 32769-configOverhead)},
+		{name: "JSON escaping", instruction: strings.Repeat("<>&", 2000)},
 		{name: "user environment", environment: []corev1.EnvVar{{Name: "EXTRA", Value: strings.Repeat("x", 32769)}}, wantError: `environment variable "EXTRA" is 32769 characters; Substrate supports at most 32768`},
-		{name: "agent card", description: strings.Repeat("x", 32769), wantError: `environment variable "KAGENT_AGENT_CARD_JSON"`},
+		{name: "reserved bootstrap", environment: []corev1.EnvVar{{Name: bootstrap.Environment}}, wantError: "conflicts with runtime bootstrap"},
+		{name: "reserved legacy config", environment: []corev1.EnvVar{{Name: "KAGENT_CONFIG_JSON"}}, wantError: "conflicts with runtime bootstrap"},
+		{name: "reserved legacy card", environment: []corev1.EnvVar{{Name: "KAGENT_AGENT_CARD_JSON"}}, wantError: "conflicts with runtime bootstrap"},
+		{name: "reserved trust", environment: []corev1.EnvVar{{Name: "SSL_CERT_FILE"}}, wantError: "conflicts with gateway trust"},
+		{name: "agent card", description: strings.Repeat("x", 32769)},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			config, err := json.Marshal(struct {
 				Instruction string `json:"instruction"`
 			}{test.instruction})
 			require.NoError(t, err)
-			spec := &translator.Revision{CPU: "1", Memory: "1Gi",
+			spec := &translator.Revision{ControlPlaneURL: testControlPlaneURL, CPU: "1", Memory: "1Gi",
 				Namespace: "agents", AgentName: "helper", WorkerPoolName: "default",
 				ConfigJSON: config, Environment: test.environment,
 				AgentCard: &a2apb.AgentCard{Name: "helper", Description: test.description, Version: "v1", Capabilities: &a2apb.AgentCapabilities{},
@@ -212,7 +218,9 @@ func TestActorTemplateEnvironmentValueSize(t *testing.T) {
 			}
 			id, err := spec.Digest()
 			require.NoError(t, err)
-			template, err := ActorTemplateForRevision(spec, id)
+			bundle, err := spec.BootstrapBundle(id)
+			require.NoError(t, err)
+			template, err := ActorTemplateForRevision(spec, id, bundle)
 			if test.wantError != "" {
 				require.ErrorContains(t, err, test.wantError)
 				require.Nil(t, template)
@@ -261,41 +269,88 @@ func TestActorResources(t *testing.T) {
 	}
 }
 
+func TestGoldenEgressPolicyIsPartOfTemplateIdentity(t *testing.T) {
+	policy, err := goldenEgressPolicy("team-a", "https://controller.example", nil)
+	require.NoError(t, err)
+	original := &ateapipb.ActorTemplate{GoldenEgressPolicy: policy}
+	for _, scenario := range []struct {
+		name   string
+		change func(*ateapipb.ActorTemplate)
+	}{
+		{"missing policy", func(template *ateapipb.ActorTemplate) { template.GoldenEgressPolicy = nil }},
+		{"different destination", func(template *ateapipb.ActorTemplate) {
+			template.GoldenEgressPolicy.Rules[0].Https.Hostnames = []string{"other.example"}
+		}},
+		{"different audience", func(template *ateapipb.ActorTemplate) {
+			for _, header := range template.GoldenEgressPolicy.Rules[0].Https.Effects.ReplaceHeaders {
+				header.ActorJwt.Audiences = []string{"other-audience"}
+			}
+		}},
+	} {
+		t.Run("Given a bootstrap policy, when compared with "+scenario.name+", assert that template identity differs", func(t *testing.T) {
+			changed := proto.CloneOf(original)
+			scenario.change(changed)
+			require.False(t, ActorTemplateSpecEqual(original, changed))
+			require.NotEqual(t, mustSpecDigest(t, original), mustSpecDigest(t, changed))
+		})
+	}
+}
+
 func TestActorTemplateGoldenEgress(t *testing.T) {
-	spec := &translator.Revision{
-		CPU: "1", Memory: "1Gi", Namespace: "agents", AgentName: "helper", WorkerPoolName: "default",
+	t.Run("Given compiled destinations, when the template is built, assert that preparation reaches them without credentials", func(t *testing.T) {
+		template, err := goldenEgressTemplate(t, "http://skills.agents.svc.cluster.local:8080", "https://models.example.com", testControlPlaneURL)
+		require.NoError(t, err)
+		rules := goldenEgressRules(template)
+		require.Len(t, rules, 3)
+		skills := rules["skills.agents.svc.cluster.local"].GetHttp()
+		require.Equal(t, []int32{8080}, skills.GetPorts().GetNumbers())
+		require.Nil(t, skills.GetEffects())
+		require.Nil(t, rules["models.example.com"].GetHttps().GetEffects())
+		requireBootstrapAuthority(t, rules["kagent-controller.kagent.svc"])
+	})
+	t.Run("Given no compiled destinations, when the template is built, assert that preparation reaches only the control plane", func(t *testing.T) {
+		template, err := goldenEgressTemplate(t)
+		require.NoError(t, err)
+		rules := goldenEgressRules(template)
+		require.Len(t, rules, 1)
+		requireBootstrapAuthority(t, rules["kagent-controller.kagent.svc"])
+	})
+	t.Run("Given an invalid destination, when the template is built, assert that it is rejected", func(t *testing.T) {
+		_, err := goldenEgressTemplate(t, "invalid")
+		require.ErrorContains(t, err, "compile golden actor egress")
+	})
+}
+
+func goldenEgressTemplate(t *testing.T, destinations ...string) (*ateapipb.ActorTemplate, error) {
+	t.Helper()
+	spec := &translator.Revision{ControlPlaneURL: testControlPlaneURL, CPU: "1", Memory: "1Gi",
+		Namespace: "agents", AgentName: "helper", WorkerPoolName: "default", ConfigJSON: []byte(`{}`),
 		AgentCard: &a2apb.AgentCard{Name: "helper", Version: "v1", Capabilities: &a2apb.AgentCapabilities{},
 			SupportedInterfaces: []*a2apb.AgentInterface{{Url: "http://127.0.0.1:80", ProtocolBinding: "GRPC", ProtocolVersion: "1.0"}},
 			DefaultInputModes:   []string{"text"}, DefaultOutputModes: []string{"text"}},
-		EgressDestinations: []string{
-			"http://skills.agents.svc.cluster.local:8080", "https://models.example.com", "http://kagent-controller.kagent.svc:8083",
-		},
+		EgressDestinations: destinations,
 	}
 	id, err := spec.Digest()
 	require.NoError(t, err)
-	template, err := ActorTemplateForRevision(spec, id)
+	bundle, err := spec.BootstrapBundle(id)
 	require.NoError(t, err)
-	require.Len(t, template.GoldenEgressPolicy.GetRules(), 3)
-	require.Equal(t, []string{"kagent-controller.kagent.svc"}, template.GoldenEgressPolicy.Rules[0].GetHttp().GetHostnames())
-	rule := template.GoldenEgressPolicy.Rules[1].GetHttp()
-	require.Equal(t, []string{"skills.agents.svc.cluster.local"}, rule.GetHostnames())
-	require.Equal(t, []int32{8080}, rule.GetPorts().GetNumbers())
-	require.Empty(t, rule.GetEffects().GetReplaceHeaders())
-	require.Equal(t, []string{"models.example.com"}, template.GoldenEgressPolicy.Rules[2].GetHttps().GetHostnames())
-	for _, rule := range template.GoldenEgressPolicy.Rules {
-		require.Nil(t, rule.GetHttp().GetEffects())
-		require.Nil(t, rule.GetHttps().GetEffects())
+	return ActorTemplateForRevision(spec, id, bundle)
+}
+
+func goldenEgressRules(template *ateapipb.ActorTemplate) map[string]*ateapipb.EgressRule {
+	rules := map[string]*ateapipb.EgressRule{}
+	for _, rule := range template.GetGoldenEgressPolicy().GetRules() {
+		for _, hostname := range append(rule.GetHttp().GetHostnames(), rule.GetHttps().GetHostnames()...) {
+			rules[hostname] = rule
+		}
 	}
-	changed := proto.CloneOf(template)
-	changed.GoldenEgressPolicy = nil
-	require.False(t, ActorTemplateSpecEqual(template, changed))
-	spec.EgressDestinations = nil
-	id, err = spec.Digest()
-	require.NoError(t, err)
-	empty, err := ActorTemplateForRevision(spec, id)
-	require.NoError(t, err)
-	require.Nil(t, empty.GoldenEgressPolicy)
-	spec.EgressDestinations = []string{"invalid"}
-	_, err = ActorTemplateForRevision(spec, id)
-	require.ErrorContains(t, err, "compile golden actor egress")
+	return rules
+}
+
+func requireBootstrapAuthority(t *testing.T, rule *ateapipb.EgressRule) {
+	t.Helper()
+	headers := rule.GetHttp().GetEffects().GetReplaceHeaders()
+	require.Len(t, headers, 1)
+	require.Equal(t, "authorization", headers[0].GetHeader())
+	require.Equal(t, []string{bootstrap.Audience}, headers[0].GetActorJwt().GetAudiences())
 }

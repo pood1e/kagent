@@ -44,7 +44,7 @@ func (w authorityWorkflow) Create(ctx context.Context, session *apiv1.Session) (
 	if session.State == apiv1.RuntimeState_RUNTIME_STATE_READY {
 		return session, nil
 	}
-	operation, err := w.store.BeginSessionOperation(ctx, session.Id, apiv1.RuntimeOperation_RUNTIME_OPERATION_CREATE)
+	operation, err := w.store.BeginSessionOperation(ctx, session.Id, apiv1.RuntimeOperation_RUNTIME_OPERATION_CREATE, false)
 	if err != nil {
 		return nil, err
 	}

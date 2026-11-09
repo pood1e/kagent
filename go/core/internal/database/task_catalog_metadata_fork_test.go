@@ -86,7 +86,7 @@ func TestTaskCatalogSessionMetadataFollowsRenameAndLifecycle(t *testing.T) {
 	renamed, err := client.ListCatalogSessionActivity(t.Context(), query)
 	require.NoError(t, err)
 	require.Equal(t, 1, renamed.Total)
-	operation, err := client.BeginSessionOperation(t.Context(), session.Id, apiv1.RuntimeOperation_RUNTIME_OPERATION_SUSPEND)
+	operation, err := client.BeginSessionOperation(t.Context(), session.Id, apiv1.RuntimeOperation_RUNTIME_OPERATION_SUSPEND, false)
 	require.NoError(t, err)
 	begin, err := client.ListCatalogSessionActivity(t.Context(), query)
 	require.NoError(t, err)

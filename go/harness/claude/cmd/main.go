@@ -16,6 +16,7 @@ import (
 	"go.opentelemetry.io/otel"
 
 	"github.com/kagent-dev/kagent/go/adk/pkg/app"
+	"github.com/kagent-dev/kagent/go/adk/pkg/bootstrap"
 	"github.com/kagent-dev/kagent/go/adk/pkg/controllerclient"
 	"github.com/kagent-dev/kagent/go/harness/claude/config"
 	"github.com/kagent-dev/kagent/go/harness/claude/executor"
@@ -24,10 +25,8 @@ import (
 )
 
 const (
-	configEnv    = "KAGENT_CONFIG_JSON"
-	agentCardEnv = "KAGENT_AGENT_CARD_JSON"
-	dataDir      = "/data"
-	privatePort  = "80"
+	dataDir     = "/data"
+	privatePort = "80"
 )
 
 func main() {
@@ -46,14 +45,11 @@ func main() {
 }
 
 func run(ctx context.Context, check bool, getenv func(string) string, environment []string) error {
-	configJSON, err := requiredEnvironment(getenv, configEnv)
+	bundle, err := bootstrap.FromEnvironment(ctx, getenv)
 	if err != nil {
 		return err
 	}
-	agentCardJSON, err := requiredEnvironment(getenv, agentCardEnv)
-	if err != nil {
-		return err
-	}
+	configJSON, agentCardJSON := bundle.ConfigJson, bundle.AgentCardJson
 	var card a2atype.AgentCard
 	if err := json.Unmarshal(agentCardJSON, &card); err != nil {
 		return fmt.Errorf("decode agent card: %w", err)
@@ -112,14 +108,6 @@ func run(ctx context.Context, check bool, getenv func(string) string, environmen
 		return fmt.Errorf("construct private A2A app: %w", err)
 	}
 	return application.Run()
-}
-
-func requiredEnvironment(getenv func(string) string, name string) ([]byte, error) {
-	value := strings.TrimSpace(getenv(name))
-	if value == "" {
-		return nil, fmt.Errorf("%s is required", name)
-	}
-	return []byte(value), nil
 }
 
 // startMetrics starts metrics on the first execution, which runs after the snapshot restore.

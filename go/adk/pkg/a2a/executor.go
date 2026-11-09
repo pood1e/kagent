@@ -24,6 +24,7 @@ import (
 	"google.golang.org/genai"
 
 	"github.com/kagent-dev/kagent/go/adk/pkg/auth"
+	"github.com/kagent-dev/kagent/go/adk/pkg/mcp"
 	"github.com/kagent-dev/kagent/go/adk/pkg/models"
 	"github.com/kagent-dev/kagent/go/adk/pkg/nativeagent"
 	"github.com/kagent-dev/kagent/go/adk/pkg/telemetry"
@@ -283,6 +284,7 @@ func (e *KAgentExecutor) Execute(ctx context.Context, reqCtx *a2asrv.ExecutorCon
 		ctx = nativeagent.WithTask(ctx, &apiv1.TaskReference{SessionId: string(reqCtx.ContextID), TaskId: string(reqCtx.TaskID)})
 		ctx = context.WithValue(ctx, publicContextIDKey{}, reqCtx.ContextID)
 		ctx = withBearerToken(ctx)
+		ctx = mcp.WithDiscoveryScope(ctx)
 		// The synthetic ADK user ID is only a native session lookup key. Memory
 		// and outgoing credentials must receive only the passed-through caller.
 		ctx = auth.WithUserID(ctx, trustedUserID)

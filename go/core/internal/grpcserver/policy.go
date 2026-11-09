@@ -90,10 +90,17 @@ func DefaultMethodPolicies() MethodPolicies {
 		apiv1.HarnessService_UpdateHarness_FullMethodName:                   auth.AccessUpdate,
 		apiv1.HarnessService_CreateHarness_FullMethodName:                   auth.AccessCreate,
 		apiv1.HarnessService_DeleteHarness_FullMethodName:                   auth.AccessDelete,
+		runtimev1.BootstrapService_GetBootstrapConfig_FullMethodName:        auth.AccessRead,
 
 		apiv1.SandboxTemplateService_ListSandboxTemplates_FullMethodName:  auth.AccessRead,
 		apiv1.SandboxTemplateService_CreateSandboxTemplate_FullMethodName: auth.AccessCreate,
 		apiv1.SandboxTemplateService_DeleteSandboxTemplate_FullMethodName: auth.AccessDelete,
+
+		apiv1.EgressPolicyService_ListEgressPolicies_FullMethodName: auth.AccessRead,
+		apiv1.EgressPolicyService_GetEgressPolicy_FullMethodName:    auth.AccessRead,
+		apiv1.EgressPolicyService_CreateEgressPolicy_FullMethodName: auth.AccessCreate,
+		apiv1.EgressPolicyService_UpdateEgressPolicy_FullMethodName: auth.AccessUpdate,
+		apiv1.EgressPolicyService_DeleteEgressPolicy_FullMethodName: auth.AccessDelete,
 	}
 	policies[apiv1.SessionService_CreateSession_FullMethodName] = auth.AccessCreate
 	policies[apiv1.SessionService_GetSession_FullMethodName] = auth.AccessRead
@@ -101,6 +108,7 @@ func DefaultMethodPolicies() MethodPolicies {
 	// A rename is the only write on this service that is not a lifecycle
 	// operation, and it must not inherit the read mode its neighbours carry.
 	policies[apiv1.SessionService_UpdateSessionName_FullMethodName] = auth.AccessUpdate
+	policies[apiv1.SessionService_RevertSession_FullMethodName] = auth.AccessUpdate
 	policies[apiv1.SessionService_DeleteSession_FullMethodName] = auth.AccessDelete
 	policies[apiv1.SessionService_CreateSessionShare_FullMethodName] = auth.AccessCreate
 	policies[apiv1.SessionService_ListSessionShares_FullMethodName] = auth.AccessRead

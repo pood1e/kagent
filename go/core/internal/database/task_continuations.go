@@ -87,7 +87,7 @@ func (c *Client) RegisterTaskContinuation(ctx context.Context, parentID, childID
 
 // bindTaskContinuations publishes the waiting boundary in the task's own transaction.
 // A child that completes synchronously never causes an extra parent invocation.
-func bindTaskContinuations(ctx context.Context, tx pgx.Tx, sessionID string, historyID uuid.UUID, taskID string, state a2a.TaskState) error {
+func bindTaskContinuations(ctx context.Context, tx pgx.Tx, sessionID, historyID uuid.UUID, taskID string, state a2a.TaskState) error {
 	return execSQL(ctx, tx, `
    UPDATE task_continuation d SET child_task_id = $3,
      awaited = d.awaited OR $4::boolean OR EXISTS (

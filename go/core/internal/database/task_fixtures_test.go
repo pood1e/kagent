@@ -59,7 +59,7 @@ func saveRuntimeTask(t *testing.T, client *Client, sessionID string, task *a2a.T
 // finishSessionOperation simulates successful runtime work through the same
 // lifecycle operations used by the service, preserving their checks and fencing.
 func finishSessionOperation(ctx context.Context, client *Client, id string, kind apiv1.RuntimeOperation, authority string) (*apiv1.Session, error) {
-	work, err := client.BeginSessionOperation(ctx, id, kind)
+	work, err := client.BeginSessionOperation(ctx, id, kind, false)
 	if err != nil {
 		return nil, err
 	}
@@ -124,4 +124,23 @@ func createRuntimeTask(client *Client, ctx context.Context, sessionID string, ha
 		dispatchID = id.String()
 	}
 	return client.CreateRuntimeTask(ctx, sessionID, hash, task, dispatchID)
+}
+
+// updateRuntimeTask resumes a waiting fixture task through the native dispatch
+// boundary; other updates need no dispatch.
+func updateRuntimeTask(client *Client, ctx context.Context, sessionID string, version int64, hash []byte, task *a2a.Task) (int64, error) {
+	stored, _, err := client.GetVersionedSessionTask(ctx, sessionID, string(task.ID))
+	if err != nil {
+		return 0, err
+	}
+	dispatchID := ""
+	waiting := stored.Status.State == a2a.TaskStateInputRequired || stored.Status.State == a2a.TaskStateAuthRequired
+	if waiting && (task.Status.State == a2a.TaskStateSubmitted || task.Status.State == a2a.TaskStateWorking) {
+		id := uuid.New()
+		if err := client.ReserveSessionDispatch(ctx, sessionID, id, "", nil); err != nil {
+			return 0, err
+		}
+		dispatchID = id.String()
+	}
+	return client.UpdateSessionTask(ctx, sessionID, version, hash, task, task, dispatchID)
 }

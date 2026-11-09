@@ -27,24 +27,24 @@ import (
 // ProcessConfig contains validated, compiler-owned inputs for one Claude Code
 // process. Actor-owned paths and environment are supplied by the adapter.
 type ProcessConfig struct {
-	ToolObserver         runtime.ToolObserver
-	Executable           string
-	ExpectedVersion      string
-	StrictVersion        bool
-	Workspace            string
-	Model                string
-	AppendSystemPrompt   string
-	AgentsJSON           string
-	MCPConfigPath        string
-	DisallowedTools      []string
-	SettingsPath         string
-	PermissionPromptTool string
-	PluginDirs           []string
-	Environment          []string
-	MaxEventBytes        int
-	MaxStderrBytes       int
-	InterruptGrace       time.Duration
-	ApprovalBroker       *ApprovalBroker
+	ToolObserver           runtime.ToolObserver
+	Executable             string
+	ExpectedVersion        string
+	StrictVersion          bool
+	Workspace              string
+	Model                  string
+	AppendSystemPromptFile string
+	AgentsJSON             string
+	MCPConfigPath          string
+	DisallowedTools        []string
+	SettingsPath           string
+	PermissionPromptTool   string
+	PluginDirs             []string
+	Environment            []string
+	MaxEventBytes          int
+	MaxStderrBytes         int
+	InterruptGrace         time.Duration
+	ApprovalBroker         *ApprovalBroker
 	// AwaitTelemetry holds each prompt until Claude Code telemetry has
 	// initialized.
 	AwaitTelemetry bool
@@ -132,8 +132,8 @@ func (d *ProcessDriver) Args(turn runtime.Turn) []string {
 	if len(d.config.DisallowedTools) != 0 {
 		args = append(args, "--disallowedTools", strings.Join(d.config.DisallowedTools, ","))
 	}
-	if d.config.AppendSystemPrompt != "" {
-		args = append(args, "--append-system-prompt", d.config.AppendSystemPrompt)
+	if d.config.AppendSystemPromptFile != "" {
+		args = append(args, "--append-system-prompt-file", d.config.AppendSystemPromptFile)
 	}
 	if d.config.AgentsJSON != "" {
 		args = append(args, "--agents", d.config.AgentsJSON)
