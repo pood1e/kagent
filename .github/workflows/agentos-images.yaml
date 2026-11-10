@@ -19,6 +19,7 @@ env:
 
 jobs:
   test:
+    name: test (${{ matrix.shard }})
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -108,6 +109,7 @@ jobs:
         if: steps.linter.outputs.cache-hit == 'true'
         run: touch bin/golangci-lint-custom
       - run: make lint AWK=awk
+      - run: echo "KUBEBUILDER_ASSETS=$(go tool setup-envtest use 1.37 -p path)" >> "$GITHUB_ENV"
       - name: Test and lint the optional agentgateway integration
         working-directory: go/integrations/agentgateway
         run: |
