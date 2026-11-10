@@ -230,7 +230,7 @@ jobs:
           retention-days: 1
 
   index:
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
+    if: ${{ !cancelled() && needs.images.result == 'success' }}
     needs: images
     runs-on: ubuntu-24.04
     permissions:
@@ -278,7 +278,7 @@ jobs:
           retention-days: 1
 
   charts:
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
+    if: ${{ !cancelled() && needs.index.result == 'success' }}
     needs: index
     runs-on: ubuntu-24.04
     permissions:
