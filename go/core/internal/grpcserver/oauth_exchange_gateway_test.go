@@ -58,7 +58,7 @@ func startAuthorityExchangeGateway(t *testing.T, f *authorityOAuthIssuer, callba
    "protocol":{"http":{
     "path":"'/authorize/runtime?scope=read&server=team-a/environment&credential=subject_token'",
     "addRequestHeaders":{"authorization":"request.headers['x-substrate-actor-token']"},
-    "includeResponseHeaders":["authorization"],"metadata":{"selection":"json(response.body)","scopes":"json(response.headers['x-kagent-scopes'])"}
+    "includeResponseHeaders":["authorization"],"metadata":{"selection":"json(response.headers['x-kagent-selection'])","scopes":"json(response.headers['x-kagent-scopes'])"}
    }}
   }},
   "backends":[{

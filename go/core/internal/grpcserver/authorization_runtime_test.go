@@ -150,7 +150,7 @@ func verifyNativeRuntimePermissions(t *testing.T, api apiv1.AuthorizationService
 		var selection struct {
 			Tools []string `json:"tools"`
 		}
-		require.NoError(t, json.NewDecoder(response.Body).Decode(&selection))
+		require.NoError(t, json.Unmarshal([]byte(response.Header.Get("X-Kagent-Selection")), &selection))
 		require.Equal(t, []string{"Read"}, selection.Tools)
 	}
 	selected()

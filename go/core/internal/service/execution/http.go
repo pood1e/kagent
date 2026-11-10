@@ -9,12 +9,13 @@ import (
 
 	"github.com/kagent-dev/kagent/go/core/internal/service/serviceerrors"
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
-	"github.com/kagent-dev/kagent/go/pkg/logging"
 )
 
 // RuntimeAuthorization checks the live initiator, UID-bound pinned dependencies
 // and immutable resource ceiling on every gateway callback. Credentials are
 // exported only after those checks, for the authenticated destination gateway.
+// Decisions are response headers: agentgateway buffers every proxied response
+// when ext-authz metadata reads the callback body.
 func (s *Service) RuntimeAuthorization(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	required := r.URL.Query().Get("scope")
@@ -64,6 +65,11 @@ func (s *Service) RuntimeAuthorization(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "runtime scopes unavailable", http.StatusForbidden)
 		return
 	}
+	selected, err := json.Marshal(selection)
+	if err != nil {
+		http.Error(w, "runtime selection unavailable", http.StatusForbidden)
+		return
+	}
 	if credential != "" {
 		source, ok := resolved.(auth.TokenSource)
 		if !ok {
@@ -78,8 +84,5 @@ func (s *Service) RuntimeAuthorization(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Authorization", "Bearer "+token)
 	}
 	w.Header().Set("X-Kagent-Scopes", string(scopes))
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(selection); err != nil {
-		logging.FromContext(r.Context()).ErrorContext(r.Context(), "failed to encode runtime target authorization", "error", err)
-	}
+	w.Header().Set("X-Kagent-Selection", string(selected))
 }

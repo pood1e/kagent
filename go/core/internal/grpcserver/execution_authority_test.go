@@ -242,7 +242,7 @@ func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	require.Equal(t, "Bearer "+userToken, selected.Header.Get("Authorization"))
 	require.NotEqual(t, "Bearer "+gatewayToken, selected.Header.Get("Authorization"))
 	var binding v1alpha3.MCPToolBinding
-	require.NoError(t, json.NewDecoder(selected.Body).Decode(&binding))
+	require.NoError(t, json.Unmarshal([]byte(selected.Header.Get("X-Kagent-Selection")), &binding))
 	require.Equal(t, []string{"read_nodes"}, binding.Tools)
 	checkTarget("server=team-a/other", http.StatusForbidden)
 	checkTarget("server=team-b/native", http.StatusForbidden)
@@ -258,7 +258,7 @@ func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	_, err = store.RecordRuntimeRevision(t.Context(), *revision, database.RecordRevisionOptions{Ready: true})
 	require.NoError(t, err)
 	original := checkTarget("server=team-a/native", http.StatusOK)
-	require.NoError(t, json.NewDecoder(original.Body).Decode(&binding))
+	require.NoError(t, json.Unmarshal([]byte(original.Header.Get("X-Kagent-Selection")), &binding))
 	require.Equal(t, []string{"read_nodes"}, binding.Tools)
 	afterRevoke := authorityGatewayProof(t, callback.URL, gatewayToken, actorToken, userToken)
 	_, err = db.Exec(t.Context(), `UPDATE session_authority SET expires_at = $1 WHERE root_session_id = $2`, time.Now().Add(-time.Minute), root.Id)
