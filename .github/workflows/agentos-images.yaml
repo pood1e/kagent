@@ -18,8 +18,10 @@ env:
   VERSION: 0.0.0-${{ github.ref_name == 'dev' && 'dev' || 'main' }}.g${{ github.sha }}
 
 jobs:
+  # dev only merges pull requests whose verify passed on an up-to-date branch, so dev builds skip it.
   test:
     name: test (${{ matrix.shard }})
+    if: github.ref != 'refs/heads/dev'
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -85,6 +87,7 @@ jobs:
         run: go test -race -count=1 $PACKAGES
 
   lint:
+    if: github.ref != 'refs/heads/dev'
     runs-on: ubuntu-24.04
     defaults:
       run:
@@ -117,7 +120,7 @@ jobs:
           ../../bin/golangci-lint-custom run --config ../../.golangci.yaml
 
   verify:
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && github.ref != 'refs/heads/dev' }}
     needs: [test, lint]
     runs-on: ubuntu-24.04
     steps:
@@ -128,7 +131,9 @@ jobs:
         run: test "$TEST" = success && test "$LINT" = success
 
   images:
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
+    if: >-
+      ${{ !cancelled() && (github.ref == 'refs/heads/dev' && needs.verify.result == 'skipped'
+      || github.ref == 'refs/heads/main' && needs.verify.result == 'success') }}
     needs: verify
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     permissions:
