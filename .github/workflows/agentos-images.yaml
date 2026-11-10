@@ -11,15 +11,38 @@ permissions:
 
 concurrency:
   group: agentos-images-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   REGISTRY: ghcr.io/${{ github.repository }}
   VERSION: 0.0.0-${{ github.ref_name == 'dev' && 'dev' || 'main' }}.g${{ github.sha }}
 
 jobs:
-  verify:
+  test:
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: storage
+            packages: >-
+              ./core/internal/grpcserver ./core/internal/database ./core/pkg/migrations ./core/pkg/postgressetup
+          - shard: core
+            packages: >-
+              ./api/a2a ./core/internal/runtimeauth ./core/internal/executionauth ./core/internal/service/execution
+              ./core/internal/service/admission ./core/internal/service/kubecrud ./core/internal/service/memory
+              ./core/internal/service/taskstore ./core/internal/service/session ./core/internal/service/taskcatalog
+              ./core/internal/service/tool ./core/internal/service/scheduledrun ./core/internal/controller/scheduledrun
+              ./core/internal/a2agateway ./core/internal/mcp ./core/internal/translator/adkconfig ./core/internal/substrate
+              ./core/internal/translator ./core/internal/utils ./core/internal/service/inventory ./core/internal/service/system
+              ./core/pkg/config ./core/pkg/env ./core/pkg/app ./pkg/telemetry/... ./pkg/tracing
+          - shard: runtimes
+            packages: >-
+              ./core/internal/translator/claude ./core/internal/translator/codex ./harness/... ./adk/pkg/a2a/...
+              ./adk/pkg/config ./adk/pkg/declarative ./adk/pkg/tools ./adk/pkg/controllerclient ./adk/pkg/taskstore
+              ./adk/pkg/embedding ./adk/pkg/nativeagent ./adk/pkg/agent ./adk/pkg/runner ./adk/pkg/mcp
+          - shard: controller
+            packages: ./core/internal/controller ./core/internal/httpserver/auth ./core/pkg/auth
     services:
       postgres:
         image: pgvector/pgvector:0.8.7-pg18-bookworm@sha256:2358fcba361ed2233a5ed81b5fe4ca779ccb304120ce531a3bf51c0ed7e2bc11
@@ -55,55 +78,52 @@ jobs:
           printf '%s  %s\n' "$AGENTGATEWAY_SHA256" "$binary" | sha256sum --check --strict
           chmod 0755 "$binary"
           echo "KAGENT_TEST_AGENTGATEWAY=$binary" >> "$GITHUB_ENV"
-      - name: Test the AgentOS runtime extensions
-        run: |
-          go test -race -count=1 ./api/a2a ./core/internal/database ./core/pkg/migrations \
-            ./core/internal/runtimeauth ./core/internal/executionauth ./core/internal/service/execution ./core/internal/service/admission ./core/internal/service/kubecrud ./core/internal/service/memory ./core/internal/service/taskstore \
-            ./core/internal/service/session ./core/internal/service/taskcatalog ./core/internal/service/tool ./core/internal/service/scheduledrun \
-            ./core/internal/controller/scheduledrun ./core/internal/grpcserver ./core/internal/a2agateway \
-            ./core/internal/mcp ./core/internal/translator/adkconfig ./core/internal/substrate \
-            ./core/internal/translator ./core/internal/utils \
-            ./core/internal/service/inventory ./core/internal/service/system \
-            ./core/pkg/config ./core/pkg/env ./core/pkg/app ./core/pkg/postgressetup ./pkg/telemetry/... ./pkg/tracing
-          go test -race -count=1 ./core/internal/translator/claude ./core/internal/translator/codex \
-            ./harness/... ./adk/pkg/a2a/... ./adk/pkg/config ./adk/pkg/declarative ./adk/pkg/tools ./adk/pkg/controllerclient ./adk/pkg/taskstore \
-            ./adk/pkg/embedding ./adk/pkg/nativeagent ./adk/pkg/agent ./adk/pkg/runner ./adk/pkg/mcp
-          go test -race -count=1 ./core/internal/controller ./core/internal/httpserver/auth ./core/pkg/auth
+      - name: Test the AgentOS runtime extensions (${{ matrix.shard }})
+        env:
+          PACKAGES: ${{ matrix.packages }}
+        run: go test -race -count=1 $PACKAGES
+
+  lint:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: go
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go/go.mod
+          cache-dependency-path: go/go.sum
+      - id: linter
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: go/bin/golangci-lint-custom
+          key: golangci-lint-custom-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('go/.custom-gcl.yml', 'go/go.mod', 'go/go.sum') }}
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/golangci-lint
+          key: golangci-lint-analysis-${{ runner.os }}-${{ hashFiles('go/go.sum', 'go/.golangci.yaml') }}-${{ github.sha }}
+          restore-keys: golangci-lint-analysis-${{ runner.os }}-${{ hashFiles('go/go.sum', 'go/.golangci.yaml') }}-
+      - name: Keep the restored linter newer than its make prerequisites
+        if: steps.linter.outputs.cache-hit == 'true'
+        run: touch bin/golangci-lint-custom
       - run: make lint AWK=awk
       - name: Test and lint the optional agentgateway integration
         working-directory: go/integrations/agentgateway
         run: |
           go test -race -count=1 ./...
           ../../bin/golangci-lint-custom run --config ../../.golangci.yaml
-      - name: Build binaries
-        run: |
-          out=../dist
-          substrate_version="$(awk '/github\.com\/kagent-dev\/substrate/ { print substr($5, 2) }' go.mod)"
-          for harness in claude-harness standard-harness codex-harness; do
-            mkdir -p "$out/$harness"
-            cp ../agentos/images/toolbox.sh "$out/$harness/toolbox.sh"
-          done
-          for arch in amd64 arm64; do
-            bin="linux/$arch"
-            mkdir -p "$out/controller/$bin" "$out/claude-harness/$bin" "$out/standard-harness/$bin/rootfs" \
-              "$out/codex-harness/$bin/rootfs/usr/local/bin"
-            export CGO_ENABLED=0 GOOS=linux GOARCH="$arch"
-            go build -trimpath -buildvcs=false \
-              -ldflags "-s -w -X github.com/kagent-dev/kagent/go/core/internal/version.Version=$VERSION -X github.com/kagent-dev/kagent/go/core/internal/version.GitCommit=$GITHUB_SHA -X github.com/kagent-dev/kagent/go/core/internal/version.SubstrateVersion=$substrate_version" \
-              -o "$out/controller/$bin/kagent-controller" ./core/cmd/controller
-            go build -trimpath -buildvcs=false -ldflags '-s -w' \
-              -o "$out/claude-harness/$bin/kagent-claude" ./harness/claude/cmd
-            go build -trimpath -buildvcs=false -ldflags '-s -w' \
-              -o "$out/standard-harness/$bin/rootfs/app" ./adk/cmd
-            go build -trimpath -buildvcs=false -ldflags '-s -w' \
-              -o "$out/codex-harness/$bin/rootfs/usr/local/bin/kagent-codex" ./harness/codex/cmd
-          done
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: contexts
-          path: dist/
-          if-no-files-found: error
-          retention-days: 1
+
+  verify:
+    if: ${{ !cancelled() }}
+    needs: [test, lint]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require every test shard and lint
+        env:
+          TEST: ${{ needs.test.result }}
+          LINT: ${{ needs.lint.result }}
+        run: test "$TEST" = success && test "$LINT" = success
 
   images:
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
@@ -120,24 +140,53 @@ jobs:
           - component: controller
             dockerfile: controller
             entrypoint: /app
+            package: ./core/cmd/controller
+            binary: kagent-controller
           - component: claude-harness
             dockerfile: claude-harness
             entrypoint: /usr/local/bin/kagent-claude
+            package: ./harness/claude/cmd
+            binary: kagent-claude
           - component: standard-harness
             dockerfile: harness
             entrypoint: /app
+            package: ./adk/cmd
+            binary: rootfs/app
             # Upstream main snapshot 692964d30c6b; the runtime binary comes from this checkout.
             base: ghcr.io/kagent-dev/kagent/golang-adk@sha256:a9193f48437a3f1e12149bd754fd488b7d3b57be818974f19e904fa4d7363284
           - component: codex-harness
             dockerfile: harness
             entrypoint: /usr/local/bin/kagent-codex
+            package: ./harness/codex/cmd
+            binary: rootfs/usr/local/bin/kagent-codex
             base: ghcr.io/kagent-dev/kagent/codex-harness@sha256:2c9b447cd2d6a78b56b91b9ec78658388ab2df27290062fcbd070c6cde0a5315
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          name: contexts
-          path: dist/
+          go-version-file: go/go.mod
+          cache-dependency-path: go/go.sum
+      - name: Build the ${{ matrix.component }} binary
+        working-directory: go
+        env:
+          ARCH: ${{ matrix.arch }}
+          COMPONENT: ${{ matrix.component }}
+          PACKAGE: ${{ matrix.package }}
+          BINARY: ${{ matrix.binary }}
+        run: |
+          out="../dist/$COMPONENT"
+          ldflags='-s -w'
+          if [ "$COMPONENT" = controller ]; then
+            substrate_version="$(awk '/github\.com\/kagent-dev\/substrate/ { print substr($5, 2) }' go.mod)"
+            version=github.com/kagent-dev/kagent/go/core/internal/version
+            ldflags="$ldflags -X $version.Version=$VERSION -X $version.GitCommit=$GITHUB_SHA -X $version.SubstrateVersion=$substrate_version"
+          else
+            mkdir -p "$out"
+            cp ../agentos/images/toolbox.sh "$out/toolbox.sh"
+          fi
+          mkdir -p "$(dirname "$out/linux/$ARCH/$BINARY")"
+          CGO_ENABLED=0 GOOS=linux GOARCH="$ARCH" go build -trimpath -buildvcs=false -ldflags "$ldflags" \
+            -o "$out/linux/$ARCH/$BINARY" "$PACKAGE"
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
