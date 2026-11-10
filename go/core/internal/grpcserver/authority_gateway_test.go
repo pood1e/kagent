@@ -1,6 +1,7 @@
 package grpcserver
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -76,13 +77,18 @@ func authorityGatewayProof(t *testing.T, callback, token, wrongAudience, subject
 	port := listener.Addr().(*net.TCPAddr).Port
 	require.NoError(t, listener.Close())
 	// The native ext-authz check has no cache. Static MCP grants select one tool.
-	config := fmt.Sprintf(`{"config":{"adminAddr":"127.0.0.1:0","readinessAddr":"127.0.0.1:0"},"binds":[{"port":%d,"listeners":[{"protocol":"HTTP","routes":[{"name":"native-authority","matches":[{"path":{"pathPrefix":"/mcp"}}],"policies":{"extAuthz":{"host":%q,"failureMode":"deny","includeRequestHeaders":["x-substrate-actor-token"],"protocol":{"http":{"path":"'/authorize/runtime?scope=write&server=team-a/native&credential=subject_token'","addRequestHeaders":{"authorization":"request.headers['x-substrate-actor-token']"},"includeResponseHeaders":["authorization"],"metadata":{"selection":"json(response.body)","scopes":"json(response.headers['x-kagent-scopes'])"}}}}},"backends":[{"mcp":{"prefixMode":"never","statefulMode":"stateless","targets":[{"name":"native","mcp":{"host":%q},"policies":{"backendAuth":{"oauthTokenExchange":{"host":%q,"path":"/token","clientAuth":{"clientId":"destination","clientSecret":"destination-secret","method":"clientSecretBasic"},"audiences":["destination-api"]}}}}]},"policies":{"mcpAuthorization":{"rules":["'write' in extauthz.scopes && (!has(extauthz.selection.tools) || mcp.tool.name in extauthz.selection.tools)"]}}}]}]}]}]}`, port, strings.TrimPrefix(callback, "http://"), server.URL+"/mcp", strings.TrimPrefix(issuer.URL, "http://"))
+	config := fmt.Sprintf(`{"config":{"adminAddr":"127.0.0.1:0","readinessAddr":"127.0.0.1:0"},"binds":[{"port":%d,"listeners":[{"protocol":"HTTP","routes":[{"name":"native-authority","matches":[{"path":{"pathPrefix":"/mcp"}}],"policies":{"extAuthz":{"host":%q,"failureMode":"deny","includeRequestHeaders":["x-substrate-actor-token"],"protocol":{"http":{"path":"'/authorize/runtime?scope=write&server=team-a/native&credential=subject_token'","addRequestHeaders":{"authorization":"request.headers['x-substrate-actor-token']"},"includeResponseHeaders":["authorization"],"metadata":{"selection":"json(response.headers['x-kagent-selection'])","scopes":"json(response.headers['x-kagent-scopes'])"}}}}},"backends":[{"mcp":{"prefixMode":"never","statefulMode":"stateless","targets":[{"name":"native","mcp":{"host":%q},"policies":{"backendAuth":{"oauthTokenExchange":{"host":%q,"path":"/token","clientAuth":{"clientId":"destination","clientSecret":"destination-secret","method":"clientSecretBasic"},"audiences":["destination-api"]}}}}]},"policies":{"mcpAuthorization":{"rules":["'write' in extauthz.scopes && (!has(extauthz.selection.tools) || mcp.tool.name in extauthz.selection.tools)"]}}}]}]}]}]}`, port, strings.TrimPrefix(callback, "http://"), server.URL+"/mcp", strings.TrimPrefix(issuer.URL, "http://"))
 	var modelCalls atomic.Int32
+	// The provider completes its stream only after the client has read the first event.
+	streamed, release := context.WithCancel(t.Context())
 	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Empty(t, r.Header.Get("X-Substrate-Actor-Token"), "Actor proof reached model provider")
 		modelCalls.Add(1)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = io.WriteString(w, `{"model":"language"}`)
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, "data: first\n\n")
+		w.(http.Flusher).Flush()
+		<-streamed.Done()
+		_, _ = io.WriteString(w, "data: [DONE]\n\n")
 	}))
 	t.Cleanup(model.Close)
 	var document map[string]any
@@ -97,7 +103,7 @@ func authorityGatewayProof(t *testing.T, callback, token, wrongAudience, subject
 			"name": name, "matches": []any{map[string]any{"path": map[string]any{"pathPrefix": "/v1/" + name}}},
 			"policies": map[string]any{"extAuthz": map[string]any{
 				"host": strings.TrimPrefix(callback, "http://"), "failureMode": "deny", "includeRequestHeaders": []string{"x-substrate-actor-token"},
-				"protocol": map[string]any{"http": map[string]any{"path": "'/authorize/runtime?workspace=team-a'", "addRequestHeaders": map[string]string{"authorization": "request.headers['x-substrate-actor-token']"}, "metadata": map[string]string{"models": "json(response.body)"}}},
+				"protocol": map[string]any{"http": map[string]any{"path": "'/authorize/runtime?workspace=team-a'", "addRequestHeaders": map[string]string{"authorization": "request.headers['x-substrate-actor-token']"}, "metadata": map[string]string{"models": "json(response.headers['x-kagent-selection'])"}}},
 			}},
 			"backends": []any{map[string]any{"host": strings.TrimPrefix(model.URL, "http://"), "policies": map[string]any{
 				"authorization":         map[string]any{"rules": []string{"!('x-substrate-actor-token' in request.headers) || extauthz.models.exists(m, m.name == '" + name + "')"}},
@@ -168,15 +174,23 @@ func authorityGatewayProof(t *testing.T, callback, token, wrongAudience, subject
 	require.Equal(t, int32(1), calls.Load(), "forbidden tools must never reach upstream")
 	require.Positive(t, exchanges.Load(), "RFC 8693 exchange was not used")
 	modelRequest := func(name, proof string, want int) {
-		request, err := http.NewRequestWithContext(t.Context(), http.MethodPost, fmt.Sprintf("http://127.0.0.1:%d/v1/%s", port, name), strings.NewReader(`{"model":"language"}`))
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+		defer cancel()
+		request, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("http://127.0.0.1:%d/v1/%s", port, name), strings.NewReader(`{"model":"language"}`))
 		require.NoError(t, err)
 		request.Header.Set("Content-Type", "application/json")
 		request.Header.Set("X-Substrate-Actor-Token", "Bearer "+proof)
 		response, err := http.DefaultClient.Do(request)
-		require.NoError(t, err)
-		_, _ = io.Copy(io.Discard, response.Body)
-		require.NoError(t, response.Body.Close())
+		require.NoError(t, err, "model target %s must stream through the gateway", name)
+		defer func() { require.NoError(t, response.Body.Close()) }()
 		require.Equal(t, want, response.StatusCode, "model target %s", name)
+		if want == http.StatusOK {
+			event, err := bufio.NewReader(response.Body).ReadString('\n')
+			require.NoError(t, err)
+			require.Equal(t, "data: first\n", event)
+			release()
+		}
+		_, _ = io.Copy(io.Discard, response.Body)
 	}
 	modelRequest("language", token, http.StatusOK)
 	modelRequest("other", token, http.StatusForbidden)

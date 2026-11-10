@@ -147,13 +147,16 @@ vault. The independent initiator owns credential issuance and revocation.
 ## Gateway authorization
 
 `POST /authorize/runtime` intersects live initiator permissions, inherited resource
-ceilings, and the calling Session's UID-bound prepared dependencies. It returns
-allowed model references for gateway model policies. The optional
-`server=<namespace/name>` returns an explicit `tools` array for one pinned MCP
-server. All-tools bindings use the exact names captured at Session creation.
-`workspace=<namespace>` binds model callbacks to the destination gateway
-workspace; `model=<name>` selects one fixed ModelConfig identity. `scope=<configured-scope>`
-adds a live scope requirement. `X-Kagent-Scopes` contains the effective scope array.
+ceilings, and the calling Session's UID-bound prepared dependencies. The JSON
+`X-Kagent-Selection` header carries allowed model references for gateway model
+policies, or, with the optional `server=<namespace/name>`, an explicit `tools`
+array for one pinned MCP server. All-tools bindings use the exact names captured
+at Session creation. `workspace=<namespace>` binds model callbacks to the
+destination gateway workspace; `model=<name>` selects one fixed ModelConfig
+identity. `scope=<configured-scope>` adds a live scope requirement.
+`X-Kagent-Scopes` contains the effective scope array. Gateways read decisions
+from these headers: agentgateway buffers every proxied response when ext-authz
+metadata reads the callback body.
 
 The gateway sends its audience-specific Actor JWT as `Authorization`. The
 `gatewayAudiences` allowlist accepts explicit HTTP(S) origins, independently of
