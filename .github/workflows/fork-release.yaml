@@ -172,7 +172,16 @@ jobs:
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: go/go.mod
-          cache-dependency-path: go/go.sum
+          cache: false
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/go/pkg/mod
+          key: fork-go-mod-${{ matrix.component }}-${{ matrix.arch }}-${{ hashFiles('go/go.sum') }}
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/go-build
+          key: fork-go-build-${{ matrix.component }}-${{ matrix.arch }}-${{ github.sha }}
+          restore-keys: fork-go-build-${{ matrix.component }}-${{ matrix.arch }}-
       - name: Build the ${{ matrix.component }} binary
         working-directory: go
         env:
