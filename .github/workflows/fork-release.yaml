@@ -1,4 +1,4 @@
-name: AgentOS images
+name: Fork release
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: agentos-images-${{ github.ref }}
+  group: fork-release-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -81,7 +81,7 @@ jobs:
           printf '%s  %s\n' "$AGENTGATEWAY_SHA256" "$binary" | sha256sum --check --strict
           chmod 0755 "$binary"
           echo "KAGENT_TEST_AGENTGATEWAY=$binary" >> "$GITHUB_ENV"
-      - name: Test the AgentOS runtime extensions (${{ matrix.shard }})
+      - name: Test the fork runtime extensions (${{ matrix.shard }})
         env:
           PACKAGES: ${{ matrix.packages }}
         run: go test -race -count=1 $PACKAGES
@@ -189,7 +189,7 @@ jobs:
             ldflags="$ldflags -X $version.Version=$VERSION -X $version.GitCommit=$GITHUB_SHA -X $version.SubstrateVersion=$substrate_version"
           else
             mkdir -p "$out"
-            cp ../agentos/images/toolbox.sh "$out/toolbox.sh"
+            cp ../release/images/toolbox.sh "$out/toolbox.sh"
           fi
           mkdir -p "$(dirname "$out/linux/$ARCH/$BINARY")"
           CGO_ENABLED=0 GOOS=linux GOARCH="$ARCH" go build -trimpath -buildvcs=false -ldflags "$ldflags" \
@@ -204,7 +204,7 @@ jobs:
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: dist/${{ matrix.component }}
-          file: agentos/images/${{ matrix.dockerfile }}/Dockerfile
+          file: release/images/${{ matrix.dockerfile }}/Dockerfile
           build-args: ${{ matrix.base && format('HARNESS_IMAGE={0}', matrix.base) || '' }}
           platforms: linux/${{ matrix.arch }}
           provenance: false
