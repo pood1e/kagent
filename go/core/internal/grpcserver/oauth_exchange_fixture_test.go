@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	configv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/config/v1"
+	"github.com/kagent-dev/kagent/go/core/internal/executionauth"
 	authimpl "github.com/kagent-dev/kagent/go/core/internal/httpserver/auth"
 	"github.com/kagent-dev/kagent/go/core/internal/jwttest"
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
@@ -35,13 +36,16 @@ import (
 const exchangeAudience = "https://environment.example.test/mcp"
 const accessTokenType = "urn:ietf:params:oauth:token-type:access_token"
 
+const delegationIssuer = "http://kagent-controller.kagent.svc.cluster.local:8083/delegation"
+
 type authorityOAuthIssuer struct {
-	identity             *jwttest.Issuer
-	users                auth.AuthProvider
-	endpoint             *httptest.Server
-	ca, key, secret      string
-	refreshes, exchanges atomic.Int32
-	firstExpiry          atomic.Int64
+	identity                      *jwttest.Issuer
+	users                         auth.AuthProvider
+	endpoint                      *httptest.Server
+	ca, key, secret, assertionKey string
+	grants, exchanges             atomic.Int32
+	firstExpiry                   atomic.Int64
+	keys                          atomic.Value
 }
 
 func newAuthorityOAuthIssuer(t *testing.T) *authorityOAuthIssuer {
@@ -57,6 +61,7 @@ func newAuthorityOAuthIssuer(t *testing.T) *authorityOAuthIssuer {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(f.key, key, 0o600))
 	require.NoError(t, os.WriteFile(f.secret, []byte("native-client-secret"), 0o600))
+	f.assertionKey = jwttest.AssertionKey(t)
 	f.endpoint = httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		id, secret, ok := r.BasicAuth()
@@ -65,21 +70,17 @@ func newAuthorityOAuthIssuer(t *testing.T) *authorityOAuthIssuer {
 			return
 		}
 		switch r.Form.Get("grant_type") {
-		case "refresh_token":
+		case "urn:ietf:params:oauth:grant-type:jwt-bearer":
 			if id != "native-client" || secret != "native-client-secret" {
 				http.Error(w, `{"error":"invalid_client"}`, http.StatusUnauthorized)
 				return
 			}
-			before := f.refreshes.Load()
-			expected := "initial-refresh"
-			if before > 0 {
-				expected = fmt.Sprintf("rotated-refresh-%d", before)
-			}
-			if r.Form.Get("refresh_token") != expected {
+			assertion, err := jwttest.VerifyAssertion(f.keys.Load().([]byte), r.Form.Get("assertion"), delegationIssuer, f.endpoint.URL+"/token")
+			if err != nil || assertion.Subject != "alice" {
 				http.Error(w, `{"error":"invalid_grant"}`, http.StatusBadRequest)
 				return
 			}
-			generation := f.refreshes.Add(1)
+			generation := f.grants.Add(1)
 			lifetime := 3600
 			if generation == 1 {
 				lifetime = 45
@@ -87,11 +88,10 @@ func newAuthorityOAuthIssuer(t *testing.T) *authorityOAuthIssuer {
 			}
 			token := f.userToken(t, fmt.Sprintf("renewed-%d", generation), time.Duration(lifetime)*time.Second)
 			assert.NoError(t, json.NewEncoder(w).Encode(struct {
-				AccessToken  string `json:"access_token"`
-				TokenType    string `json:"token_type"`
-				RefreshToken string `json:"refresh_token"`
-				ExpiresIn    int    `json:"expires_in"`
-			}{token, "Bearer", fmt.Sprintf("rotated-refresh-%d", generation), lifetime}))
+				AccessToken string `json:"access_token"`
+				TokenType   string `json:"token_type"`
+				ExpiresIn   int    `json:"expires_in"`
+			}{token, "Bearer", lifetime}))
 		case "urn:ietf:params:oauth:grant-type:token-exchange":
 			if id != "environment-client" || secret != "environment-client-secret" ||
 				r.Form.Get("audience") != exchangeAudience || r.Form.Get("scope") != "environment-read" ||
@@ -105,7 +105,7 @@ func newAuthorityOAuthIssuer(t *testing.T) *authorityOAuthIssuer {
 				return
 			}
 			generation, ok := caller.Principal().Claims["jti"].(string)
-			// Only the native refresh grant's signed IdP token is accepted. Login tokens,
+			// Only the native assertion grant's signed IdP token is accepted. Login tokens,
 			// Actor JWTs and machine credentials are distinct, rejected token families.
 			if !ok || !strings.HasPrefix(generation, "renewed-") {
 				http.Error(w, `{"error":"invalid_grant"}`, http.StatusBadRequest)
@@ -144,11 +144,17 @@ func (f *authorityOAuthIssuer) configuration() *configv1.ExecutionAuthorizationC
 			{ResourceType: "Agent", Verbs: []string{"get", "list"}},
 			{ResourceType: "TaskStore", Verbs: []string{"get", "list", "create", "update"}},
 		},
-		Oauth: &configv1.OAuthCredentialConfig{TokenEndpoint: f.endpoint.URL + "/token", ClientId: "native-client", ClientSecretFile: f.secret, CaFile: f.ca},
+		Oauth: &configv1.OAuthCredentialConfig{TokenEndpoint: f.endpoint.URL + "/token", ClientId: "native-client", ClientSecretFile: f.secret, CaFile: f.ca, AssertionIssuer: delegationIssuer, AssertionKeyFile: f.assertionKey},
 	}
 }
 
-func (f *authorityOAuthIssuer) waitForRefresh(t *testing.T) {
+// trust registers the controller's published assertion keys with the IdP.
+func (f *authorityOAuthIssuer) trust(t *testing.T, authority *executionauth.Service) {
+	t.Helper()
+	f.keys.Store(jwttest.PublishedKeys(t, authority.AssertionKeys()))
+}
+
+func (f *authorityOAuthIssuer) waitForRenewal(t *testing.T) {
 	t.Helper()
 	// Exercise the real OAuth expiry boundary without modifying encrypted storage.
 	timer := time.NewTimer(time.Until(time.Unix(f.firstExpiry.Load(), 0).Add(-29 * time.Second)))

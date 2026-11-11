@@ -102,9 +102,14 @@ Recreate retained schedules when cutting over to captured execution bounds.
 
 ## Credential lifecycle
 
-`RegisterDelegationCredential` exchanges a refresh token at the configured HTTPS
-OAuth endpoint and verifies the resulting access token against the authenticated
-initiator. The controller persists the official OAuth token representation with
+`RegisterDelegationCredential` records the authenticated initiator's consent.
+The controller signs an RFC 7523 JWT bearer assertion for the caller's identity
+provider subject, exchanges it at the configured HTTPS token endpoint, and
+verifies that the issued access token authenticates the same initiator. The
+identity provider trusts `assertionIssuer` through the Ed25519 key published at
+`/delegation/jwks.json` and maps each subject to a linked user. Each assertion
+names the token endpoint as its audience, lives one minute and carries a unique
+`jti`. The controller persists the subject and current access token with
 AES-256-GCM and principal-bound authenticated data. The encryption key is exactly
 32 random bytes supplied through a Secret file.
 
@@ -116,14 +121,13 @@ Session record retains the authority snapshot captured at creation. Revoked
 grants remain revoked. Expired authority still permits the owning Actor to
 persist a terminal FAILED task with a safe authorization reason after an
 intermediate save is rejected.
-Registered refresh credentials support background work and controller
-restart. Refresh uses the official `golang.org/x/oauth2` client, a bounded HTTP
-request, current client-secret contents, and verified TLS. A versioned database
-lease serializes refresh across controller replicas; network calls run outside
-database transactions. Rotated refresh credentials replace the stored version.
-Permanent OAuth rejection revokes the matching source and existing authority
-roots. Transient failures remain retryable. Recovery after provider rotation and
-a crash preceding persistence requires fresh credential registration.
+Registered delegations support background work and controller restart.
+Renewal uses the official `golang.org/x/oauth2` client, a bounded HTTP request,
+current client-secret contents, and verified TLS. A versioned database lease
+serializes renewal across controller replicas; network calls run outside
+database transactions. Permanent OAuth rejection, such as a removed user link,
+revokes the matching source and existing authority roots. Transient failures
+remain retryable.
 
 External automation can use an issuer-signed machine token with the API audience
 and explicitly assigned scopes. Projected Kubernetes credentials retain the
@@ -141,8 +145,7 @@ revocation remain native checks on every use.
 Session credentials support Session reads, A2A input and cancellation, and access
 to the Session's Agent. They stay bound to that conversation. Channels such as
 voice can embed this capability in their own short-lived signed dispatch
-metadata while the initiator's access and refresh tokens remain in the native
-vault. The independent initiator owns credential issuance and revocation.
+metadata while the initiator's access token remains in the native vault. The independent initiator owns credential issuance and revocation.
 
 ## Gateway authorization
 

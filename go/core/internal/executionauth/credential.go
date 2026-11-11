@@ -15,8 +15,18 @@ import (
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
 )
 
-func (s *Service) seal(principal string, token *oauth2.Token) ([]byte, error) {
-	data, err := json.Marshal(token)
+// credential is the sealed per-principal source. A registered delegation keeps
+// the identity provider subject that later assertions name; a captured bearer
+// has none and expires with its access token.
+type credential struct {
+	Token   oauth2.Token `json:"token"`
+	Subject string       `json:"subject,omitempty"`
+}
+
+func (c *credential) renewable() bool { return c.Subject != "" }
+
+func (s *Service) seal(principal string, value *credential) ([]byte, error) {
+	data, err := json.Marshal(value)
 	if err != nil {
 		return nil, fmt.Errorf("encode execution credential")
 	}
@@ -24,17 +34,17 @@ func (s *Service) seal(principal string, token *oauth2.Token) ([]byte, error) {
 	return s.cipher.Seal(nil, nil, data, []byte(principal)), nil
 }
 
-func (s *Service) open(principal string, data []byte) (*oauth2.Token, error) {
+func (s *Service) open(principal string, data []byte) (*credential, error) {
 	raw, err := s.cipher.Open(nil, nil, data, []byte(principal))
 	if err != nil {
 		return nil, fmt.Errorf("execution credential unavailable")
 	}
 	defer clear(raw)
-	var token oauth2.Token
-	if err := json.Unmarshal(raw, &token); err != nil {
+	var value credential
+	if err := json.Unmarshal(raw, &value); err != nil || value.Token.AccessToken == "" {
 		return nil, fmt.Errorf("execution credential unavailable")
 	}
-	return &token, nil
+	return &value, nil
 }
 
 // authenticateToken receives credentials only from the authenticated request or
@@ -58,20 +68,21 @@ func (s *Service) authenticateToken(ctx context.Context, token *oauth2.Token, pr
 	return principal, nil
 }
 
-func (s *Service) refresh(ctx context.Context, token *oauth2.Token, principal string) (*oauth2.Token, auth.Principal, error) {
-	config, err := s.refreshConfig()
+// mint exchanges a single-use assertion for the registered subject and verifies
+// that the issued bearer authenticates the same principal.
+func (s *Service) mint(ctx context.Context, subject, principal string) (*oauth2.Token, auth.Principal, error) {
+	config, err := s.grant(subject)
 	if err != nil {
 		return nil, auth.Principal{}, err
 	}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	ctx = context.WithValue(ctx, oauth2.HTTPClient, s.http)
-	renewed, err := config.TokenSource(ctx, &oauth2.Token{RefreshToken: token.RefreshToken}).Token()
+	token, err := config.Token(context.WithValue(ctx, oauth2.HTTPClient, s.http))
 	if err != nil {
 		return nil, auth.Principal{}, err
 	}
-	identity, err := s.authenticateToken(ctx, renewed, principal)
-	return renewed, identity, err
+	identity, err := s.authenticateToken(ctx, token, principal)
+	return token, identity, err
 }
 
 func (s *Service) current(ctx context.Context, principal string) (*oauth2.Token, auth.Principal, error) {
@@ -82,15 +93,16 @@ func (s *Service) current(ctx context.Context, principal string) (*oauth2.Token,
 		if err != nil {
 			return nil, auth.Principal{}, fmt.Errorf("execution credential unavailable")
 		}
-		token, err := s.open(principal, row.Ciphertext)
+		stored, err := s.open(principal, row.Ciphertext)
 		if err != nil {
 			return nil, auth.Principal{}, err
 		}
-		if token.Valid() && (token.RefreshToken == "" || time.Until(token.Expiry) > 30*time.Second) {
+		token := &stored.Token
+		if token.Valid() && (!stored.renewable() || time.Until(token.Expiry) > 30*time.Second) {
 			identity, err := s.authenticateToken(ctx, token, principal)
 			return token, identity, err
 		}
-		if token.RefreshToken == "" {
+		if !stored.renewable() {
 			return nil, auth.Principal{}, fmt.Errorf("execution credential expired")
 		}
 		lease := uuid.New()
@@ -108,12 +120,12 @@ func (s *Service) current(ctx context.Context, principal string) (*oauth2.Token,
 				continue
 			}
 		}
-		renewed, identity, refreshErr := s.refresh(ctx, token, principal)
-		if refreshErr != nil {
+		renewed, identity, renewErr := s.mint(ctx, stored.Subject, principal)
+		if renewErr != nil {
 			var response *oauth2.RetrieveError
-			invalid := errors.As(refreshErr, &response) && (response.ErrorCode == "invalid_grant" || response.ErrorCode == "invalid_client")
+			invalid := errors.As(renewErr, &response) && (response.ErrorCode == "invalid_grant" || response.ErrorCode == "invalid_client")
 			// Identity changes invalidate this version. Transient failures release its
-			// lease without discarding a credential that may recover on the next call.
+			// lease without discarding a delegation that may recover on the next call.
 			invalid = invalid || renewed != nil
 			cleanup, stop := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
 			var cleanupErr error
@@ -128,7 +140,7 @@ func (s *Service) current(ctx context.Context, principal string) (*oauth2.Token,
 			}
 			return nil, auth.Principal{}, fmt.Errorf("execution credential renewal failed")
 		}
-		ciphertext, err := s.seal(principal, renewed)
+		ciphertext, err := s.seal(principal, &credential{Token: *renewed, Subject: stored.Subject})
 		if err != nil {
 			return nil, auth.Principal{}, err
 		}
@@ -143,20 +155,20 @@ func (s *Service) current(ctx context.Context, principal string) (*oauth2.Token,
 	}
 }
 
-// capture preserves a registered renewable credential. A newer independently
-// verified bearer rotates a nonrenewable source and extends its bounded grants.
+// capture preserves a registered delegation. A newer independently verified
+// bearer rotates a nonrenewable source and extends its bounded grants.
 func (s *Service) capture(ctx context.Context, caller auth.Session, create bool) (bool, time.Time, error) {
 	principal := caller.Principal().ID
 	for {
 		row, err := s.store.GetDelegationCredential(ctx, principal)
 		var version int64
-		var existing *oauth2.Token
+		var existing *credential
 		if err == nil {
 			existing, err = s.open(principal, row.Ciphertext)
 			if err != nil {
 				return false, time.Time{}, err
 			}
-			if existing.RefreshToken != "" {
+			if existing.renewable() {
 				if !create {
 					return true, time.Time{}, nil
 				}
@@ -181,14 +193,14 @@ func (s *Service) capture(ctx context.Context, caller auth.Session, create bool)
 		if err != nil || raw == "" {
 			return false, time.Time{}, fmt.Errorf("execution bearer credential is required")
 		}
-		if existing != nil && existing.Valid() && !source.Expiry().After(existing.Expiry) {
-			return false, existing.Expiry, nil
+		if existing != nil && existing.Token.Valid() && !source.Expiry().After(existing.Token.Expiry) {
+			return false, existing.Token.Expiry, nil
 		}
 		token := &oauth2.Token{AccessToken: raw, TokenType: "Bearer", Expiry: source.Expiry()}
 		if _, err := s.authenticateToken(ctx, token, principal); err != nil {
 			return false, time.Time{}, err
 		}
-		ciphertext, err := s.seal(principal, token)
+		ciphertext, err := s.seal(principal, &credential{Token: *token})
 		if err != nil {
 			return false, time.Time{}, err
 		}
@@ -205,24 +217,27 @@ func (s *Service) capture(ctx context.Context, caller auth.Session, create bool)
 	}
 }
 
-// RegisterCredential binds a refreshed credential to the independent caller.
-// Actors and delegated callers cannot replace a root user's source.
-func (s *Service) RegisterCredential(ctx context.Context, refreshToken string) error {
-	if s.config == nil || s.config.Oauth == nil {
+// RegisterCredential records the independent caller's delegation once the
+// identity provider accepts an assertion for the caller's subject. Actors and
+// delegated callers cannot replace a root user's source.
+func (s *Service) RegisterCredential(ctx context.Context) error {
+	if s.assertions == nil {
 		return fmt.Errorf("renewable execution credentials are not configured")
 	}
 	principal, err := credentialOwner(ctx)
 	if err != nil {
 		return err
 	}
-	if len(refreshToken) == 0 || len(refreshToken) > 16384 {
-		return fmt.Errorf("invalid refresh credential")
+	caller, _ := auth.AuthSessionFrom(ctx)
+	subject, _ := caller.Principal().Claims["sub"].(string)
+	if subject == "" {
+		return fmt.Errorf("delegation requires an identity provider subject")
 	}
-	token, _, err := s.refresh(ctx, &oauth2.Token{RefreshToken: refreshToken}, principal)
+	token, _, err := s.mint(ctx, subject, principal)
 	if err != nil {
 		return fmt.Errorf("delegation credential identity verification failed")
 	}
-	encrypted, err := s.seal(principal, token)
+	encrypted, err := s.seal(principal, &credential{Token: *token, Subject: subject})
 	if err != nil {
 		return err
 	}

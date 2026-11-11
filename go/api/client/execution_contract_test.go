@@ -1,7 +1,6 @@
 package client
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -41,9 +40,7 @@ func TestExecutionContractValidation(t *testing.T) {
 		{"empty authority ceiling", &apiv1.SessionAuthority{ScopeCeiling: &apiv1.ScopeCeiling{}}, true},
 		{"bounded authority", &apiv1.SessionAuthority{ScopeCeiling: &apiv1.ScopeCeiling{Scopes: []string{"read"}}}, true},
 		{"invalid authority ceiling", &apiv1.SessionAuthority{ScopeCeiling: &apiv1.ScopeCeiling{Scopes: []string{"read", "read"}}}, false},
-		{"refresh credential", &apiv1.RegisterDelegationCredentialRequest{RefreshToken: "refresh"}, true},
-		{"missing credential", &apiv1.RegisterDelegationCredentialRequest{}, false},
-		{"oversized credential", &apiv1.RegisterDelegationCredentialRequest{RefreshToken: strings.Repeat("x", 16385)}, false},
+		{"delegation consent", &apiv1.RegisterDelegationCredentialRequest{}, true},
 		{"bounded credential", &apiv1.IssueSessionCredentialRequest{SessionId: sessionID, Ttl: durationpb.New(time.Hour)}, true},
 		{"missing ttl", &apiv1.IssueSessionCredentialRequest{SessionId: sessionID}, false},
 		{"zero ttl", &apiv1.IssueSessionCredentialRequest{SessionId: sessionID, Ttl: durationpb.New(0)}, false},

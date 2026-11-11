@@ -42,7 +42,8 @@ type ExecutionServiceClient interface {
 	RevokeSessionAuthority(ctx context.Context, in *RevokeSessionAuthorityRequest, opts ...grpc.CallOption) (*RevokeSessionAuthorityResponse, error)
 	// Derives the Session from a verified Actor JWT, including its live Actor UID.
 	GetRuntimeAuthority(ctx context.Context, in *GetRuntimeAuthorityRequest, opts ...grpc.CallOption) (*GetRuntimeAuthorityResponse, error)
-	// Exchanges and verifies the refresh credential before binding it to the caller.
+	// Records the caller's consent once the identity provider accepts a native
+	// assertion for the caller's subject.
 	RegisterDelegationCredential(ctx context.Context, in *RegisterDelegationCredentialRequest, opts ...grpc.CallOption) (*RegisterDelegationCredentialResponse, error)
 	RevokeDelegationCredential(ctx context.Context, in *RevokeDelegationCredentialRequest, opts ...grpc.CallOption) (*RevokeDelegationCredentialResponse, error)
 	GetDelegationCredentialStatus(ctx context.Context, in *GetDelegationCredentialStatusRequest, opts ...grpc.CallOption) (*GetDelegationCredentialStatusResponse, error)
@@ -160,7 +161,8 @@ type ExecutionServiceServer interface {
 	RevokeSessionAuthority(context.Context, *RevokeSessionAuthorityRequest) (*RevokeSessionAuthorityResponse, error)
 	// Derives the Session from a verified Actor JWT, including its live Actor UID.
 	GetRuntimeAuthority(context.Context, *GetRuntimeAuthorityRequest) (*GetRuntimeAuthorityResponse, error)
-	// Exchanges and verifies the refresh credential before binding it to the caller.
+	// Records the caller's consent once the identity provider accepts a native
+	// assertion for the caller's subject.
 	RegisterDelegationCredential(context.Context, *RegisterDelegationCredentialRequest) (*RegisterDelegationCredentialResponse, error)
 	RevokeDelegationCredential(context.Context, *RevokeDelegationCredentialRequest) (*RevokeDelegationCredentialResponse, error)
 	GetDelegationCredentialStatus(context.Context, *GetDelegationCredentialStatusRequest) (*GetDelegationCredentialStatusResponse, error)

@@ -32,7 +32,7 @@ import (
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
 )
 
-func TestNativeAuthorityRFC8693RefreshRecoveryAndRevocation(t *testing.T) {
+func TestNativeAuthorityRFC8693RenewalRecoveryAndRevocation(t *testing.T) {
 	if os.Getenv("KAGENT_TEST_AGENTGATEWAY") == "" {
 		t.Skip("set KAGENT_TEST_AGENTGATEWAY to a real agentgateway binary")
 	}
@@ -63,6 +63,7 @@ func TestNativeAuthorityRFC8693RefreshRecoveryAndRevocation(t *testing.T) {
 	cfg := f.configuration()
 	authority, err := executionauth.NewService(store, f.users, cfg, false)
 	require.NoError(t, err)
+	f.trust(t, authority)
 	normalized := &executionauth.Provider{Users: f.users, Authority: authority}
 	provider := runtimeauth.NewProvider(normalized, controlVerifier, store, actors.URL, authority)
 	policy := runtimeauth.NewAuthorizer(&executionauth.Policy{Base: auth.NoopAuthorizer{}, Config: cfg}, store, authority)
@@ -77,7 +78,7 @@ func TestNativeAuthorityRFC8693RefreshRecoveryAndRevocation(t *testing.T) {
 		return metadata.NewOutgoingContext(t.Context(), metadata.Pairs("authorization", "Bearer "+raw))
 	}
 	user := withToken(f.userToken(t, "independent-login", time.Hour))
-	_, err = executionClient.RegisterDelegationCredential(user, &apiv1.RegisterDelegationCredentialRequest{RefreshToken: "initial-refresh"})
+	_, err = executionClient.RegisterDelegationCredential(user, &apiv1.RegisterDelegationCredentialRequest{})
 	require.NoError(t, err)
 	create := func(ctx context.Context, scopes ...string) *apiv1.Session {
 		t.Helper()
@@ -132,7 +133,7 @@ func TestNativeAuthorityRFC8693RefreshRecoveryAndRevocation(t *testing.T) {
 		require.False(t, result.IsError)
 	}
 	invoke()
-	require.Equal(t, int32(1), f.refreshes.Load())
+	require.Equal(t, int32(1), f.grants.Load())
 	require.Equal(t, "renewed-1", gateway.generation.Load())
 	require.GreaterOrEqual(t, f.exchanges.Load(), int32(1))
 	// The IdP bearer has write scope and both tools are selected. Only the
@@ -160,9 +161,9 @@ func TestNativeAuthorityRFC8693RefreshRecoveryAndRevocation(t *testing.T) {
 	require.True(t, err != nil || result.IsError)
 	require.Equal(t, firstCalls, gateway.calls.Load())
 	rebuild()
-	f.waitForRefresh(t)
+	f.waitForRenewal(t)
 	invoke()
-	require.Equal(t, int32(2), f.refreshes.Load())
+	require.Equal(t, int32(2), f.grants.Load())
 	require.Equal(t, "renewed-2", gateway.generation.Load())
 	require.GreaterOrEqual(t, f.exchanges.Load(), int32(2))
 	calls, exchanges := gateway.calls.Load(), f.exchanges.Load()
@@ -173,5 +174,5 @@ func TestNativeAuthorityRFC8693RefreshRecoveryAndRevocation(t *testing.T) {
 	require.Equal(t, calls, gateway.calls.Load())
 	require.Equal(t, exchanges, f.exchanges.Load())
 	require.NoError(t, listTasks(childActor, child.Id), "the bound Actor must retain its persistence cleanup boundary after revocation")
-	t.Log("PASS: native durable TokenSource -> real agentgateway RFC8693; original IdP subject, distinct Actor audience, scoped environment credential, refresh after native service reconstruction, existing MCP session ancestor revocation")
+	t.Log("PASS: native durable TokenSource -> real agentgateway RFC8693; original IdP subject, distinct Actor audience, scoped environment credential, assertion renewal after native service reconstruction, existing MCP session ancestor revocation")
 }

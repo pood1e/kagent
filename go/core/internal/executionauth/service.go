@@ -41,12 +41,13 @@ type Store interface {
 }
 
 type Service struct {
-	store    Store
-	users    auth.AuthProvider
-	config   *configv1.ExecutionAuthorizationConfig
-	cipher   cipher.AEAD
-	http     *http.Client
-	insecure bool
+	store      Store
+	users      auth.AuthProvider
+	config     *configv1.ExecutionAuthorizationConfig
+	cipher     cipher.AEAD
+	assertions *assertionSigner
+	http       *http.Client
+	insecure   bool
 }
 
 // NewService validates vault settings once. A nil config retains the explicitly
@@ -80,11 +81,23 @@ func NewService(store Store, users auth.AuthProvider, config *configv1.Execution
 		if err != nil || endpoint.Scheme != "https" || endpoint.Host == "" || endpoint.User != nil || endpoint.Fragment != "" {
 			return nil, fmt.Errorf("OAuth credential endpoint requires an HTTPS URL")
 		}
+		if service.assertions, err = newAssertionSigner(oauth.AssertionIssuer, oauth.AssertionKeyFile); err != nil {
+			return nil, err
+		}
 	}
 	if err := service.configureOAuthTLS(); err != nil {
 		return nil, err
 	}
 	return service, nil
+}
+
+// AssertionKeys publishes the delegation assertion verification keys, or nil
+// when renewable delegation is not configured.
+func (s *Service) AssertionKeys() http.Handler {
+	if s.assertions == nil {
+		return nil
+	}
+	return s.assertions
 }
 
 // Normalize projects authenticated IdP scope attributes into a typed principal.

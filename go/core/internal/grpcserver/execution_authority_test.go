@@ -199,7 +199,7 @@ func TestExecutionAuthorityNativeAPIsAndMCP(t *testing.T) {
 	require.Equal(t, []string{"read", "write"}, live.EffectiveScopes)
 	_, err = executionClient.RevokeDelegationCredential(actor, &apiv1.RevokeDelegationCredentialRequest{})
 	assertGRPCCode(t, err, codes.PermissionDenied)
-	_, err = executionClient.RegisterDelegationCredential(user, &apiv1.RegisterDelegationCredentialRequest{RefreshToken: "unconfigured-refresh"})
+	_, err = executionClient.RegisterDelegationCredential(user, &apiv1.RegisterDelegationCredentialRequest{})
 	assertGRPCCode(t, err, codes.PermissionDenied)
 
 	gatewayVerifier, err := substrate.NewGatewayActorJWTVerifier(t.Context(), actors.URL, actors.CAFile, "https://gateway.example")

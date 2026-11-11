@@ -31,8 +31,8 @@ func (s *executionServer) RevokeSessionAuthority(ctx context.Context, request *a
 func (s *executionServer) GetRuntimeAuthority(ctx context.Context, _ *apiv1.GetRuntimeAuthorityRequest) (*apiv1.GetRuntimeAuthorityResponse, error) {
 	return s.service.RuntimeAuthority(ctx)
 }
-func (s *executionServer) RegisterDelegationCredential(ctx context.Context, request *apiv1.RegisterDelegationCredentialRequest) (*apiv1.RegisterDelegationCredentialResponse, error) {
-	if err := s.service.RegisterCredential(ctx, request.RefreshToken); err != nil {
+func (s *executionServer) RegisterDelegationCredential(ctx context.Context, _ *apiv1.RegisterDelegationCredentialRequest) (*apiv1.RegisterDelegationCredentialResponse, error) {
+	if err := s.service.RegisterCredential(ctx); err != nil {
 		return nil, err
 	}
 	return &apiv1.RegisterDelegationCredentialResponse{}, nil

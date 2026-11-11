@@ -43,11 +43,11 @@ func (s *Service) RuntimeAuthority(ctx context.Context) (*apiv1.GetRuntimeAuthor
 	}
 	return &apiv1.GetRuntimeAuthorityResponse{Authority: resolved.Principal().Execution, EffectiveScopes: resolved.Principal().Scopes}, nil
 }
-func (s *Service) RegisterCredential(ctx context.Context, refreshToken string) error {
+func (s *Service) RegisterCredential(ctx context.Context) error {
 	if s.authority == nil {
 		return serviceerrors.NewFailedPrecondition("Execution authority is not configured", nil)
 	}
-	if err := s.authority.RegisterCredential(ctx, refreshToken); err != nil {
+	if err := s.authority.RegisterCredential(ctx); err != nil {
 		return serviceerrors.NewPermissionDenied("Cannot register delegation credential", err)
 	}
 	return nil
