@@ -494,7 +494,6 @@ func (x *GetRuntimeAuthorityResponse) GetEffectiveScopes() []string {
 
 type RegisterDelegationCredentialRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	RefreshToken  string                 `protobuf:"bytes,1,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -527,13 +526,6 @@ func (x *RegisterDelegationCredentialRequest) ProtoReflect() protoreflect.Messag
 // Deprecated: Use RegisterDelegationCredentialRequest.ProtoReflect.Descriptor instead.
 func (*RegisterDelegationCredentialRequest) Descriptor() ([]byte, []int) {
 	return file_kagent_api_v1_execution_proto_rawDescGZIP(), []int{8}
-}
-
-func (x *RegisterDelegationCredentialRequest) GetRefreshToken() string {
-	if x != nil {
-		return x.RefreshToken
-	}
-	return ""
 }
 
 type RegisterDelegationCredentialResponse struct {
@@ -1156,9 +1148,8 @@ const file_kagent_api_v1_execution_proto_rawDesc = "" +
 	"\x1aGetRuntimeAuthorityRequest\"\x87\x01\n" +
 	"\x1bGetRuntimeAuthorityResponse\x12=\n" +
 	"\tauthority\x18\x01 \x01(\v2\x1f.kagent.api.v1.SessionAuthorityR\tauthority\x12)\n" +
-	"\x10effective_scopes\x18\x02 \x03(\tR\x0feffectiveScopes\"W\n" +
-	"#RegisterDelegationCredentialRequest\x120\n" +
-	"\rrefresh_token\x18\x01 \x01(\tB\v\xbaH\br\x06\x10\x01\x18\x80\x80\x01R\frefreshToken\"&\n" +
+	"\x10effective_scopes\x18\x02 \x03(\tR\x0feffectiveScopes\":\n" +
+	"#RegisterDelegationCredentialRequestJ\x04\b\x01\x10\x02R\rrefresh_token\"&\n" +
 	"$RegisterDelegationCredentialResponse\"#\n" +
 	"!RevokeDelegationCredentialRequest\"$\n" +
 	"\"RevokeDelegationCredentialResponse\"&\n" +

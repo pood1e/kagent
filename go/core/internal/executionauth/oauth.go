@@ -5,10 +5,12 @@ import (
 	"crypto/x509"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
 	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/clientcredentials"
 )
 
 func (s *Service) configureOAuthTLS() error {
@@ -33,10 +35,13 @@ func (s *Service) configureOAuthTLS() error {
 	return nil
 }
 
-// refreshConfig reads rotating client credentials for each OAuth2 exchange.
-func (s *Service) refreshConfig() (*oauth2.Config, error) {
+const jwtBearerGrant = "urn:ietf:params:oauth:grant-type:jwt-bearer"
+
+// grant reads rotating client credentials and signs one assertion for each
+// exchange, with the token endpoint as its audience (RFC 7523 section 3).
+func (s *Service) grant(subject string) (*clientcredentials.Config, error) {
 	config := s.config.GetOauth()
-	if config == nil {
+	if config == nil || s.assertions == nil {
 		return nil, fmt.Errorf("renewable execution credentials are not configured")
 	}
 	secret := ""
@@ -47,5 +52,13 @@ func (s *Service) refreshConfig() (*oauth2.Config, error) {
 		}
 		secret = strings.TrimSpace(string(data))
 	}
-	return &oauth2.Config{ClientID: config.ClientId, ClientSecret: secret, Endpoint: oauth2.Endpoint{TokenURL: config.TokenEndpoint, AuthStyle: oauth2.AuthStyleInHeader}}, nil
+	assertion, err := s.assertions.sign(subject, config.TokenEndpoint)
+	if err != nil {
+		return nil, fmt.Errorf("sign delegation assertion")
+	}
+	return &clientcredentials.Config{
+		ClientID: config.ClientId, ClientSecret: secret, TokenURL: config.TokenEndpoint, AuthStyle: oauth2.AuthStyleInHeader,
+		// clientcredentials permits replacing grant_type for extension grants.
+		EndpointParams: url.Values{"grant_type": {jwtBearerGrant}, "assertion": {assertion}},
+	}, nil
 }

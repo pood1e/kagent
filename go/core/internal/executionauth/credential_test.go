@@ -51,7 +51,15 @@ type credentialFixture struct {
 	mode         atomic.Int32
 	roles        atomic.Value
 	clientSecret atomic.Value
+	assertions   sync.Map
 }
+
+const (
+	assertionIssuer = "http://kagent-controller.kagent.svc.cluster.local:8083/delegation"
+	modeRejected    = 1
+	modeUnavailable = 2
+	modeOtherUser   = 3
+)
 
 func (f *credentialFixture) accessToken(t *testing.T, subject string, roles []string) string {
 	t.Helper()
@@ -80,30 +88,31 @@ func newCredentialFixture(t *testing.T) *credentialFixture {
 		require.Equal(t, "kagent", id)
 		require.Equal(t, fixture.clientSecret.Load(), secret)
 		require.NoError(t, r.ParseForm())
-		require.Equal(t, "refresh_token", r.Form.Get("grant_type"))
+		require.Equal(t, "urn:ietf:params:oauth:grant-type:jwt-bearer", r.Form.Get("grant_type"))
+		assertion, err := jwttest.VerifyAssertion(jwttest.PublishedKeys(t, fixture.service.AssertionKeys()), r.Form.Get("assertion"), assertionIssuer, "https://"+r.Host+r.URL.Path)
+		require.NoError(t, err)
+		_, replayed := fixture.assertions.LoadOrStore(assertion.ID, true)
+		require.False(t, replayed, "each exchange must present a new assertion")
 		w.Header().Set("Content-Type", "application/json")
 		switch fixture.mode.Load() {
-		case 1:
+		case modeRejected:
 			w.WriteHeader(http.StatusBadRequest)
-			_, err := w.Write([]byte(`{"error":"invalid_grant","error_description":"secret-refresh-token"}`))
+			_, err := w.Write([]byte(`{"error":"invalid_grant","error_description":"secret-assertion-detail"}`))
 			require.NoError(t, err)
 			return
-		case 2:
+		case modeUnavailable:
 			w.WriteHeader(http.StatusServiceUnavailable)
 			_, err := w.Write([]byte(`{"error":"temporarily_unavailable"}`))
 			require.NoError(t, err)
 			return
-		}
-		subject := "alice"
-		if r.Form.Get("refresh_token") == "wrong-subject" {
-			subject = "bob"
+		case modeOtherUser:
+			assertion.Subject = "bob"
 		}
 		require.NoError(t, json.NewEncoder(w).Encode(struct {
-			AccessToken  string `json:"access_token"`
-			TokenType    string `json:"token_type"`
-			RefreshToken string `json:"refresh_token"`
-			ExpiresIn    int    `json:"expires_in"`
-		}{fixture.accessToken(t, subject, fixture.roles.Load().([]string)), "Bearer", "rotated-refresh-token", 3600}))
+			AccessToken string `json:"access_token"`
+			TokenType   string `json:"token_type"`
+			ExpiresIn   int    `json:"expires_in"`
+		}{fixture.accessToken(t, assertion.Subject, fixture.roles.Load().([]string)), "Bearer", 3600}))
 	}))
 	t.Cleanup(endpoint.Close)
 	directory := t.TempDir()
@@ -114,7 +123,7 @@ func newCredentialFixture(t *testing.T) *credentialFixture {
 	require.NoError(t, os.WriteFile(keyFile, key, 0o600))
 	require.NoError(t, os.WriteFile(secretFile, []byte("client-secret-1"), 0o600))
 	require.NoError(t, os.WriteFile(caFile, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: endpoint.Certificate().Raw}), 0o600))
-	fixture.config = &configv1.ExecutionAuthorizationConfig{ScopeClaim: "roles", EncryptionKeyFile: keyFile, Rules: []*configv1.ResourceScopeRule{{ResourceType: "Session", Verbs: []string{"get", "create", "update"}}}, Oauth: &configv1.OAuthCredentialConfig{TokenEndpoint: endpoint.URL, ClientId: "kagent", ClientSecretFile: secretFile, CaFile: caFile}}
+	fixture.config = &configv1.ExecutionAuthorizationConfig{ScopeClaim: "roles", EncryptionKeyFile: keyFile, Rules: []*configv1.ResourceScopeRule{{ResourceType: "Session", Verbs: []string{"get", "create", "update"}}}, Oauth: &configv1.OAuthCredentialConfig{TokenEndpoint: endpoint.URL + "/token", ClientId: "kagent", ClientSecretFile: secretFile, CaFile: caFile, AssertionIssuer: assertionIssuer, AssertionKeyFile: jwttest.AssertionKey(t)}}
 	fixture.service, err = NewService(fixture.store, fixture.users, fixture.config, false)
 	require.NoError(t, err)
 	provider := &Provider{Users: fixture.service.users, Authority: fixture.service}
@@ -128,26 +137,26 @@ func (f *credentialFixture) expire(t *testing.T) {
 	t.Helper()
 	row, err := f.store.GetDelegationCredential(t.Context(), f.store.grant.InitiatorId)
 	require.NoError(t, err)
-	token, err := f.service.open(f.store.grant.InitiatorId, row.Ciphertext)
+	stored, err := f.service.open(f.store.grant.InitiatorId, row.Ciphertext)
 	require.NoError(t, err)
-	token.Expiry = time.Now().Add(-time.Minute)
-	ciphertext, err := f.service.seal(f.store.grant.InitiatorId, token)
+	stored.Token.Expiry = time.Now().Add(-time.Minute)
+	ciphertext, err := f.service.seal(f.store.grant.InitiatorId, stored)
 	require.NoError(t, err)
 	require.NoError(t, f.store.SaveDelegationCredential(t.Context(), f.store.grant.InitiatorId, ciphertext))
 }
 
-func TestDurableSourceRefreshesOnceAcrossReplicasAndNarrowsLiveScopes(t *testing.T) {
+func TestDelegationRenewsOnceAcrossReplicasAndNarrowsLiveScopes(t *testing.T) {
 	f := newCredentialFixture(t)
-	require.NoError(t, f.service.RegisterCredential(f.caller, "initial-refresh-token"))
+	require.NoError(t, f.service.RegisterCredential(f.caller))
 	row, err := f.store.GetDelegationCredential(t.Context(), f.store.grant.InitiatorId)
 	require.NoError(t, err)
-	require.NotContains(t, string(row.Ciphertext), "refresh-token")
+	require.NotContains(t, string(row.Ciphertext), "alice")
 	require.NotContains(t, string(row.Ciphertext), "Bearer")
 	_, err = f.service.open("another-principal", row.Ciphertext)
 	require.Error(t, err)
-	renewed, err := f.service.open(f.store.grant.InitiatorId, row.Ciphertext)
+	registered, err := f.service.open(f.store.grant.InitiatorId, row.Ciphertext)
 	require.NoError(t, err)
-	require.Equal(t, "rotated-refresh-token", renewed.RefreshToken)
+	require.Equal(t, "alice", registered.Subject)
 	restarted, err := NewService(f.store, f.users, f.config, false)
 	require.NoError(t, err)
 	f.expire(t)
@@ -183,7 +192,7 @@ func TestDurableSourceRefreshesOnceAcrossReplicasAndNarrowsLiveScopes(t *testing
 	for err := range failures {
 		require.NoError(t, err)
 	}
-	require.Equal(t, int32(1), f.requests.Load()-before, "one persisted refresh lease must serve both replicas")
+	require.Equal(t, int32(1), f.requests.Load()-before, "one persisted renewal lease must serve both replicas")
 	resolved, err := restarted.Resolve(t.Context(), f.store.grant.SessionId)
 	require.NoError(t, err)
 	require.Equal(t, []string{"read"}, resolved.Principal().Claims["roles"])
@@ -196,25 +205,31 @@ func TestDurableSourceRefreshesOnceAcrossReplicasAndNarrowsLiveScopes(t *testing
 
 func TestCredentialBindingFailuresNeverSelectAnotherSource(t *testing.T) {
 	f := newCredentialFixture(t)
-	require.NoError(t, f.service.RegisterCredential(f.caller, "initial"))
+	f.mode.Store(modeRejected)
+	require.Error(t, f.service.RegisterCredential(f.caller), "an unlinked subject cannot register")
+	_, err := f.store.GetDelegationCredential(t.Context(), f.store.grant.InitiatorId)
+	require.ErrorIs(t, err, database.ErrNotFound)
+	f.mode.Store(0)
+	require.NoError(t, f.service.RegisterCredential(f.caller))
 	before, err := f.store.GetDelegationCredential(t.Context(), f.store.grant.InitiatorId)
 	require.NoError(t, err)
-	require.Error(t, f.service.RegisterCredential(f.caller, "wrong-subject"))
+	f.mode.Store(modeOtherUser)
+	require.Error(t, f.service.RegisterCredential(f.caller))
 	after, err := f.store.GetDelegationCredential(t.Context(), f.store.grant.InitiatorId)
 	require.NoError(t, err)
 	require.Equal(t, before, after)
 	f.expire(t)
-	f.mode.Store(2)
+	f.mode.Store(modeUnavailable)
 	_, err = f.service.Resolve(t.Context(), f.store.grant.SessionId)
 	require.Error(t, err)
 	f.mode.Store(0)
 	_, err = f.service.Resolve(t.Context(), f.store.grant.SessionId)
 	require.NoError(t, err)
 	f.expire(t)
-	f.mode.Store(1)
+	f.mode.Store(modeRejected)
 	_, err = f.service.Resolve(t.Context(), f.store.grant.SessionId)
 	require.Error(t, err)
-	require.NotContains(t, err.Error(), "secret-refresh-token")
+	require.NotContains(t, err.Error(), "secret-assertion-detail")
 	_, err = f.store.GetDelegationCredential(t.Context(), f.store.grant.InitiatorId)
 	require.ErrorIs(t, err, database.ErrNotFound)
 	require.Error(t, f.service.RevokeCredential(auth.AuthSessionTo(t.Context(), auth.NewCredentialSession(auth.Principal{ID: f.store.grant.InitiatorId, RuntimeBinding: &auth.RuntimeBinding{SessionID: f.store.grant.SessionId}}, nil))))
@@ -222,7 +237,8 @@ func TestCredentialBindingFailuresNeverSelectAnotherSource(t *testing.T) {
 	noTrust.Oauth.CaFile = ""
 	untrusted, err := NewService(f.store, f.users, noTrust, false)
 	require.NoError(t, err)
-	require.Error(t, untrusted.RegisterCredential(f.caller, "initial"))
+	f.mode.Store(0)
+	require.Error(t, untrusted.RegisterCredential(f.caller))
 }
 
 func TestNonrenewableSourceHasBoundedAuthorityAndNoFallback(t *testing.T) {
@@ -267,7 +283,7 @@ func TestNonrenewableSourceRotatesOnlyForItsVerifiedInitiator(t *testing.T) {
 	require.Greater(t, row.Version, initial.Version)
 	stored, err := f.service.open(grant.InitiatorId, row.Ciphertext)
 	require.NoError(t, err)
-	require.Equal(t, newToken, stored.AccessToken)
+	require.Equal(t, newToken, stored.Token.AccessToken)
 	require.NoError(t, f.service.Renew(f.caller))
 	unchanged, err := f.store.GetDelegationCredential(t.Context(), grant.InitiatorId)
 	require.NoError(t, err)

@@ -896,12 +896,18 @@ func (x *ResourceScopeRule) GetAnyScope() []string {
 	return nil
 }
 
+// OAuthCredentialConfig renews registered delegations with RFC 7523 JWT bearer
+// assertions. The identity provider trusts assertion_issuer through the
+// controller's /delegation/jwks.json and maps each subject to a linked user.
 type OAuthCredentialConfig struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	TokenEndpoint    string                 `protobuf:"bytes,1,opt,name=token_endpoint,json=tokenEndpoint,proto3" json:"token_endpoint,omitempty"`
 	ClientId         string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	ClientSecretFile string                 `protobuf:"bytes,3,opt,name=client_secret_file,json=clientSecretFile,proto3" json:"client_secret_file,omitempty"`
 	CaFile           string                 `protobuf:"bytes,4,opt,name=ca_file,json=caFile,proto3" json:"ca_file,omitempty"`
+	AssertionIssuer  string                 `protobuf:"bytes,5,opt,name=assertion_issuer,json=assertionIssuer,proto3" json:"assertion_issuer,omitempty"`
+	// File containing one unencrypted PKCS#8 Ed25519 PEM key shared by all replicas.
+	AssertionKeyFile string `protobuf:"bytes,6,opt,name=assertion_key_file,json=assertionKeyFile,proto3" json:"assertion_key_file,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -960,6 +966,20 @@ func (x *OAuthCredentialConfig) GetClientSecretFile() string {
 func (x *OAuthCredentialConfig) GetCaFile() string {
 	if x != nil {
 		return x.CaFile
+	}
+	return ""
+}
+
+func (x *OAuthCredentialConfig) GetAssertionIssuer() string {
+	if x != nil {
+		return x.AssertionIssuer
+	}
+	return ""
+}
+
+func (x *OAuthCredentialConfig) GetAssertionKeyFile() string {
+	if x != nil {
+		return x.AssertionKeyFile
 	}
 	return ""
 }
@@ -2587,12 +2607,14 @@ const file_kagent_config_v1_config_proto_rawDesc = "" +
 	"\x11ResourceScopeRule\x12,\n" +
 	"\rresource_type\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fresourceType\x12G\n" +
 	"\x05verbs\x18\x02 \x03(\tB1\xbaH.\x92\x01+\b\x01\x18\x01\"%r#R\x03getR\x04listR\x06createR\x06updateR\x06deleteR\x05verbs\x125\n" +
-	"\tany_scope\x18\x03 \x03(\tB\x18\xbaH\x15\x92\x01\x12\x18\x01\"\x0er\f\x10\x01\x18\x80\x022\x05^\\S+$R\banyScope\"\xc7\x01\n" +
+	"\tany_scope\x18\x03 \x03(\tB\x18\xbaH\x15\x92\x01\x12\x18\x01\"\x0er\f\x10\x01\x18\x80\x022\x05^\\S+$R\banyScope\"\xd2\x02\n" +
 	"\x15OAuthCredentialConfig\x12A\n" +
 	"\x0etoken_endpoint\x18\x01 \x01(\tB\x1a\xbaH\x17r\x152\x10^https://[^/?#]+\x88\x01\x01R\rtokenEndpoint\x12$\n" +
 	"\tclient_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bclientId\x12,\n" +
 	"\x12client_secret_file\x18\x03 \x01(\tR\x10clientSecretFile\x12\x17\n" +
-	"\aca_file\x18\x04 \x01(\tR\x06caFile\"\xf0\x01\n" +
+	"\aca_file\x18\x04 \x01(\tR\x06caFile\x12R\n" +
+	"\x10assertion_issuer\x18\x05 \x01(\tB'\xbaH$r\"2\x1d^https?://[^/?#@]+(/[^?#]*)?$\x88\x01\x01R\x0fassertionIssuer\x125\n" +
+	"\x12assertion_key_file\x18\x06 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x10assertionKeyFile\"\xf0\x01\n" +
 	"\x13HarnessImagesConfig\x12\x18\n" +
 	"\arelease\x18\x01 \x01(\tR\arelease\x12?\n" +
 	"\x06kagent\x18\x02 \x01(\tB'\xbaH$r\"2 ^$|^[^\\s@]+@sha256:[a-f0-9]{64}$R\x06kagent\x12?\n" +

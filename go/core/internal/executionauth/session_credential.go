@@ -39,8 +39,8 @@ func (s *Service) CredentialStatus(ctx context.Context) (bool, error) {
 	if s.cipher == nil {
 		return false, nil
 	}
-	token, err := s.open(id, row.Ciphertext)
-	if err != nil || token.RefreshToken == "" {
+	stored, err := s.open(id, row.Ciphertext)
+	if err != nil || !stored.renewable() {
 		return false, err
 	}
 	_, _, err = s.current(ctx, id)
