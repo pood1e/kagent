@@ -31,9 +31,10 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// Memory is scoped to an Agent and a user. Actor calls derive both from the
-// persisted session bound to the verified Actor JWT. User calls select an
-// Agent and use the authenticated user's identity.
+// Memory belongs to an Agent and is shared by every caller the Agent admits.
+// Actor calls use the Agent of the persisted session bound to the verified Actor
+// JWT. User calls select an Agent and need its read permission to list or search
+// and its update permission to add or delete.
 type MemoryServiceClient interface {
 	// Accepts an Actor JWT or user authentication.
 	AddSession(ctx context.Context, in *MemoryServiceAddSessionRequest, opts ...grpc.CallOption) (*MemoryServiceAddSessionResponse, error)
@@ -41,11 +42,11 @@ type MemoryServiceClient interface {
 	AddSessionBatch(ctx context.Context, in *MemoryServiceAddSessionBatchRequest, opts ...grpc.CallOption) (*MemoryServiceAddSessionBatchResponse, error)
 	// Accepts an Actor JWT or user authentication.
 	Search(ctx context.Context, in *MemoryServiceSearchRequest, opts ...grpc.CallOption) (*MemoryServiceSearchResponse, error)
-	// Accepts an Actor JWT or user authentication on the same RPC endpoint.
+	// Accepts user authentication.
 	List(ctx context.Context, in *MemoryServiceListRequest, opts ...grpc.CallOption) (*MemoryServiceListResponse, error)
-	// Accepts an Actor JWT or user authentication on the same RPC endpoint.
+	// Accepts user authentication.
 	Delete(ctx context.Context, in *MemoryServiceDeleteRequest, opts ...grpc.CallOption) (*MemoryServiceDeleteResponse, error)
-	// Accepts an Actor JWT or user authentication on the same RPC endpoint.
+	// Accepts user authentication.
 	DeleteEntry(ctx context.Context, in *MemoryServiceDeleteEntryRequest, opts ...grpc.CallOption) (*MemoryServiceDeleteEntryResponse, error)
 }
 
@@ -121,9 +122,10 @@ func (c *memoryServiceClient) DeleteEntry(ctx context.Context, in *MemoryService
 // All implementations must embed UnimplementedMemoryServiceServer
 // for forward compatibility.
 //
-// Memory is scoped to an Agent and a user. Actor calls derive both from the
-// persisted session bound to the verified Actor JWT. User calls select an
-// Agent and use the authenticated user's identity.
+// Memory belongs to an Agent and is shared by every caller the Agent admits.
+// Actor calls use the Agent of the persisted session bound to the verified Actor
+// JWT. User calls select an Agent and need its read permission to list or search
+// and its update permission to add or delete.
 type MemoryServiceServer interface {
 	// Accepts an Actor JWT or user authentication.
 	AddSession(context.Context, *MemoryServiceAddSessionRequest) (*MemoryServiceAddSessionResponse, error)
@@ -131,11 +133,11 @@ type MemoryServiceServer interface {
 	AddSessionBatch(context.Context, *MemoryServiceAddSessionBatchRequest) (*MemoryServiceAddSessionBatchResponse, error)
 	// Accepts an Actor JWT or user authentication.
 	Search(context.Context, *MemoryServiceSearchRequest) (*MemoryServiceSearchResponse, error)
-	// Accepts an Actor JWT or user authentication on the same RPC endpoint.
+	// Accepts user authentication.
 	List(context.Context, *MemoryServiceListRequest) (*MemoryServiceListResponse, error)
-	// Accepts an Actor JWT or user authentication on the same RPC endpoint.
+	// Accepts user authentication.
 	Delete(context.Context, *MemoryServiceDeleteRequest) (*MemoryServiceDeleteResponse, error)
-	// Accepts an Actor JWT or user authentication on the same RPC endpoint.
+	// Accepts user authentication.
 	DeleteEntry(context.Context, *MemoryServiceDeleteEntryRequest) (*MemoryServiceDeleteEntryResponse, error)
 	mustEmbedUnimplementedMemoryServiceServer()
 }

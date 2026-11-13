@@ -559,9 +559,7 @@ func (x *MemoryServiceSearchResponse) GetMemories() []*MemorySearchResult {
 
 type MemoryServiceListRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// User calls must supply the Agent key, "namespace/name".
-	// Actor calls ignore this field and use the Agent
-	// from their persisted session.
+	// The Agent key, "namespace/name".
 	AgentName     string `protobuf:"bytes,1,opt,name=agent_name,json=agentName,proto3" json:"agent_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -650,9 +648,7 @@ func (x *MemoryServiceListResponse) GetMemories() []*MemorySummary {
 
 type MemoryServiceDeleteRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// User calls must supply the Agent key, "namespace/name".
-	// Actor calls ignore this field and use the Agent
-	// from their persisted session.
+	// The Agent key, "namespace/name".
 	AgentName     string `protobuf:"bytes,1,opt,name=agent_name,json=agentName,proto3" json:"agent_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -741,9 +737,7 @@ func (x *MemoryServiceDeleteResponse) GetStatus() string {
 
 type MemoryServiceDeleteEntryRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// User calls must supply the Agent key, "namespace/name".
-	// Actor calls ignore this field and use the Agent
-	// from their persisted session.
+	// The Agent key, "namespace/name".
 	AgentName     string `protobuf:"bytes,1,opt,name=agent_name,json=agentName,proto3" json:"agent_name,omitempty"`
 	Id            string `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields

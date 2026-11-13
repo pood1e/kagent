@@ -25,6 +25,7 @@ import (
 	"github.com/a2aproject/a2a-go/v2/a2asrv"
 	"github.com/a2aproject/a2a-go/v2/a2asrv/push"
 	"github.com/google/uuid"
+	"github.com/pgvector/pgvector-go"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -90,7 +91,7 @@ type taskStoreRuntimeDialer struct{ listener *bufconn.Listener }
 
 type runtimeMemoryStore struct {
 	*database.Client
-	agentName, userID string
+	agentName string
 }
 
 type runtimeTaskPolicy struct {
@@ -105,8 +106,8 @@ func (p *runtimeTaskPolicy) Check(_ context.Context, principal auth.Principal, _
 	return nil
 }
 
-func (s *runtimeMemoryStore) ListAgentMemories(_ context.Context, agentName, userID string) ([]database.Memory, error) {
-	s.agentName, s.userID = agentName, userID
+func (s *runtimeMemoryStore) SearchAgentMemory(_ context.Context, agentName string, _ pgvector.Vector, _ int) ([]database.AgentMemorySearchResult, error) {
+	s.agentName = agentName
 	return nil, nil
 }
 
@@ -213,10 +214,9 @@ func TestRuntimeTaskStoreThroughGRPC(t *testing.T) {
 	require.NoError(t, err)
 	_, err = publicSessions.GetSession(authenticated, &apiv1.GetSessionRequest{SessionId: uuid.NewString()})
 	require.Equal(t, codes.PermissionDenied, status.Code(err))
-	_, err = controller.MemoryService().List(authenticated, &runtimev1.MemoryServiceListRequest{AgentName: "forged/agent"})
+	_, err = controller.MemoryService().Search(authenticated, &runtimev1.MemoryServiceSearchRequest{ManagementAgent: "forged/agent", Vector: memoryVector()})
 	require.NoError(t, err)
 	require.Equal(t, "team-a/assistant", memories.agentName)
-	require.Equal(t, session.Creator, memories.userID)
 	_, err = private.GetTask(authenticated, &runtimev1.TaskStoreServiceGetTaskRequest{SessionId: uuid.NewString(), TaskId: "absent"})
 	require.Equal(t, codes.PermissionDenied, status.Code(err))
 	_, err = private.GetTask(metadata.AppendToOutgoingContext(authenticated, "x-share-token", "share"), read)

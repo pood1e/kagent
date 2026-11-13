@@ -8,36 +8,33 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAgentMemoryUsesExactSourceAndOwner(t *testing.T) {
+func TestAgentMemoryUsesExactAgentKey(t *testing.T) {
 	client := NewClient(setupTestDB(t), "public")
 	ctx := t.Context()
-	keys := []struct{ source, owner string }{
-		{"team-a/my-agent", "owner"},
-		{"team-a/scheduled-agent", "owner"},
-		{"team-b/my-agent", "owner"},
-		{"team-a/another-agent", "owner"},
-		{"team_a/my_agent", "owner"},
-		{"team-a/my-agent", "other"},
+	agents := []string{"team-a/my-agent", "team-a/scheduled-agent", "team-b/my-agent", "team-a/another-agent", "team_a/my_agent"}
+	for _, agent := range agents {
+		require.NoError(t, client.StoreAgentMemories(ctx, &Memory{AgentName: agent, UserID: "owner", Embedding: makeEmbedding(0.5)}))
 	}
-	for _, key := range keys {
-		require.NoError(t, client.StoreAgentMemories(ctx, &Memory{
-			AgentName: key.source, UserID: key.owner, Embedding: makeEmbedding(0.5),
-		}))
-	}
-	for _, key := range keys {
-		memories, err := client.ListAgentMemories(ctx, key.source, key.owner)
+	shared := &Memory{AgentName: agents[0], UserID: "teammate", Embedding: makeEmbedding(0.5)}
+	require.NoError(t, client.StoreAgentMemories(ctx, shared))
+	for i, agent := range agents {
+		memories, err := client.ListAgentMemories(ctx, agent)
 		require.NoError(t, err)
-		require.Len(t, memories, 1)
-		require.Equal(t, key.source, memories[0].AgentName)
-		require.Equal(t, key.owner, memories[0].UserID)
-		matches, err := client.SearchAgentMemory(ctx, key.source, key.owner, makeEmbedding(0.5), 10)
+		matches, err := client.SearchAgentMemory(ctx, agent, makeEmbedding(0.5), 10)
 		require.NoError(t, err)
-		require.Len(t, matches, 1)
-		require.Equal(t, memories[0].ID, matches[0].ID)
+		want := 1
+		if i == 0 {
+			want = 2
+		}
+		require.Len(t, memories, want)
+		require.Len(t, matches, want)
+		for _, memory := range memories {
+			require.Equal(t, agent, memory.AgentName)
+		}
 	}
-	require.NoError(t, client.DeleteAgentMemory(ctx, keys[0].source, keys[0].owner))
-	for i, key := range keys {
-		memories, err := client.ListAgentMemories(ctx, key.source, key.owner)
+	require.NoError(t, client.DeleteAgentMemory(ctx, agents[0]))
+	for i, agent := range agents {
+		memories, err := client.ListAgentMemories(ctx, agent)
 		require.NoError(t, err)
 		if i == 0 {
 			require.Empty(t, memories)
@@ -63,15 +60,15 @@ func TestDeleteAgentMemoryIsAtomic(t *testing.T) {
 	})
 	_, err = db.Exec(ctx, `INSERT INTO memory_delete_guard VALUES ($1)`, second.ID)
 	require.NoError(t, err)
-	require.Error(t, client.DeleteAgentMemory(ctx, first.AgentName, first.UserID))
-	memories, err := client.ListAgentMemories(ctx, first.AgentName, first.UserID)
+	require.Error(t, client.DeleteAgentMemory(ctx, first.AgentName))
+	memories, err := client.ListAgentMemories(ctx, first.AgentName)
 	require.NoError(t, err)
 	require.Len(t, memories, 2)
 
 	_, err = db.Exec(ctx, `DROP TABLE memory_delete_guard`)
 	require.NoError(t, err)
-	require.NoError(t, client.DeleteAgentMemory(ctx, first.AgentName, first.UserID))
-	memories, err = client.ListAgentMemories(ctx, first.AgentName, first.UserID)
+	require.NoError(t, client.DeleteAgentMemory(ctx, first.AgentName))
+	memories, err = client.ListAgentMemories(ctx, first.AgentName)
 	require.NoError(t, err)
 	require.Empty(t, memories)
 }
@@ -83,7 +80,7 @@ func TestStoreAgentMemoriesCommitsIDsWithBatch(t *testing.T) {
 	require.Error(t, client.StoreAgentMemories(t.Context(), first, invalid))
 	require.Equal(t, "original", first.ID)
 	require.Empty(t, invalid.ID)
-	stored, err := client.ListAgentMemories(t.Context(), "agent", "owner")
+	stored, err := client.ListAgentMemories(t.Context(), "agent")
 	require.NoError(t, err)
 	require.Empty(t, stored)
 
@@ -92,7 +89,7 @@ func TestStoreAgentMemoriesCommitsIDsWithBatch(t *testing.T) {
 	require.NotEqual(t, "original", first.ID)
 	require.NotEmpty(t, invalid.ID)
 	require.NotEqual(t, first.ID, invalid.ID)
-	stored, err = client.ListAgentMemories(t.Context(), "agent", "owner")
+	stored, err = client.ListAgentMemories(t.Context(), "agent")
 	require.NoError(t, err)
 	require.Len(t, stored, 2)
 }

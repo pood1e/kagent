@@ -30,9 +30,38 @@ type memoryStore struct {
 	listResult   []database.Memory
 	err          error
 	deletedAgent string
-	deletedUser  string
 	readAgent    string
-	readUser     string
+}
+
+// agentPermissions grants the configured Agent actions and records each request.
+type agentPermissions struct {
+	allowed  map[string][]apiv1.Permission
+	requests []*apiv1.CheckPermissionsRequest
+}
+
+func (p *agentPermissions) CheckPermissions(_ context.Context, request *apiv1.CheckPermissionsRequest) (*apiv1.CheckPermissionsResponse, error) {
+	p.requests = append(p.requests, request)
+	response := &apiv1.CheckPermissionsResponse{}
+	for _, check := range request.GetChecks() {
+		ref := check.GetResource().GetKubernetes().GetRef()
+		response.Resources = append(response.Resources, &apiv1.ResourceAccess{
+			Resource: check.GetResource(), AllowedActions: p.allowed[ref.GetNamespace()+"/"+ref.GetName()],
+		})
+	}
+	return response, nil
+}
+
+func readWrite(agents ...string) *agentPermissions {
+	allowed := make(map[string][]apiv1.Permission, len(agents))
+	for _, agent := range agents {
+		allowed[agent] = []apiv1.Permission{apiv1.Permission_PERMISSION_AGENT_READ, apiv1.Permission_PERMISSION_AGENT_UPDATE}
+	}
+	return &agentPermissions{allowed: allowed}
+}
+
+func userContext(t *testing.T, id string) context.Context {
+	t.Helper()
+	return auth.AuthSessionTo(t.Context(), &authimpl.SimpleSession{P: auth.Principal{ID: id}})
 }
 
 func (store *memoryStore) StoreAgentMemories(_ context.Context, memories ...*database.Memory) error {
@@ -46,20 +75,19 @@ func (store *memoryStore) StoreAgentMemories(_ context.Context, memories ...*dat
 	return nil
 }
 
-func (store *memoryStore) SearchAgentMemory(_ context.Context, agentName, userID string, _ pgvector.Vector, limit int) ([]database.AgentMemorySearchResult, error) {
-	store.readAgent, store.readUser = agentName, userID
+func (store *memoryStore) SearchAgentMemory(_ context.Context, agentName string, _ pgvector.Vector, limit int) ([]database.AgentMemorySearchResult, error) {
+	store.readAgent = agentName
 	store.searchLimit = limit
 	return store.searchResult, store.err
 }
 
-func (store *memoryStore) ListAgentMemories(_ context.Context, agentName, userID string) ([]database.Memory, error) {
-	store.readAgent, store.readUser = agentName, userID
+func (store *memoryStore) ListAgentMemories(_ context.Context, agentName string) ([]database.Memory, error) {
+	store.readAgent = agentName
 	return store.listResult, store.err
 }
 
-func (store *memoryStore) DeleteAgentMemory(_ context.Context, agentName, userID string) error {
+func (store *memoryStore) DeleteAgentMemory(_ context.Context, agentName string) error {
 	store.deletedAgent = agentName
-	store.deletedUser = userID
 	return store.err
 }
 
@@ -128,7 +156,6 @@ func TestListDeleteAndStoreErrors(t *testing.T) {
 	assert.Equal(t, "memory-1", memories[0].ID)
 	require.NoError(t, service.Delete(memoryContext(t), ""))
 	assert.Equal(t, "team-a/agent", store.deletedAgent)
-	assert.Equal(t, "user", store.deletedUser)
 
 	store.err = errors.New("database unavailable")
 	_, err = service.Search(memoryContext(t), SearchRequest{Vector: vector(VectorDimension, 1)})
@@ -165,7 +192,7 @@ func memoryContext(t *testing.T) context.Context {
 	return auth.AuthSessionTo(t.Context(), session)
 }
 
-func TestActorMemoryUsesSessionScope(t *testing.T) {
+func TestActorMemoryUsesSessionAgent(t *testing.T) {
 	store := &memoryStore{}
 	service := NewService(store, auth.NoopAuthorizer{})
 	ctx := memoryContext(t)
@@ -177,19 +204,11 @@ func TestActorMemoryUsesSessionScope(t *testing.T) {
 	require.Len(t, store.stored, 2)
 	for _, memory := range store.stored {
 		require.Equal(t, "team-a/agent", memory.AgentName)
-		require.Equal(t, "user", memory.UserID)
+		require.Equal(t, "user", memory.UserID, "the session owner is recorded as the author")
 	}
-	require.NoError(t, service.Delete(ctx, "other/agent"))
-	require.Equal(t, "team-a/agent", store.deletedAgent)
-	require.Equal(t, "user", store.deletedUser)
-	_, err = service.List(ctx, "other/agent")
+	_, err = service.Search(ctx, SearchRequest{AgentName: "other/agent", Vector: input.Vector})
 	require.NoError(t, err)
 	require.Equal(t, "team-a/agent", store.readAgent)
-	require.Equal(t, "user", store.readUser)
-	_, err = service.Search(ctx, SearchRequest{Vector: input.Vector})
-	require.NoError(t, err)
-	require.Equal(t, "team-a/agent", store.readAgent)
-	require.Equal(t, "user", store.readUser)
 }
 
 func TestMemoryRejectsUnboundActors(t *testing.T) {
@@ -225,24 +244,40 @@ func TestMemoryRejectsUnboundActors(t *testing.T) {
 	}
 }
 
-func TestUserMemoryManagementDoesNotRequireRuntime(t *testing.T) {
+func TestUserMemoryFollowsAgentPermissions(t *testing.T) {
 	store := &memoryStore{bindingErr: database.ErrNotFound}
-	service := NewService(store, auth.NoopAuthorizer{})
-	ctx := auth.AuthSessionTo(t.Context(), &authimpl.SimpleSession{P: auth.Principal{ID: "owner"}})
+	permissions := &agentPermissions{allowed: map[string][]apiv1.Permission{
+		"team-a/agent":  {apiv1.Permission_PERMISSION_AGENT_READ, apiv1.Permission_PERMISSION_AGENT_UPDATE},
+		"team-a/viewer": {apiv1.Permission_PERMISSION_AGENT_READ},
+	}}
+	service := NewService(store, auth.NoopAuthorizer{}, WithAgentPermissions(permissions))
+	ctx := userContext(t, "owner")
 
-	for _, agentName := range []string{"team-a/agent", "team-b/other"} {
+	_, err := service.List(ctx, "team-a/agent")
+	require.NoError(t, err)
+	require.Equal(t, "team-a/agent", store.readAgent)
+	require.NoError(t, service.Delete(ctx, "team-a/agent"))
+	require.Equal(t, "team-a/agent", store.deletedAgent)
+	read, update := permissions.requests[0], permissions.requests[1]
+	require.Equal(t, "team-a", read.GetWorkspace().GetNamespace())
+	require.Equal(t, apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_AGENT, read.GetChecks()[0].GetResource().GetKubernetes().GetKind())
+	require.Equal(t, []apiv1.Permission{apiv1.Permission_PERMISSION_AGENT_READ}, read.GetChecks()[0].GetPermissions())
+	require.Equal(t, []apiv1.Permission{apiv1.Permission_PERMISSION_AGENT_UPDATE}, update.GetChecks()[0].GetPermissions())
+
+	store.deletedAgent = ""
+	_, err = service.List(ctx, "team-a/viewer")
+	require.NoError(t, err)
+	require.True(t, serviceerrors.IsCode(service.Delete(ctx, "team-a/viewer"), serviceerrors.CodePermissionDenied))
+	_, err = service.List(ctx, "team-b/agent")
+	require.True(t, serviceerrors.IsCode(err, serviceerrors.CodePermissionDenied))
+	require.Empty(t, store.deletedAgent)
+
+	for _, agentName := range []string{"", "agent", "team-a/", "/agent", "team-a/agent/extra"} {
 		_, err := service.List(ctx, agentName)
-		require.NoError(t, err)
-		require.Equal(t, agentName, store.readAgent)
-		require.Equal(t, "owner", store.readUser)
-		require.NoError(t, service.Delete(ctx, agentName))
-		require.Equal(t, agentName, store.deletedAgent)
-		require.Equal(t, "owner", store.deletedUser)
+		require.True(t, serviceerrors.IsCode(err, serviceerrors.CodeInvalidArgument), agentName)
 	}
-
-	_, err := service.List(ctx, "")
-	require.True(t, serviceerrors.IsCode(err, serviceerrors.CodeInvalidArgument))
-	require.True(t, serviceerrors.IsCode(service.Delete(ctx, ""), serviceerrors.CodeInvalidArgument))
+	_, err = NewService(store, auth.NoopAuthorizer{}).List(ctx, "team-a/agent")
+	require.True(t, serviceerrors.IsCode(err, serviceerrors.CodeUnavailable))
 }
 
 type deniedMemoryAuthorizer struct{ auth.NoopAuthorizer }
@@ -253,23 +288,20 @@ func (deniedMemoryAuthorizer) Check(context.Context, auth.Principal, auth.Verb, 
 
 func TestMemoryManagementHonorsConfiguredAuthorization(t *testing.T) {
 	store := &memoryStore{}
-	service := NewService(store, deniedMemoryAuthorizer{})
-	user := auth.AuthSessionTo(t.Context(), &authimpl.SimpleSession{P: auth.Principal{ID: "user"}})
-	for _, ctx := range []context.Context{user, memoryContext(t)} {
+	service := NewService(store, deniedMemoryAuthorizer{}, WithAgentPermissions(readWrite("team-a/agent")))
+	for _, ctx := range []context.Context{userContext(t, "user"), memoryContext(t)} {
 		_, err := service.List(ctx, "team-a/agent")
 		require.True(t, serviceerrors.IsCode(err, serviceerrors.CodePermissionDenied))
 		err = service.Delete(ctx, "team-a/agent")
 		require.True(t, serviceerrors.IsCode(err, serviceerrors.CodePermissionDenied))
 	}
 	require.Empty(t, store.deletedAgent)
-	require.Empty(t, store.deletedUser)
 }
 
-func TestMemorySharesNeverReachPartitionStorage(t *testing.T) {
-	user := auth.AuthSessionTo(t.Context(), &authimpl.SimpleSession{P: auth.Principal{ID: "owner"}})
-	for _, ctx := range []context.Context{user, memoryContext(t)} {
+func TestMemorySharesNeverReachStorage(t *testing.T) {
+	for _, ctx := range []context.Context{userContext(t, "owner"), memoryContext(t)} {
 		store := &memoryStore{}
-		service := NewService(store, auth.NoopAuthorizer{})
+		service := NewService(store, auth.NoopAuthorizer{}, WithAgentPermissions(readWrite("team-a/agent")))
 		shared := auth.ShareContextTo(ctx, &auth.ShareContext{SessionID: "shared-session", UserID: "owner"})
 		operations := []struct {
 			name string
