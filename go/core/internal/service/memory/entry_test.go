@@ -7,36 +7,33 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/kagent-dev/kagent/go/core/internal/database"
-	authimpl "github.com/kagent-dev/kagent/go/core/internal/httpserver/auth"
 	"github.com/kagent-dev/kagent/go/core/internal/service/serviceerrors"
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
 )
 
-func (store *memoryStore) DeleteMemoryEntry(_ context.Context, agentName, userID, _ string) error {
-	store.deletedAgent, store.deletedUser = agentName, userID
+func (store *memoryStore) DeleteMemoryEntry(_ context.Context, agentName, _ string) error {
+	store.deletedAgent = agentName
 	return store.err
 }
 
-func TestManagedMemoryUsesAuthenticatedOwner(t *testing.T) {
+func TestUsersShareTheAgentMemory(t *testing.T) {
 	store := &memoryStore{bindingErr: database.ErrNotFound}
-	service := NewService(store, auth.NoopAuthorizer{})
-	ctx := auth.AuthSessionTo(t.Context(), &authimpl.SimpleSession{P: auth.Principal{ID: "owner"}})
+	service := NewService(store, auth.NoopAuthorizer{}, WithAgentPermissions(readWrite("team-a/knowledge")))
 	input := Input{AgentName: "team-a/knowledge", Content: "shared finding", Vector: vector(VectorDimension, 1)}
-	_, err := service.Add(ctx, input)
+	_, err := service.Add(userContext(t, "author"), input)
 	require.NoError(t, err)
-	_, err = service.AddBatch(ctx, []Input{input})
+	_, err = service.AddBatch(userContext(t, "author"), []Input{input})
 	require.NoError(t, err)
 	for _, record := range store.stored {
 		require.Equal(t, "team-a/knowledge", record.AgentName)
-		require.Equal(t, "owner", record.UserID)
+		require.Equal(t, "author", record.UserID)
 	}
-	_, err = service.Search(ctx, SearchRequest{AgentName: input.AgentName, Vector: vector(VectorDimension, 1)})
+	reader := userContext(t, "teammate")
+	_, err = service.Search(reader, SearchRequest{AgentName: input.AgentName, Vector: vector(VectorDimension, 1)})
 	require.NoError(t, err)
 	require.Equal(t, input.AgentName, store.readAgent)
-	require.Equal(t, "owner", store.readUser)
-	require.NoError(t, service.DeleteEntry(ctx, input.AgentName, "selected"))
+	require.NoError(t, service.DeleteEntry(reader, input.AgentName, "selected"))
 	require.Equal(t, input.AgentName, store.deletedAgent)
-	require.Equal(t, "owner", store.deletedUser)
 	store.err = database.ErrNotFound
-	require.True(t, serviceerrors.IsCode(service.DeleteEntry(ctx, input.AgentName, "foreign"), serviceerrors.CodeNotFound))
+	require.True(t, serviceerrors.IsCode(service.DeleteEntry(reader, input.AgentName, "foreign"), serviceerrors.CodeNotFound))
 }

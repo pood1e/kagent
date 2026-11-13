@@ -265,13 +265,13 @@ Worker-for-actor tokens are not accepted. Signing keys refresh every
 minute; publish new verification keys at least a minute before using them.
 
 The service checks the verified actor name against the requested session and
-matches its atespace and recorded Actor UID. Memory derives its agent namespace
-and user from that persisted session binding, ignoring caller-supplied identity
-fields. Users can add, search, list, and delete their own memories on the same endpoint.
-Both actor and user memory operations check the `Memory` resource, whose name is
-the exact `namespace/name` Agent key. User management calls use the requested
-agent key and the authenticated user ID,
-ignoring the request's user ID, and do not require a live actor or session.
+matches its atespace and recorded Actor UID. Memory derives its Agent from that
+persisted session binding, ignoring caller-supplied identity fields, and records the
+session owner as the author of new entries. Actors search and add their Agent's memory;
+users list, search, add, and delete it on the same endpoint. Both check the `Memory`
+resource, whose name is the exact `namespace/name` Agent key. User calls also need the
+Agent's read permission to list or search and its update permission to add or delete,
+and do not require a live actor or session.
 User and share credentials cannot grant access to actor-only methods. The
 unsigned identity header is not accepted.
 

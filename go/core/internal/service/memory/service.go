@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/pgvector/pgvector-go"
 
+	apiv1 "github.com/kagent-dev/kagent/go/api/gen/kagent/api/v1"
 	"github.com/kagent-dev/kagent/go/core/internal/database"
 	"github.com/kagent-dev/kagent/go/core/internal/runtimeauth"
 	"github.com/kagent-dev/kagent/go/core/internal/service/serviceerrors"
@@ -24,10 +27,15 @@ const (
 type Store interface {
 	runtimeauth.SessionStore
 	StoreAgentMemories(context.Context, ...*database.Memory) error
-	SearchAgentMemory(context.Context, string, string, pgvector.Vector, int) ([]database.AgentMemorySearchResult, error)
-	ListAgentMemories(context.Context, string, string) ([]database.Memory, error)
-	DeleteAgentMemory(context.Context, string, string) error
-	DeleteMemoryEntry(context.Context, string, string, string) error
+	SearchAgentMemory(context.Context, string, pgvector.Vector, int) ([]database.AgentMemorySearchResult, error)
+	ListAgentMemories(context.Context, string) ([]database.Memory, error)
+	DeleteAgentMemory(context.Context, string) error
+	DeleteMemoryEntry(context.Context, string, string) error
+}
+
+// AgentPermissions resolves the caller's actions on the Agent that owns a memory.
+type AgentPermissions interface {
+	CheckPermissions(context.Context, *apiv1.CheckPermissionsRequest) (*apiv1.CheckPermissionsResponse, error)
 }
 
 type Input struct {
@@ -61,10 +69,20 @@ func WithClock(now func() time.Time) Option {
 	}
 }
 
+// WithAgentPermissions admits user calls through the owning Agent's resource permissions.
+func WithAgentPermissions(permissions AgentPermissions) Option {
+	return func(service *Service) {
+		service.permissions = permissions
+	}
+}
+
+// Service stores memory per Agent. Every caller authorized for the Agent shares it:
+// Actors use their session's Agent, and users act through the Agent's permissions.
 type Service struct {
-	store      Store
-	authorizer auth.Authorizer
-	now        func() time.Time
+	store       Store
+	authorizer  auth.Authorizer
+	permissions AgentPermissions
+	now         func() time.Time
 }
 
 func NewService(store Store, authorizer auth.Authorizer, options ...Option) *Service {
@@ -76,7 +94,7 @@ func NewService(store Store, authorizer auth.Authorizer, options ...Option) *Ser
 }
 
 func (s *Service) Add(ctx context.Context, input Input) (string, error) {
-	agentName, userID, err := s.managementScope(ctx, auth.VerbCreate, input.AgentName)
+	agentName, author, err := s.memoryScope(ctx, auth.VerbCreate, input.AgentName)
 	if err != nil {
 		return "", err
 	}
@@ -86,7 +104,7 @@ func (s *Service) Add(ctx context.Context, input Input) (string, error) {
 	if s.store == nil {
 		return "", serviceerrors.NewInternal("failed to save memory", fmt.Errorf("database client is not configured"))
 	}
-	memory, err := s.toMemory(input, agentName, userID)
+	memory, err := s.toMemory(input, agentName, author)
 	if err != nil {
 		return "", err
 	}
@@ -110,7 +128,7 @@ func (s *Service) AddBatch(ctx context.Context, inputs []Input) (int, error) {
 		return 0, serviceerrors.NewInternal("failed to save memory batch", fmt.Errorf("database client is not configured"))
 	}
 
-	agentName, userID, err := s.managementScope(ctx, auth.VerbCreate, inputs[0].AgentName)
+	agentName, author, err := s.memoryScope(ctx, auth.VerbCreate, inputs[0].AgentName)
 	if err != nil {
 		return 0, err
 	}
@@ -119,7 +137,7 @@ func (s *Service) AddBatch(ctx context.Context, inputs []Input) (int, error) {
 		if err := validateVector(input.Vector); err != nil {
 			return 0, err
 		}
-		memory, err := s.toMemory(input, agentName, userID)
+		memory, err := s.toMemory(input, agentName, author)
 		if err != nil {
 			return 0, err
 		}
@@ -132,7 +150,7 @@ func (s *Service) AddBatch(ctx context.Context, inputs []Input) (int, error) {
 }
 
 func (s *Service) Search(ctx context.Context, request SearchRequest) ([]SearchResult, error) {
-	agentName, userID, err := s.managementScope(ctx, auth.VerbGet, request.AgentName)
+	agentName, _, err := s.memoryScope(ctx, auth.VerbGet, request.AgentName)
 	if err != nil {
 		return nil, err
 	}
@@ -145,13 +163,7 @@ func (s *Service) Search(ctx context.Context, request SearchRequest) ([]SearchRe
 	if request.Limit <= 0 {
 		request.Limit = DefaultSearchLimit
 	}
-	results, err := s.store.SearchAgentMemory(
-		ctx,
-		agentName,
-		userID,
-		pgvector.NewVector(request.Vector),
-		request.Limit,
-	)
+	results, err := s.store.SearchAgentMemory(ctx, agentName, pgvector.NewVector(request.Vector), request.Limit)
 	if err != nil {
 		return nil, serviceerrors.NewInternal("search failed", err)
 	}
@@ -177,17 +189,14 @@ func (s *Service) Search(ctx context.Context, request SearchRequest) ([]SearchRe
 }
 
 func (s *Service) List(ctx context.Context, agentName string) ([]database.Memory, error) {
-	agentName, userID, err := s.managementScope(ctx, auth.VerbList, agentName)
+	agentName, _, err := s.memoryScope(ctx, auth.VerbList, agentName)
 	if err != nil {
 		return nil, err
-	}
-	if agentName == "" || userID == "" {
-		return nil, serviceerrors.NewInvalidArgument("Missing required query parameters (agent_name, user_id)", nil)
 	}
 	if s.store == nil {
 		return nil, serviceerrors.NewInternal("failed to list memories", fmt.Errorf("database client is not configured"))
 	}
-	memories, err := s.store.ListAgentMemories(ctx, agentName, userID)
+	memories, err := s.store.ListAgentMemories(ctx, agentName)
 	if err != nil {
 		return nil, serviceerrors.NewInternal("failed to list memories", err)
 	}
@@ -195,38 +204,81 @@ func (s *Service) List(ctx context.Context, agentName string) ([]database.Memory
 }
 
 func (s *Service) Delete(ctx context.Context, agentName string) error {
-	agentName, userID, err := s.managementScope(ctx, auth.VerbDelete, agentName)
+	agentName, _, err := s.memoryScope(ctx, auth.VerbDelete, agentName)
 	if err != nil {
 		return err
-	}
-	if agentName == "" || userID == "" {
-		return serviceerrors.NewInvalidArgument("Missing required query parameters (agent_name, user_id)", nil)
 	}
 	if s.store == nil {
 		return serviceerrors.NewInternal("failed to delete memory", fmt.Errorf("database client is not configured"))
 	}
-	if err := s.store.DeleteAgentMemory(ctx, agentName, userID); err != nil {
+	if err := s.store.DeleteAgentMemory(ctx, agentName); err != nil {
 		return serviceerrors.NewInternal("failed to delete memory", err)
 	}
 	return nil
 }
 
-// Users can manage their own memories even when the agent or session no longer
-// exists. Actors remain bound to their current session's agent and owner.
-func (s *Service) managementScope(ctx context.Context, verb auth.Verb, agentName string) (string, string, error) {
+// memoryScope resolves the Agent whose memory the caller uses and the identity recorded
+// as the author of new entries. Users name the Agent and need its resource permissions,
+// even after their sessions end; Actors stay bound to their current session's Agent.
+func (s *Service) memoryScope(ctx context.Context, verb auth.Verb, agentName string) (string, string, error) {
 	if session, ok := auth.AuthSessionFrom(ctx); ok && session != nil {
 		if principal := session.Principal(); principal.RuntimeBinding == nil && principal.ID != "" {
-			if agentName == "" {
-				return "", "", serviceerrors.NewInvalidArgument("agent name is required", nil)
+			agent, err := agentReference(agentName)
+			if err != nil {
+				return "", "", err
 			}
-			return agentName, principal.ID, s.authorize(ctx, verb, agentName)
+			if err := s.authorize(ctx, verb, agentName); err != nil {
+				return "", "", err
+			}
+			if err := s.authorizeAgent(ctx, agent, agentPermission(verb)); err != nil {
+				return "", "", err
+			}
+			return agentName, principal.ID, nil
 		}
 	}
 	return s.scope(ctx, verb)
 }
 
-// scope binds memory to the persisted session's agent and owner. Request fields
-// and forwarded headers never select another identity's memory namespace.
+// agentReference parses the "namespace/name" Agent key that user calls supply.
+func agentReference(agentName string) (*apiv1.ResourceReference, error) {
+	namespace, name, ok := strings.Cut(agentName, "/")
+	if !ok || namespace == "" || name == "" || strings.Contains(name, "/") {
+		return nil, serviceerrors.NewInvalidArgument("agent name must be namespace/name", nil)
+	}
+	return &apiv1.ResourceReference{Namespace: namespace, Name: name}, nil
+}
+
+// agentPermission maps a memory verb to the Agent action that admits it: reading shared
+// memory follows read access, and changing it follows update access.
+func agentPermission(verb auth.Verb) apiv1.Permission {
+	if verb == auth.VerbGet || verb == auth.VerbList {
+		return apiv1.Permission_PERMISSION_AGENT_READ
+	}
+	return apiv1.Permission_PERMISSION_AGENT_UPDATE
+}
+
+func (s *Service) authorizeAgent(ctx context.Context, agent *apiv1.ResourceReference, permission apiv1.Permission) error {
+	if s.permissions == nil {
+		return serviceerrors.NewUnavailable("Agent authorization is not configured", nil)
+	}
+	resource := &apiv1.AuthorizationResource{Resource: &apiv1.AuthorizationResource_Kubernetes{Kubernetes: &apiv1.KubernetesAuthorizationReference{
+		Kind: apiv1.AuthorizationScopeKind_AUTHORIZATION_SCOPE_KIND_AGENT, Ref: agent,
+	}}}
+	response, err := s.permissions.CheckPermissions(ctx, &apiv1.CheckPermissionsRequest{
+		Workspace: &apiv1.WorkspaceAuthorizationReference{Namespace: agent.Namespace},
+		Checks:    []*apiv1.ResourceGrant{{Resource: resource, Permissions: []apiv1.Permission{permission}}},
+	})
+	if err != nil {
+		return err
+	}
+	if access := response.GetResources(); len(access) != 1 || !slices.Contains(access[0].GetAllowedActions(), permission) {
+		return serviceerrors.NewPermissionDenied("Not authorized to access Agent memory", nil)
+	}
+	return nil
+}
+
+// scope binds an Actor to its persisted session's Agent and records the session
+// owner as the author. Request fields and forwarded headers never select another Agent.
 func (s *Service) scope(ctx context.Context, verb auth.Verb) (string, string, error) {
 	if s.store == nil {
 		return "", "", serviceerrors.NewInternal("memory store is not configured", nil)
@@ -257,7 +309,7 @@ func (s *Service) authorize(ctx context.Context, verb auth.Verb, agentName strin
 	return nil
 }
 
-func (s *Service) toMemory(input Input, agentName, userID string) (*database.Memory, error) {
+func (s *Service) toMemory(input Input, agentName, author string) (*database.Memory, error) {
 	metadata := input.Metadata
 	if len(metadata) == 0 {
 		metadata = json.RawMessage("{}")
@@ -271,7 +323,7 @@ func (s *Service) toMemory(input Input, agentName, userID string) (*database.Mem
 	expiresAt := s.now().Add(time.Duration(ttlDays) * 24 * time.Hour)
 	return &database.Memory{
 		AgentName: agentName,
-		UserID:    userID,
+		UserID:    author,
 		Content:   input.Content,
 		Embedding: pgvector.NewVector(input.Vector),
 		Metadata:  string(metadata),

@@ -48,10 +48,10 @@ resources retain their separate API versions. See the
 [protobuf API conventions](../protobuf-api.md) for compatibility and generation rules.
 
 The public and runtime APIs share a gRPC listener and retain method-level authentication policies.
-TaskStore requires verified actor authority. Memory operations accept users and
-actors, with service authorization and partition ownership checks. User operations
-use the authenticated user ID and an authorized agent key; actor operations derive
-both from the persisted session binding. Shared APIs use the same authentication provider and resource authorizer. The runtime namespace identifies its consumers, not an additional
+TaskStore requires verified actor authority. Memory belongs to an Agent and is shared
+by every caller the Agent admits. Actors search and add the memory of their persisted
+session's Agent; users name an Agent key and need its read permission to list or search
+and its update permission to add or delete. Shared APIs use the same authentication provider and resource authorizer. The runtime namespace identifies its consumers, not an additional
 access restriction. Configuration messages are process inputs, with no RPC services.
 Browser bindings exclude runtime and configuration contracts.
 

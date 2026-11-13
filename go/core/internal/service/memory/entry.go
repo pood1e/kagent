@@ -9,19 +9,19 @@ import (
 	"github.com/kagent-dev/kagent/go/core/pkg/auth"
 )
 
-// DeleteEntry removes one memory after resolving the caller's agent and user scope.
+// DeleteEntry removes one memory of the Agent the caller may change.
 func (s *Service) DeleteEntry(ctx context.Context, agentName, id string) error {
-	agentName, userID, err := s.managementScope(ctx, auth.VerbDelete, agentName)
+	agentName, _, err := s.memoryScope(ctx, auth.VerbDelete, agentName)
 	if err != nil {
 		return err
 	}
-	if agentName == "" || userID == "" || id == "" {
-		return serviceerrors.NewInvalidArgument("agent and memory ID are required", nil)
+	if id == "" {
+		return serviceerrors.NewInvalidArgument("memory ID is required", nil)
 	}
 	if s.store == nil {
 		return serviceerrors.NewInternal("memory store is not configured", nil)
 	}
-	err = s.store.DeleteMemoryEntry(ctx, agentName, userID, id)
+	err = s.store.DeleteMemoryEntry(ctx, agentName, id)
 	if errors.Is(err, database.ErrNotFound) {
 		return serviceerrors.NewNotFound("memory entry not found", err)
 	}

@@ -6,9 +6,10 @@ from kagent.runtime.v1 import memory_pb2 as kagent_dot_runtime_dot_v1_dot_memory
 
 
 class MemoryServiceStub:
-    """Memory is scoped to an Agent and a user. Actor calls derive both from the
-    persisted session bound to the verified Actor JWT. User calls select an
-    Agent and use the authenticated user's identity.
+    """Memory belongs to an Agent and is shared by every caller the Agent admits.
+    Actor calls use the Agent of the persisted session bound to the verified Actor
+    JWT. User calls select an Agent and need its read permission to list or search
+    and its update permission to add or delete.
     """
 
     def __init__(self, channel):
@@ -50,9 +51,10 @@ class MemoryServiceStub:
 
 
 class MemoryServiceServicer:
-    """Memory is scoped to an Agent and a user. Actor calls derive both from the
-    persisted session bound to the verified Actor JWT. User calls select an
-    Agent and use the authenticated user's identity.
+    """Memory belongs to an Agent and is shared by every caller the Agent admits.
+    Actor calls use the Agent of the persisted session bound to the verified Actor
+    JWT. User calls select an Agent and need its read permission to list or search
+    and its update permission to add or delete.
     """
 
     def AddSession(self, request, context):
@@ -77,21 +79,21 @@ class MemoryServiceServicer:
         raise NotImplementedError('Method not implemented!')
 
     def List(self, request, context):
-        """Accepts an Actor JWT or user authentication on the same RPC endpoint.
+        """Accepts user authentication.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def Delete(self, request, context):
-        """Accepts an Actor JWT or user authentication on the same RPC endpoint.
+        """Accepts user authentication.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def DeleteEntry(self, request, context):
-        """Accepts an Actor JWT or user authentication on the same RPC endpoint.
+        """Accepts user authentication.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -139,9 +141,10 @@ def add_MemoryServiceServicer_to_server(servicer, server):
 
  # This class is part of an EXPERIMENTAL API.
 class MemoryService:
-    """Memory is scoped to an Agent and a user. Actor calls derive both from the
-    persisted session bound to the verified Actor JWT. User calls select an
-    Agent and use the authenticated user's identity.
+    """Memory belongs to an Agent and is shared by every caller the Agent admits.
+    Actor calls use the Agent of the persisted session bound to the verified Actor
+    JWT. User calls select an Agent and need its read permission to list or search
+    and its update permission to add or delete.
     """
 
     @staticmethod

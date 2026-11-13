@@ -82,7 +82,7 @@ func TestDirectModelScans(t *testing.T) {
 		require.NoError(t, err)
 		memory := &Memory{AgentName: "agent", UserID: "user", Embedding: makeEmbedding(0.5), AccessCount: 1}
 		require.NoError(t, client.StoreAgentMemories(ctx, memory))
-		all, err := client.ListAgentMemories(ctx, "agent", "user")
+		all, err := client.ListAgentMemories(ctx, "agent")
 		require.NoError(t, err)
 		require.Len(t, all, 2)
 		assert.Equal(t, "nullable", all[0].ID) // SQL NULL counts still sort first descending.
@@ -92,7 +92,7 @@ func TestDirectModelScans(t *testing.T) {
 		assert.True(t, all[0].CreatedAt.IsZero())
 		assert.Nil(t, all[0].ExpiresAt)
 		assert.Zero(t, all[0].AccessCount)
-		results, err := client.SearchAgentMemory(ctx, "agent", "user", makeEmbedding(0.5), 2)
+		results, err := client.SearchAgentMemory(ctx, "agent", makeEmbedding(0.5), 2)
 		require.NoError(t, err)
 		require.Len(t, results, 2)
 		assert.Equal(t, memory.ID, results[0].ID)
@@ -174,7 +174,7 @@ func TestStoreAndSearchAgentMemory(t *testing.T) {
 	}
 
 	// Query with embedding; all three memories should be returned with high similarity.
-	results, err := client.SearchAgentMemory(ctx, agentName, userID, makeEmbedding(0.5), 3)
+	results, err := client.SearchAgentMemory(ctx, agentName, makeEmbedding(0.5), 3)
 	require.NoError(t, err)
 	require.Len(t, results, 3, "Should return all 3 memories")
 	// Scores should be in [0, 1] (cosine similarity)
@@ -202,7 +202,7 @@ func TestStoreAgentMemoriesBatch(t *testing.T) {
 	err := client.StoreAgentMemories(ctx, memories...)
 	require.NoError(t, err)
 
-	results, err := client.SearchAgentMemory(ctx, agentName, userID, makeEmbedding(0.5), 10)
+	results, err := client.SearchAgentMemory(ctx, agentName, makeEmbedding(0.5), 10)
 	require.NoError(t, err)
 	assert.Len(t, results, 3, "All 3 batch-stored memories should be found")
 }
@@ -240,33 +240,32 @@ func TestSearchAgentMemoryLimit(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(fmt.Sprintf("limit_%d", tc.limit), func(t *testing.T) {
-			results, err := client.SearchAgentMemory(ctx, agentName, userID, makeEmbedding(0.5), tc.limit)
+			results, err := client.SearchAgentMemory(ctx, agentName, makeEmbedding(0.5), tc.limit)
 			require.NoError(t, err)
 			assert.Len(t, results, tc.expected)
 		})
 	}
 }
 
-// TestSearchAgentMemoryIsolation verifies that searches are scoped to the
-// correct (agentName, userID) pair and do not return results for other agents or users.
+// TestSearchAgentMemoryIsolation verifies that searches are scoped to the Agent:
+// every author's memory of that Agent is returned, and other Agents' memory is not.
 func TestSearchAgentMemoryIsolation(t *testing.T) {
 	db := setupTestDB(t)
 	client := NewClient(db, "public")
 	ctx := context.Background()
 
-	mem1 := &Memory{AgentName: "agent-a", UserID: "user-1", Content: "agent-a user-1 memory", Embedding: makeEmbedding(0.5)}
-	require.NoError(t, client.StoreAgentMemories(ctx, mem1))
+	first := &Memory{AgentName: "agent-a", UserID: "user-1", Content: "agent-a user-1 memory", Embedding: makeEmbedding(0.5)}
+	second := &Memory{AgentName: "agent-a", UserID: "user-2", Content: "agent-a user-2 memory", Embedding: makeEmbedding(0.5)}
+	require.NoError(t, client.StoreAgentMemories(ctx, first, second))
 	require.NoError(t, client.StoreAgentMemories(ctx, &Memory{AgentName: "agent-b", UserID: "user-1", Content: "agent-b user-1 memory", Embedding: makeEmbedding(0.5)}))
-	require.NoError(t, client.StoreAgentMemories(ctx, &Memory{AgentName: "agent-a", UserID: "user-2", Content: "agent-a user-2 memory", Embedding: makeEmbedding(0.5)}))
 
-	results, err := client.SearchAgentMemory(ctx, "agent-a", "user-1", makeEmbedding(0.5), 10)
+	results, err := client.SearchAgentMemory(ctx, "agent-a", makeEmbedding(0.5), 10)
 	require.NoError(t, err)
-	require.Len(t, results, 1, "Should only return memories for agent-a / user-1")
-	assert.Equal(t, mem1.ID, results[0].ID)
+	require.Len(t, results, 2, "Should return every author's memory of agent-a only")
+	assert.ElementsMatch(t, []string{first.ID, second.ID}, []string{results[0].ID, results[1].ID})
 }
 
-// TestDeleteAgentMemory verifies that DeleteAgentMemory removes all memories for the
-// given Agent/user pair.
+// TestDeleteAgentMemory verifies that DeleteAgentMemory removes all memories of the Agent.
 func TestDeleteAgentMemory(t *testing.T) {
 	db := setupTestDB(t)
 	client := NewClient(db, "public")
@@ -287,14 +286,14 @@ func TestDeleteAgentMemory(t *testing.T) {
 	}
 
 	// Confirm they exist before deletion
-	before, err := client.SearchAgentMemory(ctx, agentName, userID, makeEmbedding(0.5), 10)
+	before, err := client.SearchAgentMemory(ctx, agentName, makeEmbedding(0.5), 10)
 	require.NoError(t, err)
 	require.Len(t, before, 3)
 
-	err = client.DeleteAgentMemory(ctx, agentName, userID)
+	err = client.DeleteAgentMemory(ctx, agentName)
 	require.NoError(t, err)
 
-	after, err := client.SearchAgentMemory(ctx, agentName, userID, makeEmbedding(0.5), 10)
+	after, err := client.SearchAgentMemory(ctx, agentName, makeEmbedding(0.5), 10)
 	require.NoError(t, err)
 	assert.Empty(t, after, "All memories should be deleted")
 }
@@ -327,7 +326,7 @@ func TestPruneExpiredMemories(t *testing.T) {
 	err := client.PruneExpiredMemories(ctx)
 	require.NoError(t, err)
 
-	results, err := client.SearchAgentMemory(ctx, agentName, userID, makeEmbedding(0.5), 10)
+	results, err := client.SearchAgentMemory(ctx, agentName, makeEmbedding(0.5), 10)
 	require.NoError(t, err)
 
 	ids := make([]string, 0, len(results))
@@ -381,7 +380,7 @@ func TestSearchAgentMemoryConcurrentAccessCount(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for range searchesPerGoroutine {
-				results, err := client.SearchAgentMemory(ctx, agentName, userID, makeEmbedding(0.5), 5)
+				results, err := client.SearchAgentMemory(ctx, agentName, makeEmbedding(0.5), 5)
 				if err != nil {
 					errs <- err
 					return

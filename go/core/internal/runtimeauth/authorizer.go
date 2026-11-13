@@ -132,8 +132,10 @@ func runtimeResourceAllowed(session *apiv1.Session, verb auth.Verb, resource aut
 		return resource.Name == session.Id && resource.Namespace == session.GetAgent().GetRef().GetNamespace() &&
 			(verb == auth.VerbGet || verb == auth.VerbList || verb == auth.VerbCreate || verb == auth.VerbUpdate)
 	case "Memory":
+		// Actors search and add their Agent's shared memory; listing and deleting it
+		// are user operations.
 		if resource.Name == session.GetAgent().GetRef().GetNamespace()+"/"+session.GetAgent().GetRef().GetName() &&
-			(verb == auth.VerbGet || verb == auth.VerbList || verb == auth.VerbCreate || verb == auth.VerbDelete) {
+			(verb == auth.VerbGet || verb == auth.VerbCreate) {
 			return true
 		}
 	}
